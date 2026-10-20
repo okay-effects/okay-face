@@ -22,4 +22,14 @@ class FormJsonSuite extends munit.FunSuite {
     assertEquals(pf, Map("type" -> List("dog"), "dog.name" -> List("Rex")))
     assertEquals(pet.decode(FormJson.collect(pet.erased, pf)), Right(Dog("Rex")))
   }
+  test("a list of records: items by index, a blank slot no item, both ways") {
+    final case class Line(what: String, qty: Int)
+    final case class Order(who: String, lines: List[Line])
+    val line = record(field("what", Shape.text), field("qty", Shape.int))(Line(_, _))(l => (l.what, l.qty))
+    val order: Shape[Order] = record(field("who", Shape.text), field("lines", line.many(min = 1)))(Order(_, _))(o => (o.who, o.lines))
+    val form = Map("who" -> List("ann"), "lines.0.what" -> List("tea"), "lines.0.qty" -> List("2"), "lines.1.what" -> List(""), "lines.1.qty" -> List(""), "lines.2.what" -> List("milk"), "lines.2.qty" -> List("1"))
+    assertEquals(order.decode(FormJson.collect(order.erased, form)), Right(Order("ann", List(Line("tea", 2), Line("milk", 1)))))
+    assertEquals(FormJson.print(order.erased, order.encode(Order("bo", List(Line("x", 1))))), Map("who" -> List("bo"), "lines.0.what" -> List("x"), "lines.0.qty" -> List("1")))
+    assertEquals(order.decode(FormJson.collect(order.erased, Map("who" -> List("cy")))).left.map(_.map(_.render)), Left(List("lines: required")))
+  }
 }

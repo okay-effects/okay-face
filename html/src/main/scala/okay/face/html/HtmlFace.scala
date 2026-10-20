@@ -46,6 +46,16 @@ class HtmlFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
           }
         }
       } },
+      // a `Ref` followed: the action `ref` with the key, when the step offers one; else back to the page
+      get[R](s"$base/:id/ref/:key") { (ps, _) => sessions.get(ps("id")) match {
+        case None => pure[Response, R](Response.html(Html.lost(title, base), 404))
+        case Some((d, _)) => d.actions.flatMap { as =>
+          if (as.exists(_.name == "ref")) d.choose(Chosen("ref", Json.obj("key" -> Json.Str(ps("key"))))).map {
+            case Right(_) => sessions(ps("id")) = (d, Nil); Response.redirect(s"$base/${ps("id")}")
+            case Left(Rejected(problems)) => sessions(ps("id")) = (d, problems); Response.redirect(s"$base/${ps("id")}")
+          } else pure[Response, R](Response.redirect(s"$base/${ps("id")}"))
+        }
+      } },
       post[R](s"$base/:id/back") { (ps, _) => sessions.get(ps("id")) match {
         case None => pure[Response, R](Response.html(Html.lost(title, base), 404))
         case Some((d, _)) => d.back(); sessions(ps("id")) = (d, Nil); pure[Response, R](Response.redirect(s"$base/${ps("id")}"))
@@ -66,7 +76,7 @@ object Html {
   def page(title: String, v: View, actions: List[Action[_]], problems: List[okay.effects.shape.Problem], here: String, back: Boolean): String =
     document(title,
       s"""<main ${cls(Role.Face)}>
-         |<section ${cls(Role.View)}>${view(v)}</section>
+         |<section ${cls(Role.View)}>${view(v, if (actions.exists(_.name == "ref")) Some(here) else None)}</section>
          |${if (problems.isEmpty) "" else s"<ul ${cls(Role.Problems)}>" + problems.map(p => s"<li>${esc(p.render)}</li>").mkString + "</ul>"}
          |<nav ${cls(Role.Actions)}>${actions.map(a => Forms.action(a, here)).mkString("\n")}
          |${if (back) s"""<form method="post" action="$here/back"><button ${cls(Role.Back)}>Back</button></form>""" else ""}</nav>
@@ -80,22 +90,24 @@ object Html {
        |<title>${esc(title)}</title><link rel="stylesheet" href="$stylesheetPath"/></head>
        |<body>$body</body></html>""".stripMargin
 
-  def view(v: View): String = v match {
+  def view(v: View): String = view(v, None)
+  /** `here`: the page, when the step offers `ref` — a `Ref` is then a link to `here/ref/key` */
+  def view(v: View, here: Option[String]): String = v match {
     case View.Empty => ""
     case View.Text(s) => s"<p ${cls(Role.Text)}>${esc(s)}</p>"
     case View.Heading(level, s) => val h = s"h${level min 3 max 1}"; s"<$h ${cls(Role.Heading(level))}>${esc(s)}</$h>"
     case View.Notice(level, s) => s"<p ${cls(Role.Notice(level))}>${esc(s)}</p>"
-    case View.Fields(rows) => s"<dl ${cls(Role.Fields)}>" + rows.map { case (k, x) => s"<dt ${cls(Role.Label)}>${esc(k)}</dt><dd>${view(x)}</dd>" }.mkString + "</dl>"
+    case View.Fields(rows) => s"<dl ${cls(Role.Fields)}>" + rows.map { case (k, x) => s"<dt ${cls(Role.Label)}>${esc(k)}</dt><dd>${view(x, here)}</dd>" }.mkString + "</dl>"
     case View.Table(columns, rows) =>
       val head = if (columns.forall(_.isEmpty)) "" else "<thead><tr>" + columns.map(c => s"<th>${esc(c)}</th>").mkString + "</tr></thead>"
-      s"<table ${cls(Role.Table)}>$head<tbody>" + rows.map(r => "<tr>" + r.map(c => s"<td>${view(c)}</td>").mkString + "</tr>").mkString + "</tbody></table>"
+      s"<table ${cls(Role.Table)}>$head<tbody>" + rows.map(r => "<tr>" + r.map(c => s"<td>${view(c, here)}</td>").mkString + "</tr>").mkString + "</tbody></table>"
     case View.Items(items) => s"<ul ${cls(Role.Items)}>" + items.map(i => s"<li>${view(i)}</li>").mkString + "</ul>"
     case View.Group(title, children) =>
       // a dialogue's stack: what was told above the current view, the last child
       val told = title.isEmpty && children.size > 1
       s"<section ${cls(Role.Group)}>" + title.map(t => s"<h4 ${cls(Role.GroupTitle)}>${esc(t)}</h4>").getOrElse("") +
-        children.map(c => if (told && c != children.last) s"<section ${cls(Role.Told)}>${view(c)}</section>" else view(c)).mkString + "</section>"
-    case View.Ref(key, label) => s"""<a ${cls(Role.Ref)} href="#${esc(key)}">${esc(label)}</a>"""
+        children.map(c => if (told && c != children.last) s"<section ${cls(Role.Told)}>${view(c, here)}</section>" else view(c, here)).mkString + "</section>"
+    case View.Ref(key, label) => s"""<a ${cls(Role.Ref)} href="${here.fold("#" + esc(key))(h => s"$h/ref/${Query.encode(key)}")}">${esc(label)}</a>"""
     case View.Datum(json, _) => s"<pre ${cls(Role.Datum)}>${esc(Json.pretty(json))}</pre>"
     case View.Masked(hint) => s"<span ${cls(Role.Masked)}>${esc(hint)}</span>"
   }
@@ -121,6 +133,11 @@ object Forms {
     case Schema.OneOf(cases) =>
       labelled(path, f, s"""<select name="${name(path)}.type" id="f-${name(path)}">${cases.map { case (n, _) => s"""<option value="${esc(n)}">${esc(n)}</option>""" }.mkString}</select>""") +
         cases.map { case (n, cs) => s"""<div class="okay-case" data-case="${esc(n)}">${field(path :+ n, cs, None)}</div>""" }.mkString
+    case Schema.Many(of, min, _) if !okay.face.FormJson.leafish(of) =>
+      // a list of records with no script: slots, `min` and one spare, a blank one no item (FormJson.collect)
+      val slots = (min max 0) + 1
+      s"""<fieldset ${cls(Role.Field)}>""" + f.flatMap(_.label).orElse(f.map(_.name)).map(l => s"<legend ${cls(Role.Label)}>${esc(l)}</legend>").getOrElse("") +
+        (0 until slots).map(i => s"""<div class="okay-item" data-item="$i">${field(path :+ i.toString, of, None)}</div>""").mkString + "</fieldset>"
     case Schema.Many(_, _, _) => labelled(path, f, s"""<textarea name="${name(path)}" id="f-${name(path)}" placeholder="one per line"></textarea>""")
     case Schema.Bool => labelled(path, f, s"""<input type="checkbox" name="${name(path)}" id="f-${name(path)}" value="true"${f.flatMap(_.default).collect { case Json.Bool(true) => """ checked="checked"""" }.getOrElse("")}/>""")
     case leaf =>

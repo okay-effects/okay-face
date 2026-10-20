@@ -98,6 +98,12 @@ object FormJson {
         }
         case None => Json.Null
       }
+      case Schema.Many(of, _, _) if !FormJson.leafish(of) =>
+        // items by index, `path.0.field`, `path.1.field`: a slot left blank is no item
+        val prefix = if (path.isEmpty) "" else name(path) + "."
+        val indices = form.keys.toList.collect { case k if k.startsWith(prefix) && k.drop(prefix.length).takeWhile(_ != '.').forall(_.isDigit) && k.drop(prefix.length).takeWhile(_ != '.').nonEmpty => k.drop(prefix.length).takeWhile(_ != '.').toInt }.distinct.sorted
+        val items = indices.map(i => go(path :+ i.toString, of)).filter { case Json.Obj(fs) => fs.nonEmpty; case Json.Null => false; case _ => true }
+        if (items.isEmpty && indices.isEmpty) Json.Null else Json.Arr(items.toVector)
       case Schema.Many(of, _, _) => values(path) match {
         case Nil => Json.Null
         case one :: Nil => Json.Arr(one.split("\n").toVector.map(_.trim).filter(_.nonEmpty).map(typed(of, _)))
@@ -107,6 +113,13 @@ object FormJson {
       case leaf => value(path).map(typed(leaf, _)).getOrElse(Json.Null)
     }
     go(Nil, schema)
+  }
+  /** a leaf, or an optional or described one: what one line of text says; a record, a sum, a list is not */
+  def leafish(s: Schema): Boolean = s match {
+    case Schema.Record(_) | Schema.OneOf(_) | Schema.Many(_, _, _) | Schema.Ref(_) => false
+    case Schema.Described(of, _, _) => leafish(of)
+    case Schema.Optional(of) => leafish(of)
+    case _ => true
   }
   def typed(schema: Schema, s: String): Json = schema match {
     case Schema.Integer(_) | Schema.Number(_) => scala.util.Try(BigDecimal(s.trim)).toOption.fold[Json](Json.Str(s))(Json.Num(_))
@@ -127,6 +140,7 @@ object FormJson {
           (name(path :+ "type") -> n) :: go(path :+ n, cs, if (Schema.isRecord(cs)) o.without("type") else o.get("value").getOrElse(Json.Null)) }
         case _ => Nil
       }
+      case (Schema.Many(of, _, _), Json.Arr(xs)) if !FormJson.leafish(of) => xs.toList.zipWithIndex.flatMap { case (x, i) => go(path :+ i.toString, of, x) }
       case (Schema.Many(of, _, _), Json.Arr(xs)) => xs.toList.map(x => name(path) -> leaf(x))
       case (_, other) => List(name(path) -> leaf(other))
     }

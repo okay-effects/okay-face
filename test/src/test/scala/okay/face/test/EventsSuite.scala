@@ -54,4 +54,17 @@ class EventsSuite extends munit.FunSuite {
     val q = Promise[Int](); Meanwhile.fromFuture(q.future).register(n => got ::= n); q.success(2); Thread.sleep(50)
     assertEquals(got, List(2))
   }
+  test("a jump from any screen: the screens unwound, the one named begun; done when a screen ends without one") {
+    val jumps = new okay.face.Jumps[Machine.type]()(Machine)
+    import jumps._
+    sealed trait Place; case object Home extends Place; case object Deep extends Place
+    type J[X] = Sum[F, ({ type L[x] = Jump[Place, x] })#L, X]
+    def screen(p: Place): Unit ! J = p match {
+      case Home => offer[Boolean, J](View.text("home"), List(Action.plain[Boolean]("deeper", "Deeper")(true), Action.plain[Boolean]("quit", "Quit")(false))).flatMap(deeper =>
+        if (deeper) screen(Deep) else show[J](View.text("bye")))
+      case Deep => offer[Unit, J](View.text("deep"), List(Action.plain[Unit]("home", "Home")(()))).flatMap(_ => jump[Place, J, Unit](Home))
+    }
+    val played = play(steps[Unit, F, Void](jumping[Place, J, F](Home)(screen)), Script.of(okay.face.Chosen.plain("deeper"), okay.face.Chosen.plain("home"), okay.face.Chosen.plain("quit")))
+    assertEquals(played, Played.Finished(List(View.text("home"), View.text("deep"), View.text("home"), View.text("bye")), ()))
+  }
 }

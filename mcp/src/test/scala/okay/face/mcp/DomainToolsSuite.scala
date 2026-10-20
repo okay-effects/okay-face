@@ -40,4 +40,20 @@ class DomainToolsSuite extends munit.FunSuite {
     assert(specs(1).inputSchema.toString.contains("n") && specs(1).outputSchema.isDefined)
     assertEquals(n, 7); assertEquals(r1.structured, Some(Json.num(7))); assert(r2.isError)
   }
+  test("the single-tool fallback: act, look, back; the current actions and their schemas in every result") {
+    import faces._
+    type F[X] = Sum[Void, okay.face.Face, X]
+    def greeting: String ! F = confirm[F](okay.face.View.text("Go?")).flatMap(yes => show[F](okay.face.View.text(if (yes) "went" else "stayed")).map(_ => if (yes) "went" else "stayed"))
+    val d = faces.dialogue[String, Void](steps[String, F, Void](greeting))
+    val tools = face.single[String, Void](d)
+    val specs = Machine.run(tools.list)
+    assertEquals(specs.map(_.name), List("act", "look", "back"))
+    val looked = Machine.run(tools.call(ToolCall("look", Json.Obj.empty)))
+    assert(looked.content.collect { case okay.mcp.Content.Text(t) => t }.head.contains("- yes:"), looked.toString)
+    val bad = Machine.run(tools.call(ToolCall("act", Json.obj("action" -> Json.Str("maybe")))))
+    assert(bad.isError)
+    val went = Machine.run(tools.call(ToolCall("act", Json.obj("action" -> Json.Str("yes")))))
+    assert(went.content.collect { case okay.mcp.Content.Text(t) => t }.head.contains("went") && !went.isError, went.toString)
+    assertEquals(Machine.run(tools.list).map(_.name), List("act", "look", "back"), "the list never changes")
+  }
 }

@@ -77,8 +77,8 @@ look is another stylesheet. `web/laminar`: the `<style>` element from a look; th
 
 ## Not done, and why
 
-- Dark mode by `prefers-color-scheme`: a `Look` is one theme; a page wanting both emits two stylesheets or redefines the
-  custom properties under a media query. Cheap to add as `Css(light, dark)` when wanted.
+- Dark mode: DONE as `Css(light, dark)` — one stylesheet, the light theme's tokens on `:root`, the dark theme's under
+  `@media (prefers-color-scheme: dark)`; the rules are the light look's, and stand under both since they name tones.
 - Per-application roles (a "price", a "badge"): `Role` is sealed, so the vocabulary is the library's. A view that needs
   more semantics is a new `View` case first, then a role for it. The sealed set is what makes "one style, every face"
   checkable.

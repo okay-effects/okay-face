@@ -38,6 +38,34 @@ class McpFace[F <: Runner, Fs <: Faces[F]](val faces: Fs) {
       }
     }
   }
+  /** THE SINGLE-TOOL FALLBACK, for a client that reads the tool list once: `act(action, arguments)` is every step's
+   * action, the current ones and their schemas in each result's text and in the `look`'s; `look` and `back` as ever */
+  def single[A, R[_]](d: Dialogue[A, R]): servers.Tools[R] = new servers.Tools[R] {
+    private def menu(as: List[Action[_]]): String = if (as.isEmpty) "no actions: the dialogue is over" else
+      "actions:\n" + as.map(a => s"- ${a.name}: ${a.doc.getOrElse(a.label)}; arguments ${Json.print(JsonSchema.of(a.params.erased))}").mkString("\n")
+    private def told(view: View, as: List[Action[_]]): ToolResult =
+      ToolResult(List(Content.Text(Markdown.view(view) + "\n\n" + menu(as))), Some(Json.obj("view" -> ViewJson.encode(view), "actions" -> Json.Arr(as.map(_.affordance.json).toVector))))
+    def list: List[ToolSpec] ! R = pure[List[ToolSpec], R](List(
+      ToolSpec("act", "one of the current actions, with its arguments — `look` says which, and every result does", Json.obj("type" -> Json.Str("object"),
+        "properties" -> Json.obj("action" -> Json.obj("type" -> Json.Str("string")), "arguments" -> Json.obj("type" -> Json.Str("object"))), "required" -> Json.arr(Json.Str("action")))),
+      ToolSpec("look", "the current view and the actions, as they stand", Json.obj("type" -> Json.Str("object"))),
+      ToolSpec("back", "one step back", Json.obj("type" -> Json.Str("object")))))
+    def call(c: ToolCall): ToolResult ! R = c.name match {
+      case "look" => d.view.flatMap(v => d.actions.map(as => told(v, as)))
+      case "back" => if (d.back()) d.view.flatMap(v => d.actions.map(as => told(v, as))) else pure[ToolResult, R](ToolResult.error("nothing to go back to"))
+      case "act" => c.arguments match {
+        case o: Json.Obj => o.get("action") match {
+          case Some(Json.Str(name)) => d.choose(Chosen(name, o.get("arguments").getOrElse(Json.Obj.empty))).flatMap {
+            case Right(view) => d.actions.map(as => told(view, as))
+            case Left(Rejected(problems)) => d.actions.map(as => ToolResult(List(Content.Text("not taken:\n" + problems.map(p => "- " + p.render).mkString("\n") + "\n\n" + menu(as))), None, isError = true))
+          }
+          case _ => pure[ToolResult, R](ToolResult.error("act takes an action's name"))
+        }
+        case _ => pure[ToolResult, R](ToolResult.error("act takes an object with action and arguments"))
+      }
+      case other => pure[ToolResult, R](ToolResult.error(s"no tool $other: act, look, back"))
+    }
+  }
   private def shown(view: View, actions: List[Action[_]]): ToolResult =
     ToolResult(List(Content.Text(Markdown.view(view) + (if (actions.isEmpty) "" else "\n\nactions: " + actions.map(_.name).mkString(", ")))),
       Some(Json.obj("view" -> ViewJson.encode(view), "actions" -> Json.Arr(actions.map(a => Json.Str(a.name)).toVector))))
@@ -71,9 +99,10 @@ class McpFace[F <: Runner, Fs <: Faces[F]](val faces: Fs) {
   }
 
   /** a server of the dialogue, named; `first` the steps over the server's own row */
-  def server[A, R[_]](name: String, version: String, first: Step[A, ({ type L[X] = X ! R })#L] ! R, instructions: Option[String] = None, elicitation: Boolean = false): servers.Server[R] = {
+  def server[A, R[_]](name: String, version: String, first: Step[A, ({ type L[X] = X ! R })#L] ! R, instructions: Option[String] = None, elicitation: Boolean = false,
+                      singleTool: Boolean = false): servers.Server[R] = {
     val d = faces.dialogue[A, R](first)
-    servers.Server[R](name, version, tools[A, R](d), Some(resources[A, R](d)), instructions, elicitation)
+    servers.Server[R](name, version, if (singleTool) single[A, R](d) else tools[A, R](d), Some(resources[A, R](d)), instructions, elicitation)
   }
 }
 

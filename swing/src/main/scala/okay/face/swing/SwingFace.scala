@@ -160,6 +160,7 @@ object Forms {
     private val checks = mutable.Map.empty[List[String], JCheckBox]
     private val combos = mutable.Map.empty[List[String], JComboBox[String]]
     private val areas = mutable.Map.empty[List[String], JTextArea]
+    private val items = mutable.Map.empty[List[String], () => Vector[Int]]
     private def name(path: List[String]) = "f" + path.map("-" + _).mkString
 
     def of(path: List[String], schema: Schema, field: Option[Schema.Field] = None): JComponent = schema match {
@@ -179,6 +180,24 @@ object Forms {
         cases.foreach { case (n, cs) => cards.add(of(path :+ n, cs), n) }
         c.addActionListener(_ => cards.getLayout.asInstanceOf[java.awt.CardLayout].show(cards, c.getSelectedItem.asInstanceOf[String]))
         val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.add(c); p.add(cards); p
+      case Schema.Many(of0, min, max) if !okay.face.FormJson.leafish(of0) =>
+        // a list of records: an item added by a button, removed by one; each item's fields by index
+        val list = new JPanel; list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS)); list.setName(name(path))
+        var next = 0; var ids = Vector.empty[Int]
+        items(path) = () => ids
+        def add(): Unit = if (!max.exists(ids.size >= _)) {
+          val i = next; next += 1; ids = ids :+ i
+          val item = new JPanel; item.setLayout(new BoxLayout(item, BoxLayout.Y_AXIS)); item.setName(name(path :+ i.toString))
+          item.add(of(path :+ i.toString, of0))
+          val remove = new JButton("Remove"); remove.setName("remove:" + name(path :+ i.toString))
+          remove.addActionListener(_ => { ids = ids.filterNot(_ == i); list.remove(item); list.revalidate(); list.repaint() })
+          item.add(remove); list.add(item); list.revalidate(); list.repaint()
+        }
+        (0 until (min max 0)).foreach(_ => add())
+        val addButton = new JButton("Add"); addButton.setName("add:" + name(path)); addButton.addActionListener(_ => add())
+        val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS))
+        field.flatMap(_.label).orElse(field.map(_.name)).foreach(l => p.setBorder(BorderFactory.createTitledBorder(l)))
+        p.add(list); p.add(addButton); p
       case Schema.Many(_, _, _) =>
         val a = new JTextArea(3, 20); a.setName(name(path)); a.setToolTipText("one per line"); areas(path) = a; new JScrollPane(a)
       case Schema.Bool =>
@@ -203,6 +222,7 @@ object Forms {
         }
         case None => Json.Null
       }
+      case Schema.Many(of0, _, _) if items.contains(path) => Json.Arr(items(path)().map(i => collect(path :+ i.toString, of0)))
       case Schema.Many(of0, _, _) => areas.get(path).map(a => Json.Arr(a.getText.split("\n").toVector.map(_.trim).filter(_.nonEmpty).map(typed(of0, _)))).getOrElse(Json.Null)
       case Schema.Bool => checks.get(path).map(c => Json.Bool(c.isSelected)).getOrElse(Json.Null)
       case leaf => texts.get(path).map(_.getText).filter(_.nonEmpty).map(typed(leaf, _)).getOrElse(Json.Null)

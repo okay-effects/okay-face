@@ -162,6 +162,16 @@ object Look {
  * them; a block per role, by its specific class, saying only what the rule says. The HTML and Laminar faces mark the
  * same classes, so one stylesheet serves both */
 object Css {
+  /** the tokens of a theme, as custom properties */
+  def tokens(t: Theme): String = {
+    val font = t.font match { case Family.System => "system-ui, sans-serif"; case Family.Serif => "Georgia, serif"; case Family.Mono => "ui-monospace, monospace" }
+    Tone.all.map(tone => s"--okay-${tone.name}:${t.palette(tone).hex}").mkString(";") +
+      s";--okay-font:$font;--okay-mono:ui-monospace, monospace;--okay-size:${t.size}px;--okay-space:${t.space}px;--okay-measure:${t.measure}ch"
+  }
+  /** one stylesheet for two themes: the light one's tokens, the dark one's under `prefers-color-scheme: dark`; the
+   * rules are the light look's — a style names tones, so they stand under both */
+  def apply(light: Look, dark: Look): String =
+    apply(light) + s"\n@media (prefers-color-scheme: dark){:root{${tokens(dark.theme)}}}"
   def apply(look: Look): String = {
     val t = look.theme
     val font = t.font match { case Family.System => "system-ui, sans-serif"; case Family.Serif => "Georgia, serif"; case Family.Mono => "ui-monospace, monospace" }

@@ -34,4 +34,9 @@ class StyleSuite extends munit.FunSuite {
     assert(!Css(Look.default).split("\n").drop(1).exists(_.contains("#")), "rules name tones, the palette alone has colours")
     assert(Css(Look.dark).contains("--okay-bg:#0d1117"))
   }
+  test("two themes in one stylesheet: the light tokens on :root, the dark ones under prefers-color-scheme") {
+    val css = Css(Look.default, Look.dark)
+    assert(css.contains("--okay-bg:#ffffff") && css.contains("@media (prefers-color-scheme: dark){:root{") && css.contains("--okay-bg:#0d1117"), css)
+    assertEquals(css.split("@media").length, 2)
+  }
 }

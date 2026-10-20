@@ -477,6 +477,12 @@ After step 4 the model holds or it does not, before any web platform is paid for
   says `listening` so the remote face asks again — and the terminal, whose line read blocks, does not: a program for
   every face gives the person an action too. The test face has `Fire(trigger)` in its script. DECIDED against a
   second effect merged by the concurrent module: an event is a way a step ends, not a thing beside the dialogue.
-- Non-local jumps (a global menu from any screen): `Abort`/`Error` unwinding, or a history jump by the face. The
-  example application decides.
+- Non-local jumps — DONE 2026-10-21 as `Jumps`: `jump(place)` raises the standard `Error[P]`, `jumping(start)(screen)`
+  attempts each screen and begins at the place jumped to; the screens are unwound as an error unwinds them, the
+  world's handlers outside keep their state. DECIDED over a history jump by the face: the jump is the program's own,
+  so every face has it the same way.
+- A `Ref` as a live link — DONE 2026-10-21 by a convention: when a step offers the action `ref` (one parameter, `key`),
+  a face makes every `Ref` in the view choose it with its key — the HTML page links `base/{id}/ref/{key}`, Laminar and
+  the remote face on a click, the terminal by typing `ref` then the key as ever; a step without `ref` shows a `Ref` as
+  a name. The program says what a reference does; the faces make it clickable.
 - Whether `Schema` should carry layout hints at all, or they belong to a `screen/` layer only.

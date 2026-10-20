@@ -74,4 +74,20 @@ class SwingFaceSuite extends munit.FunSuite {
     SwingUtilities.invokeAndWait(new Runnable { def run(): Unit = () })
     assert(texts(root).contains("got 9"), texts(root).toString); assertEquals(result, Some("9")); assertEquals(bus.listening, 0)
   }
+  test("a list of records in a form: an item added, filled, one removed, submitted as the records") {
+    final case class Line(what: String, qty: Int)
+    final case class Order(who: String, lines: List[Line])
+    val line = record(field("what", text), field("qty", int))(Line(_, _))(l => (l.what, l.qty))
+    val order: Shape[Order] = record(field("who", text), field("lines", line.many()))(Order(_, _))(o => (o.who, o.lines))
+    var got = Option.empty[Order]
+    val root = face.panel(steps[Order, F, Void](fill[Order, F](View.heading("Order"), order)), (o: Order) => got = Some(o))
+    byName[JTextField](root, "f-who").setText("ann")
+    byName[JButton](root, "add:f-lines").doClick(); byName[JButton](root, "add:f-lines").doClick(); byName[JButton](root, "add:f-lines").doClick()
+    byName[JTextField](root, "f-lines-0-what").setText("tea"); byName[JTextField](root, "f-lines-0-qty").setText("2")
+    byName[JTextField](root, "f-lines-1-what").setText("gone"); byName[JTextField](root, "f-lines-1-qty").setText("9")
+    byName[JTextField](root, "f-lines-2-what").setText("milk"); byName[JTextField](root, "f-lines-2-qty").setText("1")
+    byName[JButton](root, "remove:f-lines-1").doClick()
+    byName[JButton](root, "submit:submit").doClick()
+    assertEquals(got, Some(Order("ann", List(Line("tea", 2), Line("milk", 1)))))
+  }
 }

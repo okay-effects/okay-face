@@ -62,6 +62,27 @@ class HtmlFaceSuite extends munit.FunSuite {
     val dark = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), "Greeting", look = okay.face.Look.dark)
     assert(Machine.run(https.scripted(List(Request.get("/okay.css")))(https.serve[H](dark.service)))._1.head.body.contains("--okay-bg:#0d1117"))
   }
+  test("a list of records in a form: slots, min and one spare, items by index; the spare left blank is no item") {
+    final case class Line(what: String, qty: Int)
+    val line = record(field("what", text), field("qty", int))(Line(_, _))(l => (l.what, l.qty))
+    val lines: Shape[List[Line]] = line.many(min = 1)
+    val html = Forms.field(List("lines"), lines.erased, Some(Schema.Field("lines", lines.erased, Some("Lines"), None, false, None)))
+    assert(html.contains("""data-item="0"""") && html.contains("""data-item="1"""") && !html.contains("""data-item="2""""), html)
+    assert(html.contains("""name="lines.0.what"""") && html.contains("""name="lines.1.qty""""), html)
+    val wrapped: Shape[List[Line]] = record(field("lines", lines))(l => l)(l => l)
+    assertEquals(wrapped.decode(Forms.collect(wrapped.erased, Map("lines.0.what" -> List("tea"), "lines.0.qty" -> List("2"), "lines.1.what" -> List(""), "lines.1.qty" -> List("")))), Right(List(Line("tea", 2))))
+    assertEquals(WellFormed("<main>" + html + "</main>"), Nil)
+  }
+  test("a Ref is a live link when the step offers ref: followed by GET, the action chosen with the key") {
+    def listing: String ! HF = offer[String, HF](View.stack(View.text("records"), View.Ref("r1", "Ann"), View.Ref("r2", "Bo")),
+      List(okay.face.Action[String, String]("ref", "Open", record(field("key", text))(k => k)(k => k))(k => k))).flatMap(k => show[HF](View.text(s"opened $k")).map(_ => k))
+    val pages = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](listing)), "Refs")
+    val rs = Machine.run(https.scripted(List(Request.get("/"), Request.get("/s/s1"), Request.get("/s/s1/ref/r2"), Request.get("/s/s1")))(https.serve[H](pages.service)))._1
+    assert(rs(1).body.contains("""href="/s/s1/ref/r2""""), rs(1).body)
+    assertEquals(rs(2).status, 303); assert(rs(3).body.contains("opened r2"), rs(3).body)
+    val plain = Html.view(View.Ref("k", "K"))
+    assert(plain.contains("""href="#k""""), "no ref offered: an anchor")
+  }
 }
 
 /** well-formed as XML: every tag closed in order, void elements self-closed; what is wrong, as a list */

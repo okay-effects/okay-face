@@ -84,7 +84,8 @@ class LaminarFace[F <: Runner](val faces: Faces[F]) {
         case w: Step.Waiting[A, M] @unchecked =>
           val problems = if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
           val backButton = if (s.history.isEmpty) emptyNode else button(typ := "button", cls := Role.Back.classes, "Back", onClick --> Observer[dom.MouseEvent](_ => back()))
-          div(notices, sectionTag(cls := Role.View.classes, Views.element(w.view)), problems,
+          val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref")) Some(key => choose(w, Chosen("ref", Json.obj("key" -> Json.Str(key))))) else None
+          div(notices, sectionTag(cls := Role.View.classes, Views.element(w.view, ref)), problems,
             navTag(cls := Role.Actions.classes, w.actions.map(a => Forms.action(a, choose(w, _), s.busy)), backButton))
       }
     }
@@ -93,20 +94,22 @@ class LaminarFace[F <: Runner](val faces: Faces[F]) {
 
 /** a `View` as Laminar elements: semantic tags, classes for a stylesheet, nothing else */
 object Views {
-  def element(v: View): HtmlElement = v match {
+  def element(v: View): HtmlElement = element(v, None)
+  /** `ref`: what a `Ref` does when the step offers the action `ref` — a click chooses it with the key */
+  def element(v: View, ref: Option[String => Unit]): HtmlElement = v match {
     case View.Empty => span()
     case View.Text(s) => p(cls := Role.Text.classes, s)
     case View.Heading(1, s) => h1(cls := Role.Heading(1).classes, s)
     case View.Heading(2, s) => h2(cls := Role.Heading(2).classes, s)
     case View.Heading(l, s) => h3(cls := Role.Heading(l).classes, s)
     case View.Notice(level, s) => p(cls := Role.Notice(level).classes, s)
-    case View.Fields(rows) => dl(cls := Role.Fields.classes, rows.flatMap { case (k, x) => List(dt(cls := Role.Label.classes, k), dd(element(x))) })
+    case View.Fields(rows) => dl(cls := Role.Fields.classes, rows.flatMap { case (k, x) => List(dt(cls := Role.Label.classes, k), dd(element(x, ref))) })
     case View.Table(columns, rows) => table(cls := Role.Table.classes,
       if (columns.forall(_.isEmpty)) emptyNode else thead(tr(columns.map(c => th(c)))),
-      tbody(rows.map(r => tr(r.map(c => td(element(c)))))))
-    case View.Items(items) => ul(cls := Role.Items.classes, items.map(i => li(element(i))))
-    case View.Group(title, children) => sectionTag(cls := Role.Group.classes, title.map(t => h4(cls := Role.GroupTitle.classes, t)), children.map(element))
-    case View.Ref(key, label) => a(cls := Role.Ref.classes, href := s"#$key", label)
+      tbody(rows.map(r => tr(r.map(c => td(element(c, ref)))))))
+    case View.Items(items) => ul(cls := Role.Items.classes, items.map(i => li(element(i, ref))))
+    case View.Group(title, children) => sectionTag(cls := Role.Group.classes, title.map(t => h4(cls := Role.GroupTitle.classes, t)), children.map(element(_, ref)))
+    case View.Ref(key, label) => a(cls := Role.Ref.classes, href := s"#$key", label, ref.map(r => onClick.preventDefault --> Observer[dom.MouseEvent](_ => r(key))))
     case View.Datum(json, _) => pre(cls := Role.Datum.classes, Json.pretty(json))
     case View.Masked(hint) => span(cls := Role.Masked.classes, hint)
   }
@@ -134,6 +137,7 @@ object Forms {
     private val inputs = scala.collection.mutable.Map.empty[List[String], ReactiveHtmlElement[dom.html.Input]]
     private val selects = scala.collection.mutable.Map.empty[List[String], ReactiveHtmlElement[dom.html.Select]]
     private val areas = scala.collection.mutable.Map.empty[List[String], ReactiveHtmlElement[dom.html.TextArea]]
+    private val items = scala.collection.mutable.Map.empty[List[String], () => Vector[Int]]
     private def id(path: List[String]) = "f" + path.map("-" + _).mkString
 
     def of(path: List[String], schema: Schema, field: Option[Schema.Field] = None): HtmlElement = schema match {
@@ -154,6 +158,19 @@ object Forms {
         div(cls := "okay-sum", labelled(path, field, sel), cases.map { case (n, cs) =>
           div(cls := "okay-case", dataAttr("case") := n, display <-- which.signal.map(w => if (w == n) "" else "none"), of(path :+ n, cs))
         })
+      case Schema.Many(of0, min, max) if !okay.face.FormJson.leafish(of0) =>
+        // a list of records: an item added by a button, removed by one; each item's fields by index
+        var next = 0
+        val ids = Var(Vector.empty[Int])
+        def add(): Unit = { ids.update(_ :+ next); next += 1 }
+        (0 until (min max 0)).foreach(_ => add())
+        items(path) = () => ids.now()
+        val words: String = field.flatMap(_.label).orElse(field.map(_.name)).orElse(path.lastOption).getOrElse("items")
+        fieldSet(cls := Role.Field.classes, legend(cls := Role.Label.classes, words),
+          children <-- ids.signal.split(identity) { (i, _, _) =>
+            div(cls := "okay-item", dataAttr("item") := i.toString, of(path :+ i.toString, of0),
+              button(typ := "button", cls := Role.Back.classes, dataAttr("remove") := i.toString, "Remove", onClick --> Observer[dom.MouseEvent](_ => ids.update(_.filterNot(_ == i))))) },
+          button(typ := "button", cls := Role.Action.classes, dataAttr("add") := id(path), disabled <-- ids.signal.map(xs => max.exists(xs.size >= _)), "Add", onClick --> Observer[dom.MouseEvent](_ => add())))
       case Schema.Many(_, _, _) =>
         val area = textArea(idAttr := id(path), placeholder := "one per line")
         areas(path) = area
@@ -186,6 +203,7 @@ object Forms {
         }
         case None => Json.Null
       }
+      case Schema.Many(of0, _, _) if items.contains(path) => Json.Arr(items(path)().map(i => collect(path :+ i.toString, of0)))
       case Schema.Many(of0, _, _) => areas.get(path).map(a => Json.Arr(a.ref.value.split("\n").toVector.map(_.trim).filter(_.nonEmpty).map(l => typed(of0, l)))).getOrElse(Json.Null)
       case Schema.Bool => inputs.get(path).map(i => Json.Bool(i.ref.checked)).getOrElse(Json.Null)
       case leaf => inputs.get(path).map(_.ref.value).filter(_.nonEmpty).map(typed(leaf, _)).getOrElse(Json.Null)

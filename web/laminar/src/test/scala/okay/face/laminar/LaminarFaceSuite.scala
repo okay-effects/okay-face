@@ -128,6 +128,31 @@ class LaminarFaceSuite extends munit.FunSuite {
       ended.future.map { a => assertEquals(a, "4"); assert(root.innerHTML.contains("got 4"), root.innerHTML) }
     }
   }
+  test("a list of records in a form: items added and removed by buttons, submitted as the records") {
+    final case class Line(what: String, qty: Int)
+    final case class Order(who: String, lines: List[Line])
+    val line = record(field("what", text), field("qty", int))(Line(_, _))(l => (l.what, l.qty))
+    val order: Shape[Order] = record(field("who", text), field("lines", line.many()))(Order(_, _))(o => (o.who, o.lines))
+    var got = Option.empty[Order]
+    val root = mounted(face.element(steps[Order, F, Void](fill[Order, F](View.heading("Order"), order)), (o: Order) => got = Some(o)))
+    typeInto(root, "f-who", "ann")
+    val add = q(root, "button[data-add=f-lines]")
+    add.click(); add.click(); add.click()
+    typeInto(root, "f-lines-0-what", "tea"); typeInto(root, "f-lines-0-qty", "2")
+    typeInto(root, "f-lines-1-what", "gone"); typeInto(root, "f-lines-1-qty", "9")
+    typeInto(root, "f-lines-2-what", "milk"); typeInto(root, "f-lines-2-qty", "1")
+    q(root, "button[data-remove='1']").click()
+    assert(root.querySelector("#f-lines-1-what") == null, "the item removed")
+    submit(root, "submit")
+    assertEquals(got, Some(Order("ann", List(Line("tea", 2), Line("milk", 1)))))
+  }
+  test("a Ref is live when the step offers ref: a click chooses it with the key") {
+    def listing: String ! F = offer[String, F](View.stack(View.text("records"), View.Ref("r1", "Ann")),
+      List(Action[String, String]("ref", "Open", record(field("key", text))(k => k)(k => k))(k => k))).flatMap(k => show[F](View.text(s"opened $k")).map(_ => k))
+    val root = mounted(face.element(steps[String, F, Void](listing)))
+    q(root, "a.okay-ref").click()
+    assert(root.innerHTML.contains("opened r1"), root.innerHTML)
+  }
   test("the browser's back: a popstate re-resumes the previous step") {
     val root = mounted(face.element(steps[String, F, Void](greeting), browserHistory = true))
     typeInto(root, "f-name", "Di"); typeInto(root, "f-age", "33")
