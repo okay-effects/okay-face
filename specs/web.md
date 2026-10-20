@@ -9,7 +9,7 @@ sums in forms; the browser's back as the face's. The bridges are in too (2026-10
 ## The modules: Airstream, Laminar, Waypoint
 
 Asked 2026-10-18 for okay-simple (moved there from okay's backlog); moved HERE 2026-10-20: they are the web's side of
-an application's face, okay-face owns its whole web story and releases on its own, and okay-simple stays the narrow,
+an application's face, okay-faces owns its whole web story and releases on its own, and okay-simple stays the narrow,
 released interface. okay-ui's own host and its typed DOM vocabulary stay in okay, `backlog.d/okay-ui/okay-laminar.md`.
 
 Three modules in the directory `web/`, Scala.js only, both compilers, each a class over any `Runner` with its default
@@ -19,9 +19,9 @@ is `resume`), comes after them and depends on them and on `face-core`.
 
 | Module | Artifact | Package | Depends on |
 |---|---|---|---|
-| `web/airstream` | `okay-face-airstream` | `okay.face.airstream` | okay-effects-stream, okay-effects-async; `com.raquo::airstream` |
-| `web/laminar` | `okay-face-laminar` | `okay.face.laminar` | web/airstream; `com.raquo::laminar` |
-| `web/waypoint` | `okay-face-waypoint` | `okay.face.waypoint` | web/laminar; `com.raquo::waypoint` |
+| `web/airstream` | `okay-faces-airstream` | `okay.face.airstream` | okay-effects-stream, okay-effects-async; `com.raquo::airstream` |
+| `web/laminar` | `okay-faces-laminar` | `okay.face.laminar` | web/airstream; `com.raquo::laminar` |
+| `web/waypoint` | `okay-faces-waypoint` | `okay.face.waypoint` | web/laminar; `com.raquo::waypoint` |
 
 Versions (Maven Central, 2026-10-18): Laminar and Airstream 17.2.1, published for Scala 3 (on 3.3.1) and 2.13;
 Waypoint 9.0.0, on Laminar 17.2.0 and url-dsl 0.6.2. 18.0.0-M5 / 10.0.0-M7 are milestones: take the stable ones.

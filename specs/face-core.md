@@ -34,11 +34,11 @@ resumes `k` when the person or the agent acts.
 
 ## Only okay-simple underneath
 
-DECIDED: okay-face depends on okay-simple alone — `okay-effects` and its modules, released — and on nothing else: no
+DECIDED: okay-faces depends on okay-simple alone — `okay-effects` and its modules, released — and on nothing else: no
 JSON library, no web library in the core, and NOT on okay, the platform. The idea is okay-simple's own: one simple,
 released floor that works with anything, and the next floor built the same way. okay (Scala 3, on okay-core, not yet
 released, large) has floors that look alike — `okay.ui` with a view value and hosts, `okay.codec.Schema` with a form
-from a schema, `okay-mcp` — and okay-face must be complete WITHOUT them: its own typed schema, its own semantic view,
+from a schema, `okay-mcp` — and okay-faces must be complete WITHOUT them: its own typed schema, its own semantic view,
 its own faces for the terminal, MCP, tests and, later, the web. Working with okay is possible and welcome, as
 okay-simple works with cats or ZIO: an `interop/` module per bridge (`View` and actions lowered into `okay.ui.Ui`,
 `okay.codec.Schema` into `Shape`, our tools as `okay-mcp`'s `ToolSpec`), optional, Scala 3, never required by anything
@@ -49,9 +49,9 @@ functions; a form is rendered from the same schema that decodes it; an MCP serve
 
 Everything is built from four data types, none knowing any platform. MOVED 2026-10-20: `Value` (now `Json`), `Shape`,
 `Schema` and `JsonSchema` are okay-simple's modules `json` and `shape` (docs/modules/json.md, shape.md there), because
-every consumer — okay-face's forms, okay-mcp's tool schemas, verity's kinds — needs them and none should depend on
+every consumer — okay-faces' forms, okay-mcp's tool schemas, verity's kinds — needs them and none should depend on
 another for them. Their description below is kept as the design record; the code is okay-simple's, as are the two
-next steps, reading a shape as an effect and derivation from a type (okay-simple's BACKLOG.md, "shape:"). okay-face
+next steps, reading a shape as an effect and derivation from a type (okay-simple's BACKLOG.md, "shape:"). okay-faces
 keeps `View` and `Action`, the effect and the step machine. All are VALUES: no functions inside `Value`,
 `View` and the erased `Schema`, so they have equality and cross a wire. `Shape[P]` and `Action[A]` carry functions
 (decoders and constructors) and stay in the program; their erasures are values.
@@ -364,7 +364,7 @@ the face's own back — and `recording(first)` for a test. The law: the same pro
 4. Decoding is the face's; a scenario sees typed values only.
 5. Back is the face's: a history of `Waiting`s. A scenario may also offer `cancel` actions; the two are different.
 6. Two faces given the same script of `Chosen`s produce the same sequence of `View`s (the test face states it).
-7. Nothing in okay-face but `interop/` imports okay, the platform; nothing in face-core imports a platform or a JSON
+7. Nothing in okay-faces but `interop/` imports okay, the platform; nothing in face-core imports a platform or a JSON
    library. Every face works with okay-simple alone.
 
 ## Scala 2 and 3
@@ -378,10 +378,10 @@ hold conveniences (context bounds, `Mirror` derivation goes to a separate Scala-
 
 | Module | Artifact | Package | Content | Depends on |
 |---|---|---|---|---|
-| `core/` | `okay-face` | `okay.face` | View, Action, Face, Step, Describe | `okay-effects`, `okay-effects-shape` (and `json` through it) |
-| `test/` | `okay-face-test` | `okay.face.test` | the scripted face: `Script`, `play`, assertions on views | core |
-| `term/` | `okay-face-term` | `okay.face.term` | the line terminal face, a program in `Console` | core, `okay-effects-io` |
-| `mcp/` | `okay-face-mcp` | `okay.face.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |
+| `core/` | `okay-faces` | `okay.face` | View, Action, Face, Step, Describe | `okay-effects`, `okay-effects-shape` (and `json` through it) |
+| `test/` | `okay-faces-test` | `okay.face.test` | the scripted face: `Script`, `play`, assertions on views | core |
+| `term/` | `okay-faces-term` | `okay.face.term` | the line terminal face, a program in `Console` | core, `okay-effects-io` |
+| `mcp/` | `okay-faces-mcp` | `okay.face.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |
 | `examples/` | — | `okay.face.examples` | noughts and crosses; the greeting form of the docs | core, test, term, mcp |
 
 Later, all here and on okay-simple alone: `web/` — `airstream`, `laminar`, `waypoint` (moved from okay-simple's
@@ -426,7 +426,7 @@ The docs' two-field greeting form (`name`, `language`) shows `Shape` and `ask`.
 ## Order of work
 
 1. Value, Json, Problem, Shape, Schema, JsonSchema. Verify: the Shape tests above, both compilers. DONE 2026-10-20,
-   then MOVED to okay-simple (`json`, `shape`) the same day; okay-face depends on them.
+   then MOVED to okay-simple (`json`, `shape`) the same day; okay-faces depends on them.
 2. View, Action, Face, Step, `steps`; `face-test`. Verify: the Step tests above. DONE 2026-10-20: `Step[A, M[_]]` is
    parameterised by the program type of the remaining row (`[X] => X ! Rest`), `resume` gives the rest as a program and
    the face runs it; `Faces[F]` over any implementation, `Plays[F]` the test face over a `Runner` with `Pick`/`Back`

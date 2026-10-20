@@ -6,9 +6,9 @@ import Platforms._
 
 ThisBuild / organization := "io.github.okay-effects"
 ThisBuild / organizationName := "okay-effects"
-ThisBuild / homepage := Some(url("https://github.com/okay-effects/okay-face"))
-ThisBuild / scmInfo := Some(ScmInfo(url("https://github.com/okay-effects/okay-face"),
-  "scm:git:https://github.com/okay-effects/okay-face.git"))
+ThisBuild / homepage := Some(url("https://github.com/okay-effects/okay-faces"))
+ThisBuild / scmInfo := Some(ScmInfo(url("https://github.com/okay-effects/okay-faces"),
+  "scm:git:https://github.com/okay-effects/okay-faces.git"))
 ThisBuild / developers := List(Developer("sergey-scherbina", "Sergiy Shcherbyna", "sergey.scherbina@gmail.com",
   url("https://github.com/sergey-scherbina")))
 ThisBuild / startYear := Some(2026)
@@ -42,50 +42,50 @@ def crossBoth(id: String, dir: String, can: Set[String] = Set("js", "native")): 
     .settings(crossBuilt).jvmConfigure(_.withId(id)).onJS(_.withId(id + "JS")).onNative(_.withId(id + "Native"))
 
 /** FACE-CORE: View, Action, the effect Face, the step machine — over okay-simple's `shape` (Shape, Schema) and `json` (Json) */
-lazy val core = crossBoth("core", "core").settings(name := "okay-face",
+lazy val core = crossBoth("core", "core").settings(name := "okay-faces",
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects" % okayEffects,
     "io.github.okay-effects" %%% "okay-effects-shape" % okayEffects,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
 /** THE TEST FACE: a step machine driven by a script of choices, every view collected, back as an entry */
-lazy val test = crossBoth("test", "test").dependsOn(core).settings(name := "okay-face-test",
+lazy val test = crossBoth("test", "test").dependsOn(core).settings(name := "okay-faces-test",
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test,
     "io.github.okay-effects" %%% "okay-effects-free" % okayEffects % Test))
 
 /** THE TERMINAL FACE: a Step loop in Console, the person as a handler of Fields */
-lazy val term = crossBoth("term", "term").dependsOn(core).settings(name := "okay-face-term",
+lazy val term = crossBoth("term", "term").dependsOn(core).settings(name := "okay-faces-term",
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects-io" % okayEffects,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test,
     "io.github.okay-effects" %%% "okay-effects-free" % okayEffects % Test))
 
 /** THE SWING FACE, the JVM: a Step machine as a panel, forms from the shape, a window on the event dispatch thread */
 lazy val swing = (project in file("swing")).dependsOn(core.jvm)
-  .settings(crossBuilt, name := "okay-face-swing", libraryDependencies += "io.github.okay-effects" %% "okay-effects-machine" % okayEffects % Test)
+  .settings(crossBuilt, name := "okay-faces-swing", libraryDependencies += "io.github.okay-effects" %% "okay-effects-machine" % okayEffects % Test)
 
 /** THE MCP FACE: the dialogue as tools for an agent, over okay-mcp — the actions a person would see, as tools */
 val okayMcp = "0.1.0-SNAPSHOT"
-lazy val mcp = crossBoth("mcp", "mcp").dependsOn(core).settings(name := "okay-face-mcp",
+lazy val mcp = crossBoth("mcp", "mcp").dependsOn(core).settings(name := "okay-faces-mcp",
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-mcp" % okayMcp,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
 /** THE REST FACE and THE HTML FACE, over okay-http: the dialogue as a JSON API with links, and as pages from the server */
 val okayHttp = "0.1.0-SNAPSHOT"
-lazy val rest = crossBoth("rest", "rest").dependsOn(core).settings(name := "okay-face-rest",
+lazy val rest = crossBoth("rest", "rest").dependsOn(core).settings(name := "okay-faces-rest",
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-http" % okayHttp, "io.github.okay-effects" %%% "okay-http-rest" % okayHttp,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
-lazy val html = crossBoth("html", "html").dependsOn(core).settings(name := "okay-face-html",
+lazy val html = crossBoth("html", "html").dependsOn(core).settings(name := "okay-faces-html",
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-http" % okayHttp, "io.github.okay-effects" %%% "okay-http-rest" % okayHttp,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
 /** EXAMPLES: noughts and crosses — one program, every face */
 lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, term.jvm, swing)
-  .settings(crossBuilt, name := "okay-face-examples", publish / skip := true,
+  .settings(crossBuilt, name := "okay-faces-examples", publish / skip := true,
     libraryDependencies ++= Seq("io.github.okay-effects" %% "okay-effects-machine" % okayEffects, "io.github.okay-effects" %% "okay-effects-free" % okayEffects))
 
 /** THE LAMINAR FACE, Scala.js only: a Step machine as a Laminar element — the view drawn, the actions buttons and forms,
  * a click is `resume`. Built and tested when js is asked: `sbt -Dplatforms=js laminarJS/test`, under jsdom */
 lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).crossType(CrossType.Pure)
-  .settings(crossBuilt, name := "okay-face-laminar",
+  .settings(crossBuilt, name := "okay-faces-laminar",
     libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1",
       "io.github.okay-effects" %%% "okay-effects-async" % okayEffects,
       "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test),
@@ -97,7 +97,7 @@ lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).cros
 
 /** AIRSTREAM'S STREAMS AND OKAY'S, both ways, a Var as a State's handler — no Face: a Laminar team may take it alone */
 lazy val airstream = CrossProject("airstream", file("web/airstream"))(JSPlatform).crossType(CrossType.Pure)
-  .settings(crossBuilt, name := "okay-face-airstream",
+  .settings(crossBuilt, name := "okay-faces-airstream",
     libraryDependencies ++= Seq("com.raquo" %%% "airstream" % "17.2.1",
       "io.github.okay-effects" %%% "okay-effects-stream" % okayEffects,
       "io.github.okay-effects" %%% "okay-effects-async" % okayEffects,
@@ -108,11 +108,11 @@ lazy val airstream = CrossProject("airstream", file("web/airstream"))(JSPlatform
 
 /** ROUTES AS AN EFFECT: Navigation, handled by Waypoint's Router or by a recording — over the airstream bridge */
 lazy val waypoint = CrossProject("waypoint", file("web/waypoint"))(JSPlatform).crossType(CrossType.Pure)
-  .settings(crossBuilt, name := "okay-face-waypoint",
+  .settings(crossBuilt, name := "okay-faces-waypoint",
     libraryDependencies ++= Seq("com.raquo" %%% "waypoint" % "9.0.0", "com.raquo" %%% "laminar" % "17.2.1"),
     Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
       .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
   .jsConfigure(p => if (platformsAsked("js")) p.withId("waypointJS").dependsOn(core.js) else p.withId("waypointJS")).dependsOn(airstream)
 
 lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, mcp.jvm, rest.jvm, html.jvm, examples) ++
-  (if (platformsAsked("js")) Seq[ProjectReference](laminar.js, airstream.js, waypoint.js) else Nil)): _*).settings(name := "okay-face-root", publish / skip := true)
+  (if (platformsAsked("js")) Seq[ProjectReference](laminar.js, airstream.js, waypoint.js) else Nil)): _*).settings(name := "okay-faces-root", publish / skip := true)

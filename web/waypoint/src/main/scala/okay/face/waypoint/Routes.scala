@@ -8,7 +8,7 @@ import okay.effects.stream.Streams
 import okay.face.Navigation
 import okay.face.airstream.AirStreams
 
-/** THE BROWSER'S HANDLER OF `Navigation` (okay-face core's effect): Waypoint's `Router` — `pushState`, `replaceState`,
+/** THE BROWSER'S HANDLER OF `Navigation` (okay-faces core's effect): Waypoint's `Router` — `pushState`, `replaceState`,
  * `currentPageSignal.now()`; and the current page as a stream, the airstream bridge's */
 class Routes[I <: Runner, S <: Streams[I]](val bridge: AirStreams[I, S]) {
   val fx: bridge.fx.type = bridge.fx

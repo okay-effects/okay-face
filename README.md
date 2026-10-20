@@ -1,7 +1,7 @@
-# okay-face — an application's capabilities as effects, its faces as handlers
+# okay-faces — an application's capabilities as effects, its faces as handlers
 
 An application has several faces: a screen for a person, tools for an agent, resources for a program. Each shows WHAT
-IS THERE and WHAT CAN BE DONE. okay-face writes that once, as a program over an algebraic effect, and each face is a
+IS THERE and WHAT CAN BE DONE. okay-faces writes that once, as a program over an algebraic effect, and each face is a
 handler: a line terminal, an MCP server, a test script today; a web page and REST later. Built on
 [okay-simple](https://github.com/okay-effects/okay-simple)'s interface, for Scala 3 and 2.13, over any of its
 implementations, with no dependency.

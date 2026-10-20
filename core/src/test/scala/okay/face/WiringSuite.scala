@@ -4,7 +4,7 @@ import okay.effects.json.Json
 import okay.effects.shape.{Shape, Day}
 import okay.effects.shape.Shape._
 
-/** okay-face stands on okay-simple's `shape` and `json`: the wiring, nothing more, until the faces' own code lands */
+/** okay-faces stands on okay-simple's `shape` and `json`: the wiring, nothing more, until the faces' own code lands */
 class WiringSuite extends munit.FunSuite {
   final case class Who(name: String, born: Day)
   val who: Shape[Who] = record(field("name", text), field("born", date))(Who(_, _))(w => (w.name, w.born))
