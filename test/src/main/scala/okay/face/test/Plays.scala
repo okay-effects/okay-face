@@ -17,6 +17,8 @@ class Plays[F <: Runner](implicit implementation: F) {
   final case class Pick(chosen: Chosen) extends Entry
   /** one step back: the previous `Waiting` is waited on again */
   case object Back extends Entry
+  /** the step's event fired — `trigger` fires it (a `Meanwhile.manual`'s `fire`) — and the rest run, as a face that listens would */
+  final case class Fire(trigger: () => Unit) extends Entry
   final case class Script(entries: List[Entry])
   object Script {
     def apply(entries: Entry*): Script = new Script(entries.toList)
@@ -40,13 +42,21 @@ class Plays[F <: Runner](implicit implementation: F) {
       case Step.Done(a) => Played.Finished(views.reverse, a)
       case w: Step.Waiting[A, M] @unchecked =>
         val shown = w.view :: views
+        var pending: Option[M[Step[A, M]]] = None
+        val cancel = w.listen(next => pending = Some(next))
         entries match {
-          case Nil => Played.Stuck(shown.reverse, w, None)
-          case Back :: rest => history match {
+          case Nil => cancel(); Played.Stuck(shown.reverse, w, None)
+          case Fire(trigger) :: rest =>
+            trigger(); cancel()
+            pending match {
+              case Some(next) => val (settled, more) = settle(run(next), shown); loop(settled, more, w :: history, rest)
+              case None => Played.Stuck(shown.reverse, w, None)
+            }
+          case Back :: rest => cancel(); history match {
             case previous :: older => loop(previous, shown, older, rest)
             case Nil => loop(w, shown, Nil, rest)                      // nothing to go back to: the same step again
           }
-          case Pick(c) :: rest => w.resume(c) match {
+          case Pick(c) :: rest => cancel(); w.resume(c) match {
             case Left(rejected) => Played.Stuck(shown.reverse, w, Some(rejected))
             case Right(next) =>
               val (settled, more) = settle(run(next), shown)

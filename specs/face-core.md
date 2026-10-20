@@ -468,8 +468,15 @@ After step 4 the model holds or it does not, before any web platform is paid for
 
 ## Open
 
-- External events (a timer, a server push) while a step waits: as an alternative in `actions` with no actor, or a
-  second effect merged by the concurrent module. Deferred until verity's sync needs it.
+- External events (a timer, a server push) while a step waits — DONE 2026-10-21 as `Meanwhile`: the program offers an
+  event beside its actions, `offer(view, actions, meanwhile)` (or `await(view, meanwhile)`, no action), a source with
+  `register(k): cancel`, made from a `Future`, by hand (`Meanwhile.manual`, a test's or an application's bus) or by
+  whatever one has; the value is of the offer's own type, so the step is resumed by the person's choice or by the event,
+  whichever comes first, and `Step.Waiting.listen` is how a face hears it. A face that can listen does — Laminar and
+  Swing resume the step as a click would, a `Dialogue` (REST, HTML, MCP) at the next request and the REST resource
+  says `listening` so the remote face asks again — and the terminal, whose line read blocks, does not: a program for
+  every face gives the person an action too. The test face has `Fire(trigger)` in its script. DECIDED against a
+  second effect merged by the concurrent module: an event is a way a step ends, not a thing beside the dialogue.
 - Non-local jumps (a global menu from any screen): `Abort`/`Error` unwinding, or a history jump by the face. The
   example application decides.
 - Whether `Schema` should carry layout hints at all, or they belong to a `screen/` layer only.

@@ -50,7 +50,7 @@ class LaminarFace[F <: Runner](val faces: Faces[F]) {
       val popstate: dom.PopStateEvent => Unit = _ => back()
       div(cls := "okay-face",
         onMountCallback(_ => if (browserHistory) dom.window.addEventListener("popstate", popstate)),
-        onUnmountCallback(_ => if (browserHistory) dom.window.removeEventListener("popstate", popstate)),
+        onUnmountCallback(_ => { unlisten(); if (browserHistory) dom.window.removeEventListener("popstate", popstate) }),
         child <-- state.signal.map(render))
     }
 
@@ -63,14 +63,17 @@ class LaminarFace[F <: Runner](val faces: Faces[F]) {
       case w: Step.Waiting[A, M] @unchecked =>
         state.set(Shown(told, w, history, Nil, busy = false))
         if (browserHistory && history.nonEmpty) dom.window.history.pushState(null, "")
+        // the step's event: when it fires and this is still the step, the rest runs as a choice's would
+        unlisten(); unlisten = w.listen { next => val s = state.now(); if ((s.step eq w) && !s.busy) { state.set(s.copy(busy = true)); lower(next)(settle(_, Vector.empty, w :: s.history)) } }
       case Step.Done(a) =>
         state.set(Shown(told, step, history, Nil, busy = false)); done(a)
     }
-    def back(): Unit = { val s = state.now(); if (s.history.nonEmpty && !s.busy) state.set(Shown(Vector.empty, s.history.head, s.history.tail, Nil, busy = false)) }
+    private var unlisten: () => Unit = () => ()
+    def back(): Unit = { val s = state.now(); if (s.history.nonEmpty && !s.busy) { unlisten(); state.set(Shown(Vector.empty, s.history.head, s.history.tail, Nil, busy = false)) } }
     /** a choice: rejected, the same step with the problems; taken, the rest run */
     def choose(w: Step.Waiting[A, M], chosen: Chosen): Unit = { val s = state.now(); if (!s.busy) w.resume(chosen) match {
       case Left(Rejected(ps)) => state.set(s.copy(problems = ps))
-      case Right(next) => state.set(s.copy(busy = true)); lower(next)(settle(_, Vector.empty, w :: s.history))
+      case Right(next) => unlisten(); state.set(s.copy(busy = true)); lower(next)(settle(_, Vector.empty, w :: s.history))
     } }
 
     def render(s: Shown[A, M]): HtmlElement = {

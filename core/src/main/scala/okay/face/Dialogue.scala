@@ -17,15 +17,25 @@ class Dialogues[F <: Effects](implicit implementation: F) {
     private var told: Vector[View] = Vector.empty
     private var history: List[Step.Waiting[A, M]] = Nil
     private var step: Option[Step[A, M]] = None
+    /** an event fired while a step waited: its rest, run at the next `current` — a session hears when next asked */
+    @volatile private var fired: Option[(Step.Waiting[A, M], M[Step[A, M]])] = None
     private def settle(s: Step[A, M]): Step[A, M] ! R = s match {
       case Step.Told(view, next) => told = told :+ view; next.flatMap(settle)
+      case w: Step.Waiting[A, M] @unchecked => w.listen(next => if (step.contains(w) || step.isEmpty) fired = Some((w, next))); pure[Step[A, M], R](w)
       case other => pure[Step[A, M], R](other)
     }
-    /** the step, the first one run when first asked */
-    def current: Step[A, M] ! R = step match {
-      case Some(s) => pure[Step[A, M], R](s)
-      case None => first.flatMap(settle).map { s => step = Some(s); s }
+    /** the step, the first one run when first asked; an event that fired meanwhile moved it on */
+    def current: Step[A, M] ! R = fired match {
+      case Some((w, next)) if step.contains(w) =>
+        fired = None; told = Vector.empty
+        next.flatMap(settle).map { s => history = w :: history; step = Some(s); s }
+      case _ => step match {
+        case Some(s) => pure[Step[A, M], R](s)
+        case None => first.flatMap(settle).map { s => step = Some(s); s }
+      }
     }
+    /** whether the step waits on an event too: a client may ask again later */
+    def listening: Boolean ! R = current.map { case w: Step.Waiting[A, M] @unchecked => w.meanwhile.isDefined; case _ => false }
     /** what was told since the last step, and the step's own view */
     def view: View ! R = current.map {
       case w: Step.Waiting[A, M] @unchecked => View.Group(None, told :+ w.view)

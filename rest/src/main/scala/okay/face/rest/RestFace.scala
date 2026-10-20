@@ -26,11 +26,11 @@ class RestFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
     private var count = 0
     private def fresh(): String = { count += 1; s"s$count" }
 
-    def resource(id: String, d: faces.Dialogue[A, R]): Resource ! R = d.view.flatMap(v => d.actions.flatMap(as => d.done.map { over =>
+    def resource(id: String, d: faces.Dialogue[A, R]): Resource ! R = d.view.flatMap(v => d.actions.flatMap(as => d.done.flatMap(over => d.listening.map { listening =>
       val links = as.map(a => Link(a.name, s"$base/$id/act/${a.name}", "POST", Some(a.doc.getOrElse(a.label)), Some(JsonSchema.of(a.params.erased)))) ++
         List(Link("self", s"$base/$id")) ++ (if (d.canGoBack) List(Link("back", s"$base/$id/back", "POST")) else Nil)
-      Resource(Json.obj("view" -> ViewJson.encode(v), "done" -> Json.Bool(over), "back" -> Json.Bool(d.canGoBack), "actions" -> Json.Arr(as.map(_.affordance.json).toVector)), links)
-    }))
+      Resource(Json.obj("view" -> ViewJson.encode(v), "done" -> Json.Bool(over), "back" -> Json.Bool(d.canGoBack), "listening" -> Json.Bool(listening), "actions" -> Json.Arr(as.map(_.affordance.json).toVector)), links)
+    })))
     def routes: List[Route[R]] = List(
       post[R](base) { (_, _) => val id = fresh(); val d = open(); sessions(id) = d; resource(id, d).map(_.response(201).header("Location", s"$base/$id")) },
       get[R](s"$base/:id") { (ps, _) => sessions.get(ps("id")).fold(pure[Response, R](Trouble(404, "no such session").response))(d => resource(ps("id"), d).map(_.response())) },

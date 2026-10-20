@@ -116,6 +116,18 @@ class LaminarFaceSuite extends munit.FunSuite {
       }
     }
   }
+  test("an event while the step waits: a future completes, the step moves on; a choice first cancels the listening") {
+    type AF[X] = Sum[Async, Face, X]
+    val p = Promise[Int]()
+    def program: String ! AF = offer[Int, AF](View.text("waiting"), List(Action.plain[Int]("skip", "Skip")(0)), okay.face.Meanwhile.fromFuture(p.future)).flatMap(n => show[AF](View.text(s"got $n")).map(_ => s"$n"))
+    val ended = Promise[String]()
+    val root = mounted(face.elementAsync(steps[String, AF, Async](program), (a: String) => ended.success(a)))
+    Future(()).flatMap { _ =>
+      assertEquals(q(root, "p").textContent, "waiting")
+      p.success(4)
+      ended.future.map { a => assertEquals(a, "4"); assert(root.innerHTML.contains("got 4"), root.innerHTML) }
+    }
+  }
   test("the browser's back: a popstate re-resumes the previous step") {
     val root = mounted(face.element(steps[String, F, Void](greeting), browserHistory = true))
     typeInto(root, "f-name", "Di"); typeInto(root, "f-age", "33")

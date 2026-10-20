@@ -30,12 +30,22 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
       case Step.Told(view, next) => settle(run(next), told :+ view, history)
       case other => Shown(told, other, history, Nil)
     }
+    var current: Option[Step[A, M]] = None
+    var unlisten: () => Unit = () => ()
     def show(s: Shown[A]): Unit = {
+      current = Some(s.step)
       root.removeAll()
       root.add(render(s, show, settle), BorderLayout.CENTER)
       look.foreach(l => Looks(l)(root))
       root.revalidate(); root.repaint()
-      s.step match { case Step.Done(a) => done(a); case _ => () }
+      unlisten()
+      s.step match {
+        case Step.Done(a) => done(a)
+        case w: Step.Waiting[A, M] @unchecked =>
+          // the step's event: when it fires and this is still the step, the rest runs on the event dispatch thread as a click's would
+          unlisten = w.listen(next => SwingUtilities.invokeLater(new Runnable { def run(): Unit = if (current.exists(_ eq w)) show(settle(faces.fx.run(next), Vector.empty, w :: s.history)) }))
+        case _ => ()
+      }
     }
     show(settle(run(first), Vector.empty, Nil))
     root

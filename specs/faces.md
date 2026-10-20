@@ -54,7 +54,8 @@ problem, so the person never re-types the whole form — validation is per field
 plainly otherwise.
 
 Commands at the menu prompt: `<` back (the face's history of `Waiting`s), `?` the actions' docs, `q` quit (the
-program is abandoned; `terminal` answers `None` in a variant `terminalOrQuit`). End of input is `q`.
+program is abandoned; `terminal` answers `None` in a variant `terminalOrQuit`). End of input is `q`. An event offered
+beside the actions (`Meanwhile`) is not listened to here: a line read blocks.
 
 ## face-mcp — the Model Context Protocol over stdio
 

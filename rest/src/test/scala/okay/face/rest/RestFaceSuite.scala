@@ -49,4 +49,14 @@ class RestFaceSuite extends munit.FunSuite {
     assert(rs(2).body.contains("Hello, Bo!") && rs(2).body.contains("\"done\":true"), rs(2).body)
     assert(!rs(2).body.contains("\"rel\":\"yes\""))
   }
+  test("an event while the step waits: the resource says it listens; fired, the next request shows the step moved on") {
+    val bus = okay.face.Meanwhile.manual[Int]
+    def program: String ! HF = offer[Int, HF](View.text("waiting"), List(okay.face.Action.plain[Int]("skip", "Skip")(0)), bus.meanwhile).flatMap(n => show[HF](View.text(s"got $n")).map(_ => s"$n"))
+    val sessions = face.sessions[String, H](() => faces.dialogue[String, H](steps[String, HF, H](program)))
+    val opened = Machine.run(https.scripted(List(Request.post("/sessions", "", "application/json")))(https.serve[H](sessions.service)))._1.head
+    assert(opened.body.contains("\"listening\":true"), opened.body)
+    bus.fire(5)
+    val after = Machine.run(https.scripted(List(Request.get("/sessions/s1")))(https.serve[H](sessions.service)))._1.head
+    assert(after.body.contains("got 5") && after.body.contains("\"done\":true") && after.body.contains("\"listening\":false"), after.body)
+  }
 }

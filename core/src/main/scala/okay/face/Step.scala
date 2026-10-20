@@ -16,7 +16,11 @@ object Step {
   final case class Done[A, M[_]](a: A) extends Step[A, M]
   /** shown, and waiting: `resume` decodes the choice against `actions` — `Left(Rejected)`, and the face shows the problems
    * and waits on THIS step again — or the rest, a program of the remaining row */
-  final case class Waiting[A, M[_]](view: View, actions: List[Action[_]], resume: Chosen => Either[Rejected, M[Step[A, M]]]) extends Step[A, M]
+  final case class Waiting[A, M[_]](view: View, actions: List[Action[_]], resume: Chosen => Either[Rejected, M[Step[A, M]]],
+                                    meanwhile: Option[Meanwhile[M[Step[A, M]]]] = None) extends Step[A, M] {
+    /** a face that listens: the rest of the program when the event fires, to run as `resume`'s */
+    def listen(k: M[Step[A, M]] => Unit): () => Unit = meanwhile.fold(() => ())(_.register(k))
+  }
   /** told, and going on at once: a face shows it and runs the rest */
   final case class Told[A, M[_]](view: View, next: M[Step[A, M]]) extends Step[A, M]
 

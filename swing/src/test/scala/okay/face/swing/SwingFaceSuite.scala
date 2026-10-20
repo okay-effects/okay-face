@@ -64,4 +64,14 @@ class SwingFaceSuite extends munit.FunSuite {
     assert(texts(root).contains("k:"))
     assertEquals(byName[JList[String]](root, "okay-items").getModel.getElementAt(0), "x")
   }
+  test("an event while the step waits: fired, the panel shows the rest, on the event dispatch thread") {
+    val bus = okay.face.Meanwhile.manual[Int]
+    val program: String ! F = offer[Int, F](View.text("waiting"), List(okay.face.Action.plain[Int]("skip", "Skip")(0)), bus.meanwhile).flatMap(n => show[F](View.text(s"got $n")).map(_ => s"$n"))
+    var result = Option.empty[String]
+    val root = face.panel(steps[String, F, Void](program), (a: String) => result = Some(a))
+    assert(texts(root).contains("waiting"))
+    bus.fire(9)
+    SwingUtilities.invokeAndWait(new Runnable { def run(): Unit = () })
+    assert(texts(root).contains("got 9"), texts(root).toString); assertEquals(result, Some("9")); assertEquals(bus.listening, 0)
+  }
 }

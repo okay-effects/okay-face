@@ -17,7 +17,7 @@ import scala.concurrent.{ExecutionContext, Future}
  * `400` with problems leaves the step; `POST self/back`. A choice is checked against the schema before it travels.
  * The transport is a function, `Browser.fetch()` in a page, the server's own service in a test.
  */
-class RemoteFace(transport: Request => Future[Response])(implicit ec: ExecutionContext) {
+class RemoteFace(transport: Request => Future[Response], poll: Int = 1000)(implicit ec: ExecutionContext) {
   import RemoteFace.Shown
   private val nothing = Shown("", View.Empty, Nil, back = false, done = false, Nil, busy = true)
 
@@ -39,10 +39,13 @@ class RemoteFace(transport: Request => Future[Response])(implicit ec: ExecutionC
       case Right(args) => call(Request.json("POST", s"${s.self}/act/${chosen.action}", args), s.self)
     }
     def back(s: Shown): Unit = if (!s.busy && s.back) call(Request("POST", s"${s.self}/back"), s.self)
+    // a step that listens on the server: asked again every `poll` ms, until it moves on
+    def again(s: Shown): Unit = if (s.listening && !s.busy) dom.window.setTimeout(() => { val now = state.now(); if ((now eq s) && now.listening && !now.busy) call(Request("GET", now.self), now.self) }, poll.toDouble)
 
     div(cls := Role.Face.classes,
       onMountCallback(_ => call(Request("POST", base), base)),
       child <-- state.signal.map { s =>
+        again(s)
         val problems = if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
         val backButton = if (!s.back) emptyNode else button(typ := "button", cls := Role.Back.classes, "Back", disabled := s.busy, onClick --> Observer[dom.MouseEvent](_ => back(s)))
         div(sectionTag(cls := Role.View.classes, Views.element(s.view)), problems,
@@ -52,9 +55,9 @@ class RemoteFace(transport: Request => Future[Response])(implicit ec: ExecutionC
 }
 
 object RemoteFace {
-  def apply(transport: Request => Future[Response])(implicit ec: ExecutionContext): RemoteFace = new RemoteFace(transport)
+  def apply(transport: Request => Future[Response], poll: Int = 1000)(implicit ec: ExecutionContext): RemoteFace = new RemoteFace(transport, poll)
   /** what the page shows: the session's URL, the step as it came, the problems of the last choice, whether a call is out */
-  final case class Shown(self: String, view: View, actions: List[Action[Json]], back: Boolean, done: Boolean, problems: Problems, busy: Boolean)
+  final case class Shown(self: String, view: View, actions: List[Action[Json]], back: Boolean, done: Boolean, problems: Problems, busy: Boolean, listening: Boolean = false)
 
   /** the REST face's resource: `data` with the view, the affordances, back, done; `links` with self */
   def shown(fallbackSelf: String, body: String): Either[String, Shown] = for {
@@ -73,7 +76,8 @@ object RemoteFace {
     }).getOrElse(fallbackSelf)
     val back = data.get("back").contains(Json.Bool(true))
     val done = data.get("done").contains(Json.Bool(true))
-    Shown(self, view, affordances.map(_.action).toList, back, done, Nil, busy = false)
+    val listening = data.get("listening").contains(Json.Bool(true))
+    Shown(self, view, affordances.map(_.action).toList, back, done, Nil, busy = false, listening)
   }
   /** a `Trouble`'s problems, else its title */
   def problems(body: String): Problems = Descent.parse(body) match {

@@ -17,6 +17,11 @@ class Faces[F <: Effects](implicit implementation: F) {
 
   def offer[A, R[_]](view: View, actions: List[Action[A]])(implicit in: In[Face, R]): A ! R =
     perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a))
+  /** show, and wait for an action or for the event, whichever comes first */
+  def offer[A, R[_]](view: View, actions: List[Action[A]], meanwhile: Meanwhile[A])(implicit in: In[Face, R]): A ! R =
+    perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a, Some(meanwhile)))
+  /** show until something happens: no action, the event alone — a face that cannot listen is stuck here, so give an action where that matters */
+  def await[A, R[_]](view: View, meanwhile: Meanwhile[A])(implicit in: In[Face, R]): A ! R = offer[A, R](view, Nil, meanwhile)
   /** show, and go on. (`show`, not `tell`: the standard Writer's word is `tell`, the Reader's `ask`, and a scenario imports both) */
   def show[R[_]](view: View)(implicit in: In[Face, R]): Unit ! R = perform[Face].apply[R, Unit](Face.Show[Unit](view, u => u))
 
@@ -43,8 +48,8 @@ class Faces[F <: Effects](implicit implementation: F) {
     handle[Face, R, Rest, A, Step[A, M]](p, new Handler[Face, Rest, A, Step[A, M]] {
       def ret(a: A) = pure(Step.Done[A, M](a))
       def op[X](op: Face[X], k: X => Step[A, M] ! Rest) = op match {
-        case Face.Offer(view, actions, answer) =>
-          pure[Step[A, M], Rest](Step.Waiting[A, M](view, actions, chosen => Step.take(chosen, actions).map(a => k(answer(a)))))
+        case Face.Offer(view, actions, answer, meanwhile) =>
+          pure[Step[A, M], Rest](Step.Waiting[A, M](view, actions, chosen => Step.take(chosen, actions).map(a => k(answer(a))), meanwhile.map(_.map(a => k(answer(a))))))
         case Face.Show(view, answer) => pure[Step[A, M], Rest](Step.Told[A, M](view, k(answer(()))))
       }
     })

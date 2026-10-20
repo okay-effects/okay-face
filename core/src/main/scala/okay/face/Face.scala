@@ -11,8 +11,8 @@ import okay.effects.shape.Problems
  */
 sealed trait Face[X]
 object Face {
-  /** show, and wait for one of the actions, taken with its parameters */
-  final case class Offer[A, X](view: View, actions: List[Action[A]], answer: A => X) extends Face[X]
+  /** show, and wait for one of the actions, taken with its parameters — or for the event `meanwhile`, if one is given */
+  final case class Offer[A, X](view: View, actions: List[Action[A]], answer: A => X, meanwhile: Option[Meanwhile[A]] = None) extends Face[X]
   /** show, and go on */
   final case class Show[X](view: View, answer: Unit => X) extends Face[X]
 }
