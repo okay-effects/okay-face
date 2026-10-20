@@ -87,9 +87,10 @@ The server holds one session: the current `Step` and a history. `steps(program)`
 
 ### The domain projection
 
-Given `Describe[F]` and a handler for `F`, `tools/list` is `F`'s operations as tools, `tools/call` decodes `P`,
-performs `make(p)` under the handler, encodes `X`. No session, no view. Both projections may be served by one process:
-the dialogue's tools and the domain's, the names prefixed by the application (`verity_find`, `verity_get`).
+Built (`McpFace.domain(d)`): given `Describe[F]` and a handler for `F` in the row, `tools/list` is `F`'s operations as
+tools `{domain}_{op}` with input and output schemas, `tools/call` decodes `P`, performs `make(p)` under the handler,
+encodes `X`; a call that does not decode is an error result with the problems. No session, no view. `McpFace.both(a, b)`
+serves the dialogue's tools and the domain's from one process (specs/face-core.md, "Describe").
 
 ### The person behind the agent
 

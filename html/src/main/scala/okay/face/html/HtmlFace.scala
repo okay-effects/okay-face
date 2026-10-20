@@ -133,33 +133,8 @@ object Forms {
     s"""<div ${cls(Role.Field)}><label ${cls(Role.Label)} for="f-${name(path)}">${esc(words)}</label>$control${f.flatMap(_.doc).map(d => s"<small ${cls(Role.Doc)}>${esc(d)}</small>").getOrElse("")}</div>"""
   }
 
-  /** the form's fields, by dotted name, to JSON along the schema: blank is absent, a checkbox absent is false */
-  def collect(schema: Schema, form: Map[String, List[String]]): Json = {
-    def value(path: List[String]): Option[String] = form.get(name(path)).flatMap(_.headOption).filter(_.nonEmpty)
-    def go(path: List[String], s: Schema): Json = s match {
-      case Schema.Record(fs) => Json.Obj(fs.flatMap(f => go(path :+ f.name, f.schema) match { case Json.Null => None; case v => Some(f.name -> v) }))
-      case Schema.Described(of, _, _) => go(path, of)
-      case Schema.Optional(of) => go(path, of)
-      case Schema.Choice(_) => value(path).map(Json.Str(_)).getOrElse(Json.Null)
-      case Schema.Sum(cases) => form.get(name(path) + ".type").flatMap(_.headOption).flatMap(n => cases.find(_._1 == n)) match {
-        case Some((n, cs)) => go(path :+ n, cs) match {
-          case o: Json.Obj if Schema.isRecord(cs) => ("type" -> Json.Str(n)) +: o
-          case v => Json.Obj.of("type" -> Json.Str(n), "value" -> v)
-        }
-        case None => Json.Null
-      }
-      case Schema.Many(of, _, _) => value(path).map(t => Json.Arr(t.split("\n").toVector.map(_.trim).filter(_.nonEmpty).map(typed(of, _)))).getOrElse(Json.Null)
-      case Schema.Bool => Json.Bool(form.get(name(path)).exists(_.exists(v => Set("true", "on", "yes").contains(v.toLowerCase))))
-      case leaf => value(path).map(typed(leaf, _)).getOrElse(Json.Null)
-    }
-    go(Nil, schema)
-  }
-  private def typed(schema: Schema, s: String): Json = schema match {
-    case Schema.Integer(_) | Schema.Number(_) => scala.util.Try(BigDecimal(s.trim)).toOption.fold[Json](Json.Str(s))(Json.Num(_))
-    case Schema.Bool => Json.Bool(Set("true", "on", "yes").contains(s.trim.toLowerCase))
-    case Schema.Described(of, _, _) => typed(of, s)
-    case _ => Json.Str(s)
-  }
+  /** the form's fields, by dotted name, to JSON along the schema: core's `FormJson` */
+  def collect(schema: Schema, form: Map[String, List[String]]): Json = okay.face.FormJson.collect(schema, form)
 }
 
 object HtmlFace {

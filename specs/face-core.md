@@ -324,28 +324,48 @@ receives a typed `P`. The validation loop that every UI framework reinvents is t
 
 ## Describe — a domain effect as a service (the second role)
 
-For the service role an effect needs a description as data:
+Built 2026-10-20 (`Describe.scala`), by hand, one `Op` per operation, on both compilers:
 
 ```scala
-trait Describe[F[_]] {
-  def name: String
-  def operations: List[Describe.Op[F]]
-}
-object Describe {
-  sealed abstract class Op[F[_]] {
-    type P; type X
-    def name: String; def doc: Option[String]
-    def params: Shape[P]; def result: Shape[X]
-    def make: P => F[X]                   // the operation, with the identity answer — as `perform` makes it
-  }
+final case class Op[F[_], P, X](name: String, params: Shape[P], result: Shape[X], make: P => F[X], doc: Option[String] = None, writes: Boolean = false)
+final case class Call[X](op: String, args: Json, answer: Json => Either[Problems, X])
+abstract class Describe[F[_]](val name: String) {
+  def operations: List[Op[F, _, _]]
+  def split[X](op: F[X]): Call[X]          // every operation back into its description, arguments and answer
+  protected final def call[P, Y, X](o: Op[F, P, Y], p: P, k: Y => X): Call[X]
 }
 ```
 
-With `Describe[Orders]` an MCP server serves `Orders`' operations as tools, REST as a resource, GraphQL as queries
-and mutations, a CLI as subcommands; the call decodes `P`, performs `make(p)`, encodes `X`. Written by hand first;
-derivation from the GADT by Scala 3's `Mirror` later, in a Scala 3 module (cross-building stops it in the core).
-Authorisation and audit are interceptors (`observe`, `around`) over the domain effect and do not care which face
-performed it. `Describe` is step 5 of the plan; its interface is fixed here so `face-mcp` is built with it in mind.
+`make` is the operation with the identity answer, as `perform` makes it: the SERVING direction. `split` is the other:
+an operation value taken apart into which, with what, and how its answer is read back — the REMOTE direction. Both
+are needed, and `split` is one `match` over the effect, so a description is the effect's cases written twice: once
+as shapes, once as a match. Derivation from the GADT by `Mirror` stays a Scala 3 module for later; nothing here
+needs it.
+
+`Domains` holds the words: `serve(d)(name, args)` decodes the parameters, performs `make(p)` under the handler in the
+row, encodes the result, or answers the problems; `remote(d)(transport)(program)` is a handler of the effect whose
+every operation is split, carried by `transport` (a program of the row outside: a fetch, a loopback, a test's
+function), its answer decoded. A result that does not decode is a `RemoteFailure` — the service and the program
+disagree, not something a person can fix — and not `Problems`.
+
+The projections, each a few lines over `Domains`:
+- REST (`rest/RestDomains`): `serve(d, base)` is `GET base` (the description: operations as links with method, href,
+  JSON Schema) and a route per operation — `GET` with the arguments in the query when it reads and its parameters are
+  flat (`FormJson`, the same dotted names a page posts), `POST` with JSON otherwise; `remote(d, base)` is the same wire
+  from the client over `Fetch`. Tested in one process: the client's program over `Fetch` handled by a function that
+  runs the server's own program, its state kept between requests, as a server's is.
+- MCP (`mcp/McpFace.domain`): the operations as tools `{domain}_{op}` with input and output schemas; `both(a, b)` puts
+  a dialogue's tools and a domain's in one server.
+- verity (`Describes.store`): the eleven operations of `Store`; `RemoteStoreSuite` runs one program with `Store`
+  handled by the vault and with `Store` performed over REST against a server's vault, and gets the same answers.
+  That is the mechanism of the other cut of a monolith — the dialogue in the browser, the domain on the server —
+  proven; the browser build of verity's dialogue is not done, and verity does not serve `Store` on its `api` port:
+  a raw `Store` has no policy over `Reveal`, so it would hand an agent the secrets the dialogue guards. A domain served
+  to others is the effect UNDER its interceptors, which is a smaller effect described on its own.
+
+DECIDED: `Describe` is not a type class and carries no implicit: a description is a value, named, handed to the
+projection that serves it, so one effect may have two descriptions (the whole store for the owner's own page, a
+masked subset for agents).
 
 ## Navigation — routes as an effect, of no platform (2026-10-20)
 

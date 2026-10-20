@@ -77,3 +77,59 @@ object ViewJson {
   private def all[A](xs: Vector[Either[String, A]]): Either[String, Vector[A]] =
     xs.foldLeft[Either[String, Vector[A]]](Right(Vector.empty))((acc, x) => acc.flatMap(as => x.map(as :+ _)))
 }
+
+/** A FORM'S FIELDS AND A QUERY'S, by dotted name, to JSON along a schema and back: what a page posts, what a GET carries.
+ * Blank is absent; a checkbox absent is false; a list is the key repeated, or one value with a line per item; a sum
+ * is `path.type` and the case's fields under `path.case` */
+object FormJson {
+  private def name(path: List[String]) = path.mkString(".")
+  def collect(schema: Schema, form: Map[String, List[String]]): Json = {
+    def values(path: List[String]): List[String] = form.get(name(path)).getOrElse(Nil).filter(_.nonEmpty)
+    def value(path: List[String]): Option[String] = values(path).headOption
+    def go(path: List[String], s: Schema): Json = s match {
+      case Schema.Record(fs) => Json.Obj(fs.flatMap(f => go(path :+ f.name, f.schema) match { case Json.Null => None; case v => Some(f.name -> v) }))
+      case Schema.Described(of, _, _) => go(path, of)
+      case Schema.Optional(of) => go(path, of)
+      case Schema.Choice(_) => value(path).map(Json.Str(_)).getOrElse(Json.Null)
+      case Schema.Sum(cases) => form.get(name(path :+ "type")).flatMap(_.headOption).flatMap(n => cases.find(_._1 == n)) match {
+        case Some((n, cs)) => go(path :+ n, cs) match {
+          case o: Json.Obj if Schema.isRecord(cs) => ("type" -> Json.Str(n)) +: o
+          case v => Json.Obj.of("type" -> Json.Str(n), "value" -> v)
+        }
+        case None => Json.Null
+      }
+      case Schema.Many(of, _, _) => values(path) match {
+        case Nil => Json.Null
+        case one :: Nil => Json.Arr(one.split("\n").toVector.map(_.trim).filter(_.nonEmpty).map(typed(of, _)))
+        case many => Json.Arr(many.toVector.map(typed(of, _)))
+      }
+      case Schema.Bool => Json.Bool(form.get(name(path)).exists(_.exists(v => Set("true", "on", "yes").contains(v.toLowerCase))))
+      case leaf => value(path).map(typed(leaf, _)).getOrElse(Json.Null)
+    }
+    go(Nil, schema)
+  }
+  def typed(schema: Schema, s: String): Json = schema match {
+    case Schema.Integer(_) | Schema.Number(_) => scala.util.Try(BigDecimal(s.trim)).toOption.fold[Json](Json.Str(s))(Json.Num(_))
+    case Schema.Bool => Json.Bool(Set("true", "on", "yes").contains(s.trim.toLowerCase))
+    case Schema.Described(of, _, _) => typed(of, s)
+    case _ => Json.Str(s)
+  }
+  /** the other way, along the schema: a GET's query from arguments */
+  def print(schema: Schema, json: Json): Map[String, List[String]] = {
+    def leaf(v: Json): String = v match { case Json.Str(s) => s; case other => Json.print(other) }
+    def go(path: List[String], s: Schema, v: Json): List[(String, String)] = (s, v) match {
+      case (_, Json.Null) => Nil
+      case (Schema.Record(fs), o: Json.Obj) => fs.toList.flatMap(f => o.get(f.name).toList.flatMap(go(path :+ f.name, f.schema, _)))
+      case (Schema.Described(of, _, _), _) => go(path, of, v)
+      case (Schema.Optional(of), _) => go(path, of, v)
+      case (Schema.Sum(cases), o: Json.Obj) => o.get("type") match {
+        case Some(Json.Str(n)) => cases.find(_._1 == n).toList.flatMap { case (_, cs) =>
+          (name(path :+ "type") -> n) :: go(path :+ n, cs, if (Schema.isRecord(cs)) o.without("type") else o.get("value").getOrElse(Json.Null)) }
+        case _ => Nil
+      }
+      case (Schema.Many(of, _, _), Json.Arr(xs)) => xs.toList.map(x => name(path) -> leaf(x))
+      case (_, other) => List(name(path) -> leaf(other))
+    }
+    go(Nil, schema, json).groupBy(_._1).map { case (k, kvs) => k -> kvs.map(_._2) }
+  }
+}

@@ -3,7 +3,7 @@ package okay.face.mcp
 import okay.effects.Runner
 import okay.effects.json.Json
 import okay.effects.shape.{JsonSchema, Schema}
-import okay.face.{Action, Chosen, Faces, Rejected, Step, View}
+import okay.face.{Action, Chosen, Describe, Domains, Faces, Rejected, Step, View}
 import okay.mcp.{Content, ResourceContent, ResourceSpec, Servers, ToolCall, ToolResult, ToolSpec}
 
 /**
@@ -19,6 +19,7 @@ class McpFace[F <: Runner, Fs <: Faces[F]](val faces: Fs) {
   val servers: Servers[faces.fx.type] = new Servers[faces.fx.type]()(faces.fx)
 
   type Dialogue[A, R[_]] = faces.Dialogue[A, R]
+  val domains: Domains[faces.fx.type] = new Domains[faces.fx.type]()(faces.fx)
 
   /** the dialogue as tools: the step's actions, `look`, `back` */
   def tools[A, R[_]](d: Dialogue[A, R]): servers.Tools[R] = new servers.Tools[R] {
@@ -39,6 +40,23 @@ class McpFace[F <: Runner, Fs <: Faces[F]](val faces: Fs) {
   private def shown(view: View, actions: List[Action[_]]): ToolResult =
     ToolResult(List(Content.Text(Markdown.view(view) + (if (actions.isEmpty) "" else "\n\nactions: " + actions.map(_.name).mkString(", ")))),
       Some(Json.obj("view" -> ViewJson.encode(view), "actions" -> Json.Arr(actions.map(a => Json.Str(a.name)).toVector))))
+
+  /** THE DOMAIN PROJECTION: a described effect's operations as tools, `{domain}_{op}`, each with its parameters' JSON
+   * Schema and its result's; a call performs the operation under the handler in the row and answers the result as JSON.
+   * No session, no view */
+  def domain[E[_], R[_]](d: Describe[E])(implicit in: In[E, R]): servers.Tools[R] = new servers.Tools[R] {
+    def list: List[ToolSpec] ! R = pure[List[ToolSpec], R](d.operations.map(o =>
+      ToolSpec(s"${d.name}_${o.name}", o.doc.getOrElse(o.name), JsonSchema.of(o.params.erased), Some(JsonSchema.of(o.result.erased)))))
+    def call(c: ToolCall): ToolResult ! R = domains.serve[E, R](d)(c.name.stripPrefix(d.name + "_"), c.arguments).map {
+      case Right(j) => ToolResult(List(Content.Text(Json.pretty(j))), Some(j))
+      case Left(ps) => ToolResult(List(Content.Text("not taken:\n" + ps.map(p => "- " + p.render).mkString("\n"))), None, isError = true)
+    }
+  }
+  /** two sets of tools as one: a call goes to the first that lists its name */
+  def both[R[_]](a: servers.Tools[R], b: servers.Tools[R]): servers.Tools[R] = new servers.Tools[R] {
+    def list: List[ToolSpec] ! R = a.list.flatMap(as => b.list.map(as ++ _))
+    def call(c: ToolCall): ToolResult ! R = a.list.flatMap(as => if (as.exists(_.name == c.name)) a.call(c) else b.call(c))
+  }
 
   /** the current view as a resource, Markdown and JSON */
   def resources[A, R[_]](d: Dialogue[A, R]): servers.Resources[R] = new servers.Resources[R] {
