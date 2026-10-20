@@ -75,5 +75,24 @@ lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).cros
       .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
   .jsConfigure(_.withId("laminarJS")).dependsOn(core)
 
+/** AIRSTREAM'S STREAMS AND OKAY'S, both ways, a Var as a State's handler — no Face: a Laminar team may take it alone */
+lazy val airstream = CrossProject("airstream", file("web/airstream"))(JSPlatform).crossType(CrossType.Pure)
+  .settings(crossBuilt, name := "okay-face-airstream",
+    libraryDependencies ++= Seq("com.raquo" %%% "airstream" % "17.2.1",
+      "io.github.okay-effects" %%% "okay-effects-stream" % okayEffects,
+      "io.github.okay-effects" %%% "okay-effects-async" % okayEffects,
+      "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects),
+    Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
+      .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
+  .jsConfigure(_.withId("airstreamJS"))
+
+/** ROUTES AS AN EFFECT: Navigation, handled by Waypoint's Router or by a recording — over the airstream bridge */
+lazy val waypoint = CrossProject("waypoint", file("web/waypoint"))(JSPlatform).crossType(CrossType.Pure)
+  .settings(crossBuilt, name := "okay-face-waypoint",
+    libraryDependencies ++= Seq("com.raquo" %%% "waypoint" % "9.0.0", "com.raquo" %%% "laminar" % "17.2.1"),
+    Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
+      .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
+  .jsConfigure(_.withId("waypointJS")).dependsOn(airstream)
+
 lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, examples) ++
-  (if (platformsAsked("js")) Seq[ProjectReference](laminar.js) else Nil)): _*).settings(name := "okay-face-root", publish / skip := true)
+  (if (platformsAsked("js")) Seq[ProjectReference](laminar.js, airstream.js, waypoint.js) else Nil)): _*).settings(name := "okay-face-root", publish / skip := true)

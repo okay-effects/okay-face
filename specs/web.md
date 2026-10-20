@@ -1,8 +1,10 @@
 # web — Airstream, Laminar, Waypoint, and the Laminar face
 
 Status: specification, moved from okay-simple's backlog 2026-10-20. `web/laminar` — the FACE, `LaminarFace`, a Step
-machine as a Laminar element — is in (2026-10-20), for programs whose remaining row is done (`Runner.run`); the bridges
-below (Airstream's streams, an element's Owner, Waypoint's routes) are what an `Async` row will need, not started.
+machine as a Laminar element — is in (2026-10-20), for a row done (`element`, `Runner.run`) and for `Async` remaining (`elementAsync`, to a Future);
+sums in forms; the browser's back as the face's. The bridges are in too (2026-10-20): `web/airstream` — `fromEventStream`,
+`fromSignal`, `toEventStream`, `fromProgram`, `into`, `varState`; `runOnMount` in `web/laminar` (`Lifecycle`);
+`web/waypoint` — `Navigation` with `router(r)`, `recording`, `pages`. Tested under jsdom on both compilers.
 
 ## The modules: Airstream, Laminar, Waypoint
 

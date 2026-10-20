@@ -125,3 +125,25 @@ class LaminarFaceSuite extends munit.FunSuite {
     assertEquals(q(root, "h1").textContent, "Who are you?")
   }
 }
+
+class LifecycleSuite extends munit.FunSuite {
+  import okay.effects.machine.Machine
+  import okay.effects.async.Async
+  import scala.concurrent.Promise
+  import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
+  val life = new Lifecycle[Machine.type]()(Machine, queue)
+  import life.asynchrony.sleep
+  def mount(el: HtmlElement): RootNode = { val c = dom.document.createElement("div").asInstanceOf[dom.html.Element]; dom.document.body.appendChild(c); render(c, el) }
+
+  test("a program runs when the element mounts, and its result arrives") {
+    val got = Promise[Int]()
+    mount(div(life.runOnMount(sleep[Async](1).map(_ => 7))(r => got.complete(r.toTry))))
+    got.future.map(assertEquals(_, 7))
+  }
+  test("unmounted before it is done: cancelled, nothing arrives") {
+    var arrived = false
+    val root = mount(div(life.runOnMount(sleep[Async](30).map(_ => 1))(_ => arrived = true)))
+    root.unmount()   // Laminar's own unmount: the callbacks fire (a removal by innerHTML would not tell Laminar)
+    life.asynchrony.toFuture(sleep[Async](50)).map(_ => assert(!arrived))
+  }
+}
