@@ -32,25 +32,18 @@ The upward direction a UI seems to need (a click becoming a high-level command) 
 operation is a request with a continuation, and the answer IS the upward path. The handler stores `k`, draws, and
 resumes `k` when the person or the agent acts.
 
-## Relation to okay, the platform
+## Only okay-simple underneath
 
-okay (Scala 3, on okay-core) already has most of the lower floors: `okay.ui` (specs/ui.md there) is an Elm loop over
-a view VALUE `Ui` with keys, events, `Host`/`Backend` with a diff, hosts for the terminal, the DOM, React, HTML
-live/plain, Swing, GTK, Telegram; `okay.codec.Schema` with `Form.of[A: Schema]`; `okay-mcp` both ends of MCP;
-`okay-graphql`, `okay-openapi`. okay-face is NOT a second okay-ui. It is the floor ABOVE: the dialogue/capability
-level, written on okay-simple's interface so that it runs on both compilers (3.3 LTS and 2.13), on every
-implementation (the machine, `Free`, okay-core's `Core`, okay-kernel's bridge), with no dependency. Where okay has a
-floor, okay-face reaches it by a bridge module rather than rebuilding it:
-
-| Here | In okay | Relation |
-|---|---|---|
-| `Face` + `Step` (the dialogue) | nothing at this level | new |
-| `Shape[P]` (typed schema, decoder, form source) | `okay.codec.Schema[A]` | the same idea, smaller, both compilers; a bridge `Schema => Shape` later (Scala 3 module) |
-| `View` (semantic representation) | `Ui`'s level S, semantic and open | a bridge lowers `View` + actions into `Ui` (Scala 3 module, `face-okay-ui`) |
-| `face-term` (line-based terminal) | `okay.ui.Terminal` (full-screen, raw mode) | different: ours is a line dialogue, pipeable, for tests and scripts |
-| `face-mcp` (stdio JSON-RPC, dialogue and domain projections) | `okay-mcp` | ours minimal and dependency-free; a bridge to okay-mcp's `ToolSpec` later |
-
-DECIDED: build `face-core`, `face-test`, `face-term`, `face-mcp` fresh and small; bridges to okay after they exist.
+DECIDED: okay-face depends on okay-simple alone — `okay-effects` and its modules, released — and on nothing else: no
+JSON library, no web library in the core, and NOT on okay, the platform. The idea is okay-simple's own: one simple,
+released floor that works with anything, and the next floor built the same way. okay (Scala 3, on okay-core, not yet
+released, large) has floors that look alike — `okay.ui` with a view value and hosts, `okay.codec.Schema` with a form
+from a schema, `okay-mcp` — and okay-face must be complete WITHOUT them: its own typed schema, its own semantic view,
+its own faces for the terminal, MCP, tests and, later, the web. Working with okay is possible and welcome, as
+okay-simple works with cats or ZIO: an `interop/` module per bridge (`View` and actions lowered into `okay.ui.Ui`,
+`okay.codec.Schema` into `Shape`, our tools as `okay-mcp`'s `ToolSpec`), optional, Scala 3, never required by anything
+here. What okay already learned is borrowed as DESIGN, not as a dependency: a view is a value with keys and no
+functions; a form is rendered from the same schema that decodes it; an MCP server is a handler.
 
 ## The four data types
 
@@ -308,7 +301,8 @@ performed it. `Describe` is step 5 of the plan; its interface is fixed here so `
 4. Decoding is the face's; a scenario sees typed values only.
 5. Back is the face's: a history of `Waiting`s. A scenario may also offer `cancel` actions; the two are different.
 6. Two faces given the same script of `Chosen`s produce the same sequence of `View`s (the test face states it).
-7. Nothing in face-core imports a platform, a JSON library or okay (the platform).
+7. Nothing in okay-face but `interop/` imports okay, the platform; nothing in face-core imports a platform or a JSON
+   library. Every face works with okay-simple alone.
 
 ## Scala 2 and 3
 
@@ -327,8 +321,10 @@ hold conveniences (context bounds, `Mirror` derivation goes to a separate Scala-
 | `mcp/` | `okay-face-mcp` | `okay.face.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |
 | `examples/` | — | `okay.face.examples` | noughts and crosses; the greeting form of the docs | core, test, term, mcp |
 
-Later: `screen/` (a keyed widget tree between `View` and web platforms, if Laminar needs it), `okay-ui/` (Scala 3:
-`View` + actions lowered to `okay.ui.Ui`, `Schema` from `okay.codec.Schema`), `laminar/`, `rest/`, `graphql/`.
+Later, all here and on okay-simple alone: `screen/` (a keyed widget tree between `View` and the web platforms, with
+the diff), `laminar/` and `dom/` (Scala.js faces over okay-simple's ui/airstream and ui/laminar modules when they
+land), `rest/`, `graphql/`. And `interop/okay-ui`, `interop/okay-codec`, `interop/okay-mcp`: optional bridges to okay,
+Scala 3 only, as okay-simple's interop modules are to cats and ZIO.
 
 Build: sbt, cross `3.3.8` / `2.13.18`, `crossproject` for JVM always, JS and Native when asked, as okay-simple's build;
 `okay-effects` 0.1.0 from the okay-effects Pages repository; munit; zero other dependencies. `organization
@@ -371,7 +367,8 @@ The docs' two-field greeting form (`name`, `language`) shows `Shape` and `ask`.
 3. `face-term`; the example on it. Verify: played interactively, and from a file on stdin.
 4. `face-mcp`, dialogue projection. Verify: Claude Code or the MCP inspector plays the example.
 5. `Describe`, domain projection in `face-mcp`. Verify: a described effect appears as tools with no scenario.
-6. verity (its own repository) as the first real consumer; then the okay-ui bridge, screen, Laminar.
+6. verity (its own repository) as the first real consumer; then screen and the web faces; the okay bridges when
+   someone needs them.
 
 After step 4 the model holds or it does not, before any web platform is paid for.
 
