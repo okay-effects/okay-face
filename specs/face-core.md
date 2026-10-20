@@ -130,7 +130,7 @@ object Shape {
 
 Words: `text`, `integer`, `int`, `long`, `number`, `bool`, `date`, `any`, `choice(...)`, `field(name, shape)`, `unit`,
 `sum(cases*)`, `sub[A, B <: A](name, shape)(project)` (a case whose value is a subtype), `Case(name, shape)(inject)(project)`,
-`deferred(name)(shape)`, `loose(schema, defs)`, and the records, generated for arities 1 to 12 (`project/records.py`):
+`deferred(name)(shape)`, `loose(schema, defs)`, and the records, generated for arities 1 to 12 (`sbt records`, project/Records.scala):
 
 ```scala
 record(field("name", text), field("age", int))(Person(_, _))(p => (p.name, p.age)): Shape[Person]

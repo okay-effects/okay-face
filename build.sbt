@@ -44,4 +44,12 @@ def crossBoth(id: String, dir: String, can: Set[String] = Set("js", "native")): 
 lazy val core = crossBoth("core", "core").settings(name := "okay-face",
   libraryDependencies += "io.github.okay-effects" %%% "okay-effects" % okayEffects)
 
+/** `sbt records`: rewrites core's RecordWords.scala, the record words for arities 1 to 12 (project/Records.scala) */
+val records = taskKey[Unit]("generate RecordWords.scala")
+records := {
+  val target = (ThisBuild / baseDirectory).value / "core" / "src" / "main" / "scala" / "okay" / "face" / "RecordWords.scala"
+  IO.write(target, Records.source)
+  streams.value.log.info(s"wrote $target")
+}
+
 lazy val root = (project in file(".")).aggregate(core.jvm).settings(name := "okay-face-root", publish / skip := true)
