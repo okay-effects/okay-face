@@ -163,7 +163,7 @@ object Forms {
       case Schema.Optional(of0) => of(path, of0, field)
       case Schema.Choice(options) =>
         val c = new JComboBox[String](options.toArray); c.setName(name(path)); combos(path) = c; c
-      case Schema.Sum(cases) =>
+      case Schema.OneOf(cases) =>
         val c = new JComboBox[String](cases.map(_._1).toArray); c.setName(name(path)); combos(path) = c
         val cards = new JPanel(new java.awt.CardLayout)
         cases.foreach { case (n, cs) => cards.add(of(path :+ n, cs), n) }
@@ -186,7 +186,7 @@ object Forms {
       case Schema.Described(of0, _, _) => collect(path, of0)
       case Schema.Optional(of0) => collect(path, of0)
       case Schema.Choice(_) => combos.get(path).map(c => Json.Str(c.getSelectedItem.asInstanceOf[String])).getOrElse(Json.Null)
-      case Schema.Sum(cases) => combos.get(path).map(_.getSelectedItem.asInstanceOf[String]).flatMap(n => cases.find(_._1 == n)) match {
+      case Schema.OneOf(cases) => combos.get(path).map(_.getSelectedItem.asInstanceOf[String]).flatMap(n => cases.find(_._1 == n)) match {
         case Some((n, cs)) => collect(path :+ n, cs) match {
           case o: Json.Obj if Schema.isRecord(cs) => ("type" -> Json.Str(n)) +: o
           case v => Json.Obj.of("type" -> Json.Str(n), "value" -> v)

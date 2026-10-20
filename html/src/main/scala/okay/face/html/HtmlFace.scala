@@ -118,7 +118,7 @@ object Forms {
     case Schema.Described(of, label, doc) => field(path, of, Some(f.getOrElse(Schema.Field(path.lastOption.getOrElse(""), of, None, None, false, None)).copy(label = Some(label), doc = doc)))
     case Schema.Optional(of) => field(path, of, f)
     case Schema.Choice(options) => labelled(path, f, s"""<select name="${name(path)}" id="f-${name(path)}">${options.map(o => s"""<option value="${esc(o)}">${esc(o)}</option>""").mkString}</select>""")
-    case Schema.Sum(cases) =>
+    case Schema.OneOf(cases) =>
       labelled(path, f, s"""<select name="${name(path)}.type" id="f-${name(path)}">${cases.map { case (n, _) => s"""<option value="${esc(n)}">${esc(n)}</option>""" }.mkString}</select>""") +
         cases.map { case (n, cs) => s"""<div class="okay-case" data-case="${esc(n)}">${field(path :+ n, cs, None)}</div>""" }.mkString
     case Schema.Many(_, _, _) => labelled(path, f, s"""<textarea name="${name(path)}" id="f-${name(path)}" placeholder="one per line"></textarea>""")

@@ -143,7 +143,7 @@ object Forms {
         val sel = select(idAttr := id(path), options.map(o => option(value := o, o)))
         selects(path) = sel
         labelled(path, field, sel)
-      case Schema.Sum(cases) =>
+      case Schema.OneOf(cases) =>
         // the case chosen by a select; every case's fields drawn, only the chosen one's shown
         val which = Var(cases.headOption.map(_._1).getOrElse(""))
         val sel = select(idAttr := id(path), cases.map { case (n, _) => option(value := n, n) }, onChange.mapToValue --> which)
@@ -176,7 +176,7 @@ object Forms {
       case Schema.Described(of0, _, _) => collect(path, of0)
       case Schema.Optional(of0) => collect(path, of0)
       case Schema.Choice(_) => selects.get(path).map(s => Json.Str(s.ref.value)).getOrElse(Json.Null)
-      case Schema.Sum(cases) => selects.get(path).map(_.ref.value).flatMap(n => cases.find(_._1 == n)) match {
+      case Schema.OneOf(cases) => selects.get(path).map(_.ref.value).flatMap(n => cases.find(_._1 == n)) match {
         case Some((n, cs)) => collect(path :+ n, cs) match {
           case o: Json.Obj if Schema.isRecord(cs) => ("type" -> Json.Str(n)) +: o
           case v => Json.Obj.of("type" -> Json.Str(n), "value" -> v)

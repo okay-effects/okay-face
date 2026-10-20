@@ -91,7 +91,7 @@ object FormJson {
       case Schema.Described(of, _, _) => go(path, of)
       case Schema.Optional(of) => go(path, of)
       case Schema.Choice(_) => value(path).map(Json.Str(_)).getOrElse(Json.Null)
-      case Schema.Sum(cases) => form.get(name(path :+ "type")).flatMap(_.headOption).flatMap(n => cases.find(_._1 == n)) match {
+      case Schema.OneOf(cases) => form.get(name(path :+ "type")).flatMap(_.headOption).flatMap(n => cases.find(_._1 == n)) match {
         case Some((n, cs)) => go(path :+ n, cs) match {
           case o: Json.Obj if Schema.isRecord(cs) => ("type" -> Json.Str(n)) +: o
           case v => Json.Obj.of("type" -> Json.Str(n), "value" -> v)
@@ -122,7 +122,7 @@ object FormJson {
       case (Schema.Record(fs), o: Json.Obj) => fs.toList.flatMap(f => o.get(f.name).toList.flatMap(go(path :+ f.name, f.schema, _)))
       case (Schema.Described(of, _, _), _) => go(path, of, v)
       case (Schema.Optional(of), _) => go(path, of, v)
-      case (Schema.Sum(cases), o: Json.Obj) => o.get("type") match {
+      case (Schema.OneOf(cases), o: Json.Obj) => o.get("type") match {
         case Some(Json.Str(n)) => cases.find(_._1 == n).toList.flatMap { case (_, cs) =>
           (name(path :+ "type") -> n) :: go(path :+ n, cs, if (Schema.isRecord(cs)) o.without("type") else o.get("value").getOrElse(Json.Null)) }
         case _ => Nil

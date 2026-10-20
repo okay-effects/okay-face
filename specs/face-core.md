@@ -128,7 +128,7 @@ object Shape {
   }
   final case class Field[A](name: String, shape: Shape[A], label: Option[String] = None, doc: Option[String] = None,
                             secret: Boolean = false, default: Option[A] = None)   // `.labelled`, `.documented`, `.asSecret`, `.withDefault`
-  /** a case of a `Sum`: its name, the shape of its value `B`, `inject: B => A`, `project: A => Option[B]` */
+  /** a case of a `OneOf`: its name, the shape of its value `B`, `inject: B => A`, `project: A => Option[B]` */
   sealed abstract class Case[A] { type B; ... }
 }
 ```
@@ -180,7 +180,7 @@ field by field, when one needs it). `decode(v)` remains as `run(fromJson(v)(read
 
 ```scala
 sealed trait Schema   // Text(constraints), Integer, Number, Bool, Date, Choice(names), Optional(of), Many(of, min, max),
-                      // Record(fields: Vector[Schema.Field]), Sum(cases), Described(of, label, doc), Ref(name), Any
+                      // Record(fields: Vector[Schema.Field]), OneOf(cases), Described(of, label, doc), Ref(name), Any
 ```
 
 `shape.erased: Schema` drops decoders and constructors; `Schema.loose(s, defs): Shape[Value]` validates a `Value`
@@ -195,7 +195,7 @@ recursive through `Deferred("schema")`, so a file of schemas is read with the sa
 
 `JsonSchema.of(s: Schema, defs: Map[String, Schema] = Map.empty): Value` — a JSON Schema draft 2020-12 object:
 `type`, `properties`, `required`, `enum`, `minimum`, `maxLength`, `format: date`, `title` and `description` from
-`Described` and a field's words, `default`, `items`, `oneOf` with a `type` tag for a `Sum`, `$ref` into `$defs` for a
+`Described` and a field's words, `default`, `items`, `oneOf` with a `type` tag for a `OneOf`, `$ref` into `$defs` for a
 `Ref`. What MCP, OpenAPI and most form libraries read. An optional field is its inner schema and not required. Secret
 fields are marked `"x-secret": true`, nothing more: the policy is the application's.
 

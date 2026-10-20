@@ -78,7 +78,7 @@ object RestDomains {
     case _ => false
   }
   private def leafish(s: Schema): Boolean = s match {
-    case Schema.Record(_) | Schema.Sum(_) => false
+    case Schema.Record(_) | Schema.OneOf(_) => false
     case Schema.Described(of, _, _) => leafish(of)
     case Schema.Optional(of) => leafish(of)
     case Schema.Many(of, _, _) => leafish(of) && !Schema.isRecord(of)

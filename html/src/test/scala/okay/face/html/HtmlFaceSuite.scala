@@ -50,7 +50,7 @@ class HtmlFaceSuite extends munit.FunSuite {
       Schema.Field("ok", Schema.Bool, None, None, false, None), Schema.Field("pet", Schema.Choice(List("dog", "cat")), None, None, false, None),
       Schema.Field("tags", Schema.Many(Schema.Text(Nil), 0, None), None, None, false, None),
       Schema.Field("home", Schema.Record(Vector(Schema.Field("city", Schema.Text(Nil), None, None, false, None))), None, None, false, None),
-      Schema.Field("kind", Schema.Sum(Vector("a" -> Schema.Record(Vector(Schema.Field("x", Schema.Integer(Nil), None, None, false, None))), "b" -> Schema.Text(Nil))), None, None, false, None)))
+      Schema.Field("kind", Schema.OneOf(Vector("a" -> Schema.Record(Vector(Schema.Field("x", Schema.Integer(Nil), None, None, false, None))), "b" -> Schema.Text(Nil))), None, None, false, None)))
     val form = Map("name" -> List("Ann"), "age" -> List(""), "pet" -> List("cat"), "tags" -> List("x\ny\n"), "home.city" -> List("Kyiv"), "kind.type" -> List("a"), "kind.a.x" -> List("7"))
     assertEquals(Json.print(Forms.collect(schema, form)), """{"name":"Ann","ok":false,"pet":"cat","tags":["x","y"],"home":{"city":"Kyiv"},"kind":{"type":"a","x":7}}""")
     assert(Forms.field(Nil, schema, None).contains("""<select name="kind.type""""))
