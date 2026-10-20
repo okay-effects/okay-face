@@ -249,8 +249,8 @@ sealed trait Face[X]
 object Face {
   /** show a representation and the actions available; answered by the action taken, its parameters decoded */
   final case class Offer[A, X](view: View, actions: List[Action[A]], answer: A => X) extends Face[X]
-  /** tell, and go on; nothing to wait for */
-  final case class Tell[X](view: View, answer: Unit => X) extends Face[X]
+  /** show, and go on; nothing to wait for (`Show`, not `Tell`: the standard Writer's word is `tell`) */
+  final case class Show[X](view: View, answer: Unit => X) extends Face[X]
 }
 ```
 
@@ -260,12 +260,12 @@ okay-simple does. Words, in a class over any `Effects` (the module pattern: `cla
 
 ```scala
 def offer[A, R[_]](view: View, actions: List[Action[A]])(implicit in: In[Face, R]): A ! R
-def tell[R[_]](view: View)(implicit in: In[Face, R]): Unit ! R
+def show[R[_]](view: View)(implicit in: In[Face, R]): Unit ! R
 // built on them
 def confirm[R[_]](question: View): Boolean ! R                        // yes / no
 def choose[A, R[_]](view: View, options: List[(String, A)]): A ! R    // one plain action each
-def ask[P, R[_]](view: View, form: Shape[P]): P ! R                   // one action "submit"
-def askOrCancel[P, R[_]](view: View, form: Shape[P]): Option[P] ! R   // "submit" and "cancel"
+def fill[P, R[_]](view: View, form: Shape[P]): P ! R                  // one action "submit" (`fill`, not `ask`: the Reader's word)
+def fillOrCancel[P, R[_]](view: View, form: Shape[P]): Option[P] ! R  // "submit" and "cancel"
 ```
 
 A scenario is a program in `Face + Domain`, the domain effects the application's own. A COMPONENT is a function
@@ -418,7 +418,10 @@ The docs' two-field greeting form (`name`, `language`) shows `Shape` and `ask`.
 
 1. Value, Json, Problem, Shape, Schema, JsonSchema. Verify: the Shape tests above, both compilers. DONE 2026-10-20,
    then MOVED to okay-simple (`json`, `shape`) the same day; okay-face depends on them.
-2. View, Action, Face, Step, `steps`; `face-test`. Verify: the Step tests above.
+2. View, Action, Face, Step, `steps`; `face-test`. Verify: the Step tests above. DONE 2026-10-20: `Step[A, M[_]]` is
+   parameterised by the program type of the remaining row (`[X] => X ! Rest`), `resume` gives the rest as a program and
+   the face runs it; `Faces[F]` over any implementation, `Plays[F]` the test face over a `Runner` with `Pick`/`Back`
+   entries; laws: a state handled inside Face comes back with Back, the machine and Free show the same views.
 3. `face-term`; the example on it. Verify: played interactively, and from a file on stdin.
 4. `face-mcp`, dialogue projection. Verify: Claude Code or the MCP inspector plays the example.
 5. `Describe`, domain projection in `face-mcp`. Verify: a described effect appears as tools with no scenario.
