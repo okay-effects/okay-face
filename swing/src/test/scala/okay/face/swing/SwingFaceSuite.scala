@@ -1,0 +1,67 @@
+package okay.face.swing
+
+import java.awt.{Component, Container}
+import javax.swing._
+import okay.effects.{Sum, Void}
+import okay.effects.machine.Machine
+import okay.effects.shape.Shape
+import okay.effects.shape.Shape.{field, int, record, text}
+import okay.face.{Face, Faces, View}
+
+/** THE SWING FACE without a display: components built and driven in headless mode */
+class SwingFaceSuite extends munit.FunSuite {
+  System.setProperty("java.awt.headless", "true")
+  val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
+  val face = new SwingFace[Machine.type](faces)
+  import Machine._
+  import faces._
+  type F[X] = Sum[Void, Face, X]
+
+  final case class Who(name: String, age: Int)
+  val who: Shape[Who] = record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w => (w.name, w.age))
+  def greeting: String ! F =
+    fill[Who, F](View.heading("Who are you?"), who).flatMap { w =>
+      confirm[F](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
+        if (yes) show[F](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, F]("left")
+      }
+    }
+
+  def all(c: Component): List[Component] = c match {
+    case p: Container => c :: p.getComponents.toList.flatMap(all)
+    case _ => List(c)
+  }
+  def byName[C <: Component](root: Component, name: String): C = all(root).find(_.getName == name).getOrElse(fail(s"no $name among ${all(root).flatMap(x => Option(x.getName))}")).asInstanceOf[C]
+  def texts(root: Component): List[String] = all(root).collect { case l: JLabel => l.getText; case a: JTextArea => a.getText }
+
+  test("a form from the shape, filled and submitted; a problem shown; a button; the end") {
+    var result = Option.empty[String]
+    val root = face.panel(steps[String, F, Void](greeting), (a: String) => result = Some(a))
+    assert(texts(root).contains("Who are you?"))
+    byName[JTextField](root, "f-name").setText("Ann"); byName[JTextField](root, "f-age").setText("3")
+    byName[JButton](root, "submit:submit").doClick()
+    assert(texts(root).contains("age: of age"), texts(root))
+    byName[JTextField](root, "f-name").setText("Ann"); byName[JTextField](root, "f-age").setText("41")
+    byName[JButton](root, "submit:submit").doClick()
+    assert(texts(root).contains("Greet Ann, 41?"), texts(root))
+    byName[JButton](root, "action:yes").doClick()
+    assert(texts(root).contains("Hello, Ann!"), texts(root))
+    assertEquals(result, Some("greeted Ann"))
+  }
+  test("back re-resumes the previous step") {
+    val root = face.panel(steps[String, F, Void](greeting))
+    byName[JTextField](root, "f-name").setText("Bo"); byName[JTextField](root, "f-age").setText("20")
+    byName[JButton](root, "submit:submit").doClick()
+    assert(texts(root).contains("Greet Bo, 20?"))
+    byName[JButton](root, "okay-back").doClick()
+    assert(texts(root).contains("Who are you?"))
+    assert(all(root).forall(_.getName != "okay-back"))
+  }
+  test("views as components: table, fields, items, masked") {
+    val v = View.stack(View.table("a", "b")(Vector(View.text("1"), View.Masked("••"))), View.fields("k" -> View.text("v")), View.items(View.text("x")))
+    val root = face.panel(steps[Unit, F, Void](show[F](v)))
+    assertEquals(byName[JTable](root, "okay-table").getColumnCount, 2)
+    assertEquals(byName[JTable](root, "okay-table").getValueAt(0, 1), "••")
+    assert(texts(root).contains("k:"))
+    assertEquals(byName[JList[String]](root, "okay-items").getModel.getElementAt(0), "x")
+  }
+}

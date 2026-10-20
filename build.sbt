@@ -58,8 +58,12 @@ lazy val term = crossBoth("term", "term").dependsOn(core).settings(name := "okay
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test,
     "io.github.okay-effects" %%% "okay-effects-free" % okayEffects % Test))
 
+/** THE SWING FACE, the JVM: a Step machine as a panel, forms from the shape, a window on the event dispatch thread */
+lazy val swing = (project in file("swing")).dependsOn(core.jvm)
+  .settings(crossBuilt, name := "okay-face-swing", libraryDependencies += "io.github.okay-effects" %% "okay-effects-machine" % okayEffects % Test)
+
 /** EXAMPLES: noughts and crosses — one program, every face */
-lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, term.jvm)
+lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, term.jvm, swing)
   .settings(crossBuilt, name := "okay-face-examples", publish / skip := true,
     libraryDependencies ++= Seq("io.github.okay-effects" %% "okay-effects-machine" % okayEffects, "io.github.okay-effects" %% "okay-effects-free" % okayEffects))
 
@@ -73,7 +77,8 @@ lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).cros
     // jsdom for the tests: from NODE_PATH, else the global npm root on this machine; `npm install jsdom` here works too
     Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
       .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
-  .jsConfigure(_.withId("laminarJS")).dependsOn(core)
+  // on core's JS project only when js is asked: core has no JS platform otherwise
+  .jsConfigure(p => if (platformsAsked("js")) p.withId("laminarJS").dependsOn(core.js) else p.withId("laminarJS"))
 
 /** AIRSTREAM'S STREAMS AND OKAY'S, both ways, a Var as a State's handler — no Face: a Laminar team may take it alone */
 lazy val airstream = CrossProject("airstream", file("web/airstream"))(JSPlatform).crossType(CrossType.Pure)
@@ -94,5 +99,5 @@ lazy val waypoint = CrossProject("waypoint", file("web/waypoint"))(JSPlatform).c
       .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
   .jsConfigure(_.withId("waypointJS")).dependsOn(airstream)
 
-lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, examples) ++
+lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, examples) ++
   (if (platformsAsked("js")) Seq[ProjectReference](laminar.js, airstream.js, waypoint.js) else Nil)): _*).settings(name := "okay-face-root", publish / skip := true)

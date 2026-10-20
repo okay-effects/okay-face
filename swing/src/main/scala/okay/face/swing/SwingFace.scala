@@ -1,0 +1,201 @@
+package okay.face.swing
+
+import java.awt.{BorderLayout, Component, Font, GridLayout}
+import javax.swing._
+import javax.swing.table.DefaultTableModel
+import okay.effects.Runner
+import okay.effects.json.Json
+import okay.effects.shape.{Problems, Schema}
+import okay.face.{Action, Chosen, Faces, Rejected, Step, View}
+import scala.collection.mutable
+
+/**
+ * THE SWING FACE: a step machine as a Swing panel. The view drawn as components, a plain action a button, an action with
+ * parameters a form drawn from its erased schema; a click is `resume`, the rest run, the panel rebuilt. Back
+ * re-resumes the previous `Waiting`. `panel` is the face; `window` puts it in a frame on the event dispatch thread.
+ * The rest of a step runs by the `Runner`: the row is done before the face.
+ */
+class SwingFace[F <: Runner](val faces: Faces[F]) {
+  import faces.fx._
+  type M[X] = X ! okay.effects.Void
+
+  final case class Shown[A](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]], problems: Problems)
+
+  /** the face as a panel, rebuilt at each step; `done` with the value at the end */
+  def panel[A](first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => ()): JPanel = {
+    val root = new JPanel(new BorderLayout)
+    root.setName("okay-face")
+    def settle(step: Step[A, M], told: Vector[View], history: List[Step.Waiting[A, M]]): Shown[A] = step match {
+      case Step.Told(view, next) => settle(run(next), told :+ view, history)
+      case other => Shown(told, other, history, Nil)
+    }
+    def show(s: Shown[A]): Unit = {
+      root.removeAll()
+      root.add(render(s, show, settle), BorderLayout.CENTER)
+      root.revalidate(); root.repaint()
+      s.step match { case Step.Done(a) => done(a); case _ => () }
+    }
+    show(settle(run(first), Vector.empty, Nil))
+    root
+  }
+
+  /** the face in a window, on the event dispatch thread */
+  def window[A](title: String, first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => ()): Unit =
+    SwingUtilities.invokeLater(new Runnable { def run(): Unit = {
+      val frame = new JFrame(title)
+      frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
+      frame.getContentPane.add(new JScrollPane(panel(first, done)))
+      frame.setSize(640, 480); frame.setLocationRelativeTo(null); frame.setVisible(true)
+    } })
+
+  private def render[A](s: Shown[A], show: Shown[A] => Unit, settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A]): JComponent = {
+    val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS))
+    s.told.foreach(v => box.add(Views.component(v)))
+    s.step match {
+      case Step.Done(a) => box.add(label(s"done: $a", "okay-done"))
+      case Step.Told(_, _) => ()
+      case w: Step.Waiting[A, M] @unchecked =>
+        box.add(Views.component(w.view))
+        if (s.problems.nonEmpty) { val p = new JPanel(new GridLayout(0, 1)); p.setName("okay-problems"); s.problems.foreach(pr => p.add(label(pr.render, "okay-problem"))); box.add(p) }
+        def choose(chosen: Chosen): Unit = w.resume(chosen) match {
+          case Left(Rejected(ps)) => show(s.copy(problems = ps))
+          case Right(next) => show(settle(run(next), Vector.empty, w :: s.history))
+        }
+        val actions = new JPanel; actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS)); actions.setName("okay-actions")
+        w.actions.foreach(a => actions.add(Forms.action(a, choose)))
+        if (s.history.nonEmpty) {
+          val back = new JButton("Back"); back.setName("okay-back")
+          back.addActionListener(_ => show(Shown(Vector.empty, s.history.head, s.history.tail, Nil)))
+          actions.add(back)
+        }
+        box.add(actions)
+    }
+    box
+  }
+  private def label(text: String, name: String): JLabel = { val l = new JLabel(text); l.setName(name); l }
+}
+
+/** a `View` as Swing components */
+object Views {
+  def component(v: View): JComponent = v match {
+    case View.Empty => new JPanel
+    case View.Text(s) => named(wrapped(s), "okay-text")
+    case View.Heading(level, s) =>
+      val l = new JLabel(s); l.setFont(l.getFont.deriveFont(Font.BOLD, l.getFont.getSize2D * (level match { case 1 => 1.6f; case 2 => 1.3f; case _ => 1.1f }))); named(l, "okay-heading")
+    case View.Notice(level, s) => named(new JLabel(s"${level.toString.toLowerCase}: $s"), "okay-notice")
+    case View.Fields(rows) =>
+      val p = new JPanel(new GridLayout(0, 2, 8, 2))
+      rows.foreach { case (k, x) => p.add(new JLabel(k + ":")); p.add(component(x)) }
+      named(p, "okay-fields")
+    case View.Table(columns, rows) =>
+      val model = new DefaultTableModel(rows.map(_.map(c => text(c): AnyRef).toArray).toArray, columns.map(c => c: AnyRef).toArray) {
+        override def isCellEditable(r: Int, c: Int): Boolean = false
+      }
+      val t = new JTable(model); t.setName("okay-table")
+      val sp = new JScrollPane(t); sp.setPreferredSize(new java.awt.Dimension(400, math.min(300, 24 * (rows.size + 2)))); sp
+    case View.Items(items) =>
+      val list = new JList[String](items.map(text).toArray); named(list, "okay-items")
+    case View.Group(title, children) =>
+      val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS))
+      title.foreach(t => p.setBorder(BorderFactory.createTitledBorder(t)))
+      children.foreach(c => p.add(component(c))); named(p, "okay-group")
+    case View.Ref(key, l) => named(new JLabel(s"$l [$key]"), "okay-ref")
+    case View.Datum(json, _) => val a = new JTextArea(Json.pretty(json)); a.setEditable(false); a.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12)); named(a, "okay-datum")
+    case View.Masked(hint) => named(new JLabel(hint), "okay-masked")
+  }
+  /** a view in one line */
+  def text(v: View): String = v match {
+    case View.Empty => ""
+    case View.Text(s) => s
+    case View.Heading(_, s) => s
+    case View.Notice(_, s) => s
+    case View.Fields(rows) => rows.map { case (k, x) => s"$k: ${text(x)}" }.mkString(", ")
+    case View.Table(_, rows) => rows.map(_.map(text).mkString(" ")).mkString(" / ")
+    case View.Items(items) => items.map(text).mkString(", ")
+    case View.Group(t, children) => (t.toList ++ children.map(text)).mkString(" ")
+    case View.Ref(key, l) => s"$l [$key]"
+    case View.Datum(json, _) => Json.print(json)
+    case View.Masked(hint) => hint
+  }
+  private def wrapped(s: String): JTextArea = { val a = new JTextArea(s); a.setEditable(false); a.setLineWrap(true); a.setWrapStyleWord(true); a.setOpaque(false); a }
+  private def named[C <: JComponent](c: C, name: String): C = { c.setName(name); c }
+}
+
+/** an action as a button, or as a form drawn from its parameters' erased schema; what is typed becomes JSON the
+ * action's shape decodes — the face does not validate, the shape does */
+object Forms {
+  def action[A](a: Action[A], choose: Chosen => Unit): JComponent = a.params.erased match {
+    case Schema.Record(fields) if fields.isEmpty =>
+      val b = new JButton(a.label); b.setName("action:" + a.name)
+      b.addActionListener(_ => choose(Chosen.plain(a.name))); b
+    case schema =>
+      val inputs = new Inputs
+      val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.setName("form:" + a.name)
+      p.setBorder(BorderFactory.createTitledBorder(a.label))
+      a.doc.foreach(d => p.add(new JLabel(d)))
+      p.add(inputs.of(Nil, schema))
+      val submit = new JButton(a.label); submit.setName("submit:" + a.name)
+      submit.addActionListener(_ => choose(Chosen(a.name, inputs.collect(Nil, schema))))
+      p.add(submit); p
+  }
+
+  final class Inputs {
+    private val texts = mutable.Map.empty[List[String], JTextField]
+    private val checks = mutable.Map.empty[List[String], JCheckBox]
+    private val combos = mutable.Map.empty[List[String], JComboBox[String]]
+    private val areas = mutable.Map.empty[List[String], JTextArea]
+    private def name(path: List[String]) = "f" + path.map("-" + _).mkString
+
+    def of(path: List[String], schema: Schema, field: Option[Schema.Field] = None): JComponent = schema match {
+      case Schema.Record(fs) =>
+        val p = new JPanel(new GridLayout(0, 2, 8, 4))
+        field.flatMap(_.label).orElse(field.map(_.name)).foreach(l => p.setBorder(BorderFactory.createTitledBorder(l)))
+        fs.foreach { f => p.add(new JLabel(f.label.getOrElse(f.name) + ":")); p.add(of(path :+ f.name, f.schema, Some(f))) }
+        p
+      case Schema.Described(of0, label0, doc) =>
+        of(path, of0, Some(field.getOrElse(Schema.Field(path.lastOption.getOrElse(""), of0, None, None, false, None)).copy(label = Some(label0), doc = doc)))
+      case Schema.Optional(of0) => of(path, of0, field)
+      case Schema.Choice(options) =>
+        val c = new JComboBox[String](options.toArray); c.setName(name(path)); combos(path) = c; c
+      case Schema.Sum(cases) =>
+        val c = new JComboBox[String](cases.map(_._1).toArray); c.setName(name(path)); combos(path) = c
+        val cards = new JPanel(new java.awt.CardLayout)
+        cases.foreach { case (n, cs) => cards.add(of(path :+ n, cs), n) }
+        c.addActionListener(_ => cards.getLayout.asInstanceOf[java.awt.CardLayout].show(cards, c.getSelectedItem.asInstanceOf[String]))
+        val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.add(c); p.add(cards); p
+      case Schema.Many(_, _, _) =>
+        val a = new JTextArea(3, 20); a.setName(name(path)); a.setToolTipText("one per line"); areas(path) = a; new JScrollPane(a)
+      case Schema.Bool =>
+        val c = new JCheckBox(); c.setName(name(path)); checks(path) = c
+        field.flatMap(_.default).foreach { case Json.Bool(b) => c.setSelected(b); case _ => () }; c
+      case leaf =>
+        val t = if (field.exists(_.secret)) new JPasswordField(16) else new JTextField(16)
+        t.setName(name(path)); texts(path) = t
+        field.flatMap(_.default).foreach(d => t.setText(d match { case Json.Str(s) => s; case other => Json.print(other) }))
+        field.flatMap(_.doc).foreach(t.setToolTipText); t
+    }
+
+    def collect(path: List[String], schema: Schema): Json = schema match {
+      case Schema.Record(fs) => Json.Obj(fs.flatMap(f => collect(path :+ f.name, f.schema) match { case Json.Null => None; case v => Some(f.name -> v) }))
+      case Schema.Described(of0, _, _) => collect(path, of0)
+      case Schema.Optional(of0) => collect(path, of0)
+      case Schema.Choice(_) => combos.get(path).map(c => Json.Str(c.getSelectedItem.asInstanceOf[String])).getOrElse(Json.Null)
+      case Schema.Sum(cases) => combos.get(path).map(_.getSelectedItem.asInstanceOf[String]).flatMap(n => cases.find(_._1 == n)) match {
+        case Some((n, cs)) => collect(path :+ n, cs) match {
+          case o: Json.Obj if Schema.isRecord(cs) => ("type" -> Json.Str(n)) +: o
+          case v => Json.Obj.of("type" -> Json.Str(n), "value" -> v)
+        }
+        case None => Json.Null
+      }
+      case Schema.Many(of0, _, _) => areas.get(path).map(a => Json.Arr(a.getText.split("\n").toVector.map(_.trim).filter(_.nonEmpty).map(typed(of0, _)))).getOrElse(Json.Null)
+      case Schema.Bool => checks.get(path).map(c => Json.Bool(c.isSelected)).getOrElse(Json.Null)
+      case leaf => texts.get(path).map(_.getText).filter(_.nonEmpty).map(typed(leaf, _)).getOrElse(Json.Null)
+    }
+    private def typed(schema: Schema, s: String): Json = schema match {
+      case Schema.Integer(_) | Schema.Number(_) => scala.util.Try(BigDecimal(s.trim)).toOption.fold[Json](Json.Str(s))(Json.Num(_))
+      case Schema.Bool => Json.Bool(Set("true", "yes", "y", "on").contains(s.trim.toLowerCase))
+      case Schema.Described(of0, _, _) => typed(of0, s)
+      case _ => Json.Str(s)
+    }
+  }
+}
