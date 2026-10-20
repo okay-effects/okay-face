@@ -1,6 +1,6 @@
-# The faces: test, terminal, MCP
+# The faces: test, terminal, Swing, MCP, REST, HTML — and the web in specs/web.md
 
-Status: specification, 2026-10-20. Each face is a loop over `Step` (specs/face-core.md): show a view with its actions,
+Status: built, 2026-10-20; the web faces in specs/web.md. Each face is a loop over `Step` (specs/face-core.md): show a view with its actions,
 read a `Chosen`, resume. What differs per face is written here; everything else is face-core's.
 
 ## face-test — a face driven by a script
@@ -61,7 +61,8 @@ program is abandoned; `terminal` answers `None` in a variant `terminalOrQuit`). 
 DONE 2026-10-20 as the `mcp` module, a BRIDGE onto okay-mcp (its own repository): `McpFace.server(name, version, steps)`
 is an okay-mcp `Server` — the step's actions as tools with their JSON Schemas, `look`, `back`, the view a resource,
 `list_changed` after each change; the dialogue's rest runs in the server's row, so `Link` is there for a consent by
-elicitation. The single-tool fallback and the domain projection (`Describe`) are not done.
+elicitation. The domain projection is `McpFace.domain` (specs/face-core.md, "Describe"); the single-tool fallback is
+`McpFace.single` (below).
 
 JSON-RPC 2.0, one message per line, over the process's stdin and stdout; stderr for logs. Our own `Json` and a hundred
 lines of framing; no dependency. JVM and Native. Protocol version `2025-06-18`; `initialize` answers capabilities
@@ -107,3 +108,27 @@ A scripted stdio session in-process: lines in, lines out, golden. `initialize`; 
 `tools/call play {cell: 5}` answers the new board and `list_changed` follows; `tools/call play {cell: 99}` is an error
 result and `tools/list` is unchanged; `back` restores the previous board; a finished game leaves `look` alone; the
 single-tool mode plays the same script.
+
+## face-swing — a panel, a window
+
+DONE 2026-10-20 as `swing` (the JVM): `SwingFace(faces).panel(steps, done, look)` is a `JPanel` rebuilt at every step —
+the view as components named by their `Role`s, a plain action a `JButton` named `action:name`, an action with
+parameters a form from its erased schema (`submit:name`), back re-resumes the previous `Waiting`; `window(title, ...)`
+puts it in a frame on the event dispatch thread, the title following `Navigation` when `pages` are given. With a `Look`
+the components are dressed by `Looks` after each rebuild; without, the platform's look and feel. Tested headless.
+
+## face-rest — the dialogue as a JSON API
+
+DONE 2026-10-20 as `rest`, on okay-http: `RestFace(faces).sessions(open, base)` — `POST base` opens a session and
+answers its resource, `GET base/{id}` the view as JSON with the actions as links (JSON Schema for any client) and as
+affordances (the exact `Schema`, for the remote face), `POST base/{id}/act/{name}` with the arguments is `resume`
+(a 400 problem leaves the step), `POST base/{id}/back`. `RestDomains` is the domain projection: a described effect
+as resources, and performed from afar over `Fetch`.
+
+## face-html — pages from the server
+
+DONE 2026-10-20 as `html`, on okay-http: `HtmlFace(faces).pages(open, title, base, look)` — `GET /` opens a session
+and redirects, `GET base/{id}` the page (structural HTML5 that is well-formed XML, a class per `Role`, no style
+inline, no script), a plain action a button, an action with parameters a form from its erased schema, back a button,
+`POST base/{id}/act/{name}` is `resume` then a redirect (post, redirect, get), the problems shown on the same page;
+the look at `GET /okay.css`, compiled from the `Look`. The HTML suite checks every page for well-formedness.

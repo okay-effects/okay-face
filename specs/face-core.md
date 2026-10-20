@@ -403,12 +403,16 @@ hold conveniences (context bounds, `Mirror` derivation goes to a separate Scala-
 | `test/` | `okay-faces-test` | `okay.face.test` | the scripted face: `Script`, `play`, assertions on views | core |
 | `term/` | `okay-faces-term` | `okay.face.term` | the line terminal face, a program in `Console` | core, `okay-effects-io` |
 | `mcp/` | `okay-faces-mcp` | `okay.face.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |
-| `examples/` | — | `okay.face.examples` | noughts and crosses; the greeting form of the docs | core, test, term, mcp |
+| `swing/` | `okay-faces-swing` | `okay.face.swing` | the Swing face: a panel, a window; `Looks` | core (JVM) |
+| `rest/` | `okay-faces-rest` | `okay.face.rest` | the REST face: sessions as resources with affordances; `RestDomains`, a described effect as resources and from afar | core, okay-http (`core`, `rest`) |
+| `html/` | `okay-faces-html` | `okay.face.html` | the HTML face: pages from the server, the look as a stylesheet | core, okay-http |
+| `web/airstream` | `okay-faces-airstream` | `okay.face.airstream` | Airstream's streams and okay's, both ways | okay-effects-stream, async; airstream (JS) |
+| `web/laminar` | `okay-faces-laminar` | `okay.face.laminar` | the Laminar face; the remote face over the REST face | web/airstream, okay-http; laminar (JS) |
+| `web/waypoint` | `okay-faces-waypoint` | `okay.face.waypoint` | `Navigation` handled by Waypoint's router | web/laminar; waypoint (JS) |
+| `examples/` | — | `okay.face.examples` | noughts and crosses: the terminal, the window, and the faces' agreement | core, test, term, swing, rest, html |
 
-Later, all here and on okay-simple alone: `web/` — `airstream`, `laminar`, `waypoint` (moved from okay-simple's
-backlog, specs/web.md) and `face-laminar`, the Laminar face over them; `screen/` (a keyed widget tree between `View`
-and the web platforms, with the diff) if the Laminar face needs it; `rest/`, `graphql/`. And `interop/okay-ui`, `interop/okay-codec`, `interop/okay-mcp`: optional bridges to okay,
-Scala 3 only, as okay-simple's interop modules are to cats and ZIO.
+Not here, and why: `screen/` (a keyed widget tree with a diff) was not needed — Laminar's `Var` of the step is the
+diff; `graphql/` is a face not asked for yet; `interop/okay-*` bridges to okay, the platform, wait for okay itself.
 
 Build: sbt, cross `3.3.8` / `2.13.18`, `crossproject` for JVM always, JS and Native when asked, as okay-simple's build;
 `okay-effects` 0.1.0 from the okay-effects Pages repository; munit; zero other dependencies. `organization
