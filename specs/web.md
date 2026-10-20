@@ -89,4 +89,6 @@ This is the case "write the application once, pick Laminar and REST, get a serve
 mode is a REST server plus a shell page and the linked script, and the page is `RemoteFace(Browser.fetch()).element("/sessions")`
 and nothing else. The look comes as `/okay.css` from the same server. What is not in the browser: the program —
 every step is a round trip, as pages from the server are, with the page kept and the forms live. The other cut, the
-dialogue in the browser and the domain behind REST, waits for `Describe` (the domain projection).
+dialogue in the browser and the domain behind REST, is `Describe` + `RestDomains.remote` under `Browser.fetches`
+(okay-http, `Fetch` awaited through `Async`): verity's `browser` mode runs its whole scenario in the page with `Store`
+and `Files` on the server (verity `web/Local`, `LocalSuite` under jsdom).
