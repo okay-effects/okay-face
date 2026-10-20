@@ -10,6 +10,10 @@ import okay.effects.shape.Shape
 class Faces[F <: Effects](implicit implementation: F) {
   val fx: F = implementation
   import fx._
+  /** sessions with a step machine, for the faces that serve many counterparts */
+  val dialogues: Dialogues[fx.type] = new Dialogues[fx.type]()(fx)
+  type Dialogue[A, R[_]] = dialogues.Dialogue[A, R]
+  def dialogue[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R): Dialogue[A, R] = dialogues.dialogue[A, R](first)
 
   def offer[A, R[_]](view: View, actions: List[Action[A]])(implicit in: In[Face, R]): A ! R =
     perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a))

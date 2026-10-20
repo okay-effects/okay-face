@@ -68,6 +68,15 @@ lazy val mcp = crossBoth("mcp", "mcp").dependsOn(core).settings(name := "okay-fa
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-mcp" % okayMcp,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
+/** THE REST FACE and THE HTML FACE, over okay-http: the dialogue as a JSON API with links, and as pages from the server */
+val okayHttp = "0.1.0-SNAPSHOT"
+lazy val rest = crossBoth("rest", "rest").dependsOn(core).settings(name := "okay-face-rest",
+  libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-http" % okayHttp, "io.github.okay-effects" %%% "okay-http-rest" % okayHttp,
+    "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
+lazy val html = crossBoth("html", "html").dependsOn(core).settings(name := "okay-face-html",
+  libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-http" % okayHttp, "io.github.okay-effects" %%% "okay-http-rest" % okayHttp,
+    "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
+
 /** EXAMPLES: noughts and crosses — one program, every face */
 lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, term.jvm, swing)
   .settings(crossBuilt, name := "okay-face-examples", publish / skip := true,
@@ -105,5 +114,5 @@ lazy val waypoint = CrossProject("waypoint", file("web/waypoint"))(JSPlatform).c
       .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
   .jsConfigure(p => if (platformsAsked("js")) p.withId("waypointJS").dependsOn(core.js) else p.withId("waypointJS")).dependsOn(airstream)
 
-lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, mcp.jvm, examples) ++
+lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, mcp.jvm, rest.jvm, html.jvm, examples) ++
   (if (platformsAsked("js")) Seq[ProjectReference](laminar.js, airstream.js, waypoint.js) else Nil)): _*).settings(name := "okay-face-root", publish / skip := true)

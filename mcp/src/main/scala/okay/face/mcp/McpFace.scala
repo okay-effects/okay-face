@@ -18,42 +18,7 @@ class McpFace[F <: Runner](val faces: Faces[F]) {
   /** the server over the SAME implementation value, so one `!` serves both */
   val servers: Servers[faces.fx.type] = new Servers[faces.fx.type]()(faces.fx)
 
-  /** one agent's session: the step it is at, the history for `back`, what was told on the way. The rest of a step is a
-   * program of the row `R` the server runs in — `Link` among its effects, so a handler inside the program (a consent by
-   * elicitation) may speak to the client */
-  final class Dialogue[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R) {
-    type M[X] = X ! R
-    private var told: Vector[View] = Vector.empty
-    private var history: List[Step.Waiting[A, M]] = Nil
-    private var step: Option[Step[A, M]] = None
-    private def settle(s: Step[A, M]): Step[A, M] ! R = s match {
-      case Step.Told(view, next) => told = told :+ view; next.flatMap(settle)
-      case other => pure[Step[A, M], R](other)
-    }
-    /** the step, the first one run when first asked */
-    def current: Step[A, M] ! R = step match {
-      case Some(s) => pure[Step[A, M], R](s)
-      case None => first.flatMap(settle).map { s => step = Some(s); s }
-    }
-    def view: View ! R = current.map {
-      case w: Step.Waiting[A, M] @unchecked => View.Group(None, told :+ w.view)
-      case Step.Done(a) => View.Group(None, told :+ View.text(s"done: $a"))
-      case Step.Told(v, _) => v
-    }
-    def actions: List[Action[_]] ! R = current.map { case w: Step.Waiting[A, M] @unchecked => w.actions; case _ => Nil }
-    /** the choice taken: the next view, or the problems */
-    def choose(chosen: Chosen): Either[Rejected, View] ! R = current.flatMap {
-      case w: Step.Waiting[A, M] @unchecked => w.resume(chosen) match {
-        case Left(r) => pure[Either[Rejected, View], R](Left(r))
-        case Right(next) => { told = Vector.empty; next.flatMap(settle).flatMap { s => history = w :: history; step = Some(s); view.map(Right(_)) } }
-      }
-      case _ => pure[Either[Rejected, View], R](Left(Rejected(List(okay.effects.shape.Problem(Nil, "the dialogue is over")))))
-    }
-    def back(): Boolean = history match {
-      case previous :: older => told = Vector.empty; step = Some(previous); history = older; true
-      case Nil => false
-    }
-  }
+  type Dialogue[A, R[_]] = faces.Dialogue[A, R]
 
   /** the dialogue as tools: the step's actions, `look`, `back` */
   def tools[A, R[_]](d: Dialogue[A, R]): servers.Tools[R] = new servers.Tools[R] {
@@ -88,7 +53,7 @@ class McpFace[F <: Runner](val faces: Faces[F]) {
 
   /** a server of the dialogue, named; `first` the steps over the server's own row */
   def server[A, R[_]](name: String, version: String, first: Step[A, ({ type L[X] = X ! R })#L] ! R, instructions: Option[String] = None, elicitation: Boolean = false): servers.Server[R] = {
-    val d = new Dialogue[A, R](first)
+    val d = faces.dialogue[A, R](first)
     servers.Server[R](name, version, tools[A, R](d), Some(resources[A, R](d)), instructions, elicitation)
   }
 }
