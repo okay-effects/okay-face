@@ -324,7 +324,8 @@ receives a typed `P`. The validation loop that every UI framework reinvents is t
 
 ## Describe — a domain effect as a service (the second role)
 
-Built 2026-10-20 (`Describe.scala`), by hand, one `Op` per operation, on both compilers:
+Built 2026-10-20 here, MOVED the same day to okay-simple's `describe` module (`okay.effects.describe`, docs/modules/describe.md
+there): an effect as a service is the interface's concern, not a face's. By hand, one `Op` per operation, on both compilers:
 
 ```scala
 final case class Op[F[_], P, X](name: String, params: Shape[P], result: Shape[X], make: P => F[X], doc: Option[String] = None, writes: Boolean = false)
@@ -398,7 +399,7 @@ hold conveniences (context bounds, `Mirror` derivation goes to a separate Scala-
 
 | Module | Artifact | Package | Content | Depends on |
 |---|---|---|---|---|
-| `core/` | `okay-faces` | `okay.face` | View, Action, Face, Step, Describe; Role, Theme, Style, Look, Css (specs/style.md); Affordance, ViewJson (the wire) | `okay-effects`, `okay-effects-shape` (and `json` through it) |
+| `core/` | `okay-faces` | `okay.face` | View, Action, Face, Step; Role, Theme, Style, Look, Css (specs/style.md); Affordance, ViewJson, FormJson (the wire); `Describe` is okay-simple's | `okay-effects`, `okay-effects-shape` (and `json` through it) |
 | `test/` | `okay-faces-test` | `okay.face.test` | the scripted face: `Script`, `play`, assertions on views | core |
 | `term/` | `okay-faces-term` | `okay.face.term` | the line terminal face, a program in `Console` | core, `okay-effects-io` |
 | `mcp/` | `okay-faces-mcp` | `okay.face.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |

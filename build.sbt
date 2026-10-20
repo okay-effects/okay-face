@@ -43,6 +43,7 @@ def crossBoth(id: String, dir: String, can: Set[String] = Set("js", "native")): 
 
 /** FACE-CORE: View, Action, the effect Face, the step machine — over okay-simple's `shape` (Shape, Schema) and `json` (Json) */
 lazy val core = crossBoth("core", "core").settings(name := "okay-faces",
+  libraryDependencies += "io.github.okay-effects" %%% "okay-effects-describe" % okayEffects,
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects" % okayEffects,
     "io.github.okay-effects" %%% "okay-effects-shape" % okayEffects,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))

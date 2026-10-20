@@ -4,7 +4,8 @@ import okay.effects.{Sum, Void}
 import okay.effects.json.Json
 import okay.effects.machine.Machine
 import okay.effects.shape.Shape.{field, int, record, unit}
-import okay.face.{Call, Describe, Faces, Op}
+import okay.effects.describe.{Call, Describe, Op}
+import okay.face.Faces
 import okay.mcp.ToolCall
 
 /** a described effect as tools: listed with schemas, called by name, the result as JSON; and beside a dialogue's tools */

@@ -3,7 +3,8 @@ package okay.face.mcp
 import okay.effects.Runner
 import okay.effects.json.Json
 import okay.effects.shape.{JsonSchema, Schema}
-import okay.face.{Action, Chosen, Describe, Domains, Faces, Rejected, Step, View}
+import okay.effects.describe.{Describe, Domains}
+import okay.face.{Action, Chosen, Faces, Rejected, Step, View}
 import okay.mcp.{Content, ResourceContent, ResourceSpec, Servers, ToolCall, ToolResult, ToolSpec}
 
 /**

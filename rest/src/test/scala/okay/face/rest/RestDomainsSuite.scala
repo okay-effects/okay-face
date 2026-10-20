@@ -4,7 +4,7 @@ import okay.effects.{Sum, Void}
 import okay.effects.json.Json
 import okay.effects.machine.Machine
 import okay.effects.shape.Shape.{field, int, record, text, unit}
-import okay.face.{Call, Describe, Op}
+import okay.effects.describe.{Call, Describe, Op}
 import okay.http.{Fetch, Https, Request, Response}
 
 /** a described effect on REST: served as resources, performed from afar over Fetch against them — in one process */

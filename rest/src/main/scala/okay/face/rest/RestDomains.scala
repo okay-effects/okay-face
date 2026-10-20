@@ -3,7 +3,8 @@ package okay.face.rest
 import okay.effects.Effects
 import okay.effects.json.{Descent, Json}
 import okay.effects.shape.{JsonSchema, Problem, Schema}
-import okay.face.{Describe, Domains, FormJson, Op, RemoteFailure}
+import okay.effects.describe.{Describe, Domains, Op, RemoteFailure}
+import okay.face.FormJson
 import okay.http.{Fetch, Https, Query, Request, Response}
 import okay.http.rest.{Link, Resource, Rests, Trouble}
 
