@@ -6,14 +6,15 @@ import javax.swing.table.DefaultTableModel
 import okay.effects.Runner
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
-import okay.face.{Action, Chosen, Faces, Rejected, Step, View}
+import okay.face.{Action, Chosen, Faces, Look, Rejected, Role, Step, View}
 import scala.collection.mutable
 
 /**
  * THE SWING FACE: a step machine as a Swing panel. The view drawn as components, a plain action a button, an action with
  * parameters a form drawn from its erased schema; a click is `resume`, the rest run, the panel rebuilt. Back
  * re-resumes the previous `Waiting`. `panel` is the face; `window` puts it in a frame on the event dispatch thread.
- * The rest of a step runs by the `Runner`: the row is done before the face.
+ * The rest of a step runs by the `Runner`: the row is done before the face. With a `Look`, the components are dressed
+ * by their roles (`Looks`) after each rebuild; without one, the platform's look and feel stands.
  */
 class SwingFace[F <: Runner](val faces: Faces[F]) {
   import faces.fx._
@@ -22,9 +23,9 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
   final case class Shown[A](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]], problems: Problems)
 
   /** the face as a panel, rebuilt at each step; `done` with the value at the end */
-  def panel[A](first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => ()): JPanel = {
+  def panel[A](first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (), look: Option[Look] = None): JPanel = {
     val root = new JPanel(new BorderLayout)
-    root.setName("okay-face")
+    root.setName(Role.Face.cls)
     def settle(step: Step[A, M], told: Vector[View], history: List[Step.Waiting[A, M]]): Shown[A] = step match {
       case Step.Told(view, next) => settle(run(next), told :+ view, history)
       case other => Shown(told, other, history, Nil)
@@ -32,6 +33,7 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
     def show(s: Shown[A]): Unit = {
       root.removeAll()
       root.add(render(s, show, settle), BorderLayout.CENTER)
+      look.foreach(l => Looks(l)(root))
       root.revalidate(); root.repaint()
       s.step match { case Step.Done(a) => done(a); case _ => () }
     }
@@ -42,32 +44,32 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
   /** the face in a window, on the event dispatch thread; with `pages` (core's `Navigation` in memory) the window's title
    * follows the program's current page */
   def window[A](title: String, first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (),
-                pages: Option[(okay.face.Pages[_], Any => String)] = None): Unit =
+                pages: Option[(okay.face.Pages[_], Any => String)] = None, look: Option[Look] = None): Unit =
     SwingUtilities.invokeLater(new Runnable { def run(): Unit = {
       val frame = new JFrame(title)
       pages.foreach { case (ps, name) => ps.asInstanceOf[okay.face.Pages[Any]].onChange(p => frame.setTitle(s"$title — ${name(p)}")) }
       frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
-      frame.getContentPane.add(new JScrollPane(panel(first, done)))
+      frame.getContentPane.add(new JScrollPane(panel(first, done, look)))
       frame.setSize(640, 480); frame.setLocationRelativeTo(null); frame.setVisible(true)
     } })
 
   private def render[A](s: Shown[A], show: Shown[A] => Unit, settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A]): JComponent = {
     val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS))
-    s.told.foreach(v => box.add(Views.component(v)))
+    s.told.foreach(v => box.add(named(Views.component(v), Role.Told.cls)))
     s.step match {
       case Step.Done(a) => box.add(label(s"done: $a", "okay-done"))
       case Step.Told(_, _) => ()
       case w: Step.Waiting[A, M] @unchecked =>
         box.add(Views.component(w.view))
-        if (s.problems.nonEmpty) { val p = new JPanel(new GridLayout(0, 1)); p.setName("okay-problems"); s.problems.foreach(pr => p.add(label(pr.render, "okay-problem"))); box.add(p) }
+        if (s.problems.nonEmpty) { val p = new JPanel(new GridLayout(0, 1)); p.setName(Role.Problems.cls); s.problems.foreach(pr => p.add(label(pr.render, Role.Problems.cls))); box.add(p) }
         def choose(chosen: Chosen): Unit = w.resume(chosen) match {
           case Left(Rejected(ps)) => show(s.copy(problems = ps))
           case Right(next) => show(settle(run(next), Vector.empty, w :: s.history))
         }
-        val actions = new JPanel; actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS)); actions.setName("okay-actions")
+        val actions = new JPanel; actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS)); actions.setName(Role.Actions.cls)
         w.actions.foreach(a => actions.add(Forms.action(a, choose)))
         if (s.history.nonEmpty) {
-          val back = new JButton("Back"); back.setName("okay-back")
+          val back = new JButton("Back"); back.setName(Role.Back.cls)
           back.addActionListener(_ => show(Shown(Vector.empty, s.history.head, s.history.tail, Nil)))
           actions.add(back)
         }
@@ -76,35 +78,36 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
     box
   }
   private def label(text: String, name: String): JLabel = { val l = new JLabel(text); l.setName(name); l }
+  private def named[C <: JComponent](c: C, name: String): C = { if (c.getName == null) c.setName(name); c }
 }
 
 /** a `View` as Swing components */
 object Views {
   def component(v: View): JComponent = v match {
     case View.Empty => new JPanel
-    case View.Text(s) => named(wrapped(s), "okay-text")
+    case View.Text(s) => named(wrapped(s), Role.Text.cls)
     case View.Heading(level, s) =>
-      val l = new JLabel(s); l.setFont(l.getFont.deriveFont(Font.BOLD, l.getFont.getSize2D * (level match { case 1 => 1.6f; case 2 => 1.3f; case _ => 1.1f }))); named(l, "okay-heading")
-    case View.Notice(level, s) => named(new JLabel(s"${level.toString.toLowerCase}: $s"), "okay-notice")
+      val l = new JLabel(s); l.setFont(l.getFont.deriveFont(Font.BOLD, l.getFont.getSize2D * (level match { case 1 => 1.6f; case 2 => 1.3f; case _ => 1.1f }))); named(l, Role.Heading(level).cls)
+    case View.Notice(level, s) => named(new JLabel(s"${level.toString.toLowerCase}: $s"), Role.Notice(level).cls)
     case View.Fields(rows) =>
       val p = new JPanel(new GridLayout(0, 2, 8, 2))
-      rows.foreach { case (k, x) => p.add(new JLabel(k + ":")); p.add(component(x)) }
-      named(p, "okay-fields")
+      rows.foreach { case (k, x) => p.add(named(new JLabel(k + ":"), Role.Label.cls)); p.add(component(x)) }
+      named(p, Role.Fields.cls)
     case View.Table(columns, rows) =>
       val model = new DefaultTableModel(rows.map(_.map(c => text(c): AnyRef).toArray).toArray, columns.map(c => c: AnyRef).toArray) {
         override def isCellEditable(r: Int, c: Int): Boolean = false
       }
-      val t = new JTable(model); t.setName("okay-table")
+      val t = new JTable(model); t.setName(Role.Table.cls)
       val sp = new JScrollPane(t); sp.setPreferredSize(new java.awt.Dimension(400, math.min(300, 24 * (rows.size + 2)))); sp
     case View.Items(items) =>
-      val list = new JList[String](items.map(text).toArray); named(list, "okay-items")
+      val list = new JList[String](items.map(text).toArray); named(list, Role.Items.cls)
     case View.Group(title, children) =>
       val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS))
       title.foreach(t => p.setBorder(BorderFactory.createTitledBorder(t)))
-      children.foreach(c => p.add(component(c))); named(p, "okay-group")
-    case View.Ref(key, l) => named(new JLabel(s"$l [$key]"), "okay-ref")
-    case View.Datum(json, _) => val a = new JTextArea(Json.pretty(json)); a.setEditable(false); a.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12)); named(a, "okay-datum")
-    case View.Masked(hint) => named(new JLabel(hint), "okay-masked")
+      children.foreach(c => p.add(component(c))); named(p, Role.Group.cls)
+    case View.Ref(key, l) => named(new JLabel(s"$l [$key]"), Role.Ref.cls)
+    case View.Datum(json, _) => val a = new JTextArea(Json.pretty(json)); a.setEditable(false); a.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12)); named(a, Role.Datum.cls)
+    case View.Masked(hint) => named(new JLabel(hint), Role.Masked.cls)
   }
   /** a view in one line */
   def text(v: View): String = v match {
@@ -135,7 +138,7 @@ object Forms {
       val inputs = new Inputs
       val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.setName("form:" + a.name)
       p.setBorder(BorderFactory.createTitledBorder(a.label))
-      a.doc.foreach(d => p.add(new JLabel(d)))
+      a.doc.foreach(d => { val l = new JLabel(d); l.setName(Role.Doc.cls); p.add(l) })
       p.add(inputs.of(Nil, schema))
       val submit = new JButton(a.label); submit.setName("submit:" + a.name)
       submit.addActionListener(_ => choose(Chosen(a.name, inputs.collect(Nil, schema))))
@@ -153,7 +156,7 @@ object Forms {
       case Schema.Record(fs) =>
         val p = new JPanel(new GridLayout(0, 2, 8, 4))
         field.flatMap(_.label).orElse(field.map(_.name)).foreach(l => p.setBorder(BorderFactory.createTitledBorder(l)))
-        fs.foreach { f => p.add(new JLabel(f.label.getOrElse(f.name) + ":")); p.add(of(path :+ f.name, f.schema, Some(f))) }
+        fs.foreach { f => val l = new JLabel(f.label.getOrElse(f.name) + ":"); l.setName(Role.Label.cls); p.add(l); p.add(of(path :+ f.name, f.schema, Some(f))) }
         p
       case Schema.Described(of0, label0, doc) =>
         of(path, of0, Some(field.getOrElse(Schema.Field(path.lastOption.getOrElse(""), of0, None, None, false, None)).copy(label = Some(label0), doc = doc)))

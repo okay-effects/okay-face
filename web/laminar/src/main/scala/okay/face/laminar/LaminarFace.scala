@@ -6,7 +6,7 @@ import okay.effects.Runner
 import okay.effects.async.{Async, Asynchrony}
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
-import okay.face.{Action, Chosen, Faces, Rejected, Step, View}
+import okay.face.{Action, Chosen, Css, Faces, Look, Rejected, Role, Step, View}
 import org.scalajs.dom
 import scala.concurrent.ExecutionContext
 
@@ -16,6 +16,7 @@ import scala.concurrent.ExecutionContext
  * `resume`, the rest run, the `Var` set — the event loop gets control back between steps, as a browser needs. Back
  * re-resumes the previous `Waiting`; with `browserHistory` the browser's back button does the same. The rest of a step
  * runs by the `Runner` when the row is done (`element`), or to a `Future` when `Async` remains (`elementAsync`).
+ * Every element carries its `Role`'s classes; `LaminarFace.stylesheet(look)` is the `<style>` that dresses them.
  */
 class LaminarFace[F <: Runner](val faces: Faces[F]) {
   import faces.fx._
@@ -73,15 +74,15 @@ class LaminarFace[F <: Runner](val faces: Faces[F]) {
     } }
 
     def render(s: Shown[A, M]): HtmlElement = {
-      val notices = s.told.map(v => div(cls := "okay-told", Views.element(v)))
+      val notices = s.told.map(v => sectionTag(cls := Role.Told.classes, Views.element(v)))
       s.step match {
         case Step.Done(a) => div(notices, div(cls := "okay-done", s"done: $a"))
         case Step.Told(_, _) => div(notices, div(cls := "okay-busy", "…"))
         case w: Step.Waiting[A, M] @unchecked =>
-          val problems = if (s.problems.isEmpty) emptyNode else ul(cls := "okay-problems", s.problems.map(p => li(p.render)))
-          val backButton = if (s.history.isEmpty) emptyNode else button(typ := "button", cls := "okay-back", "Back", onClick --> Observer[dom.MouseEvent](_ => back()))
-          div(notices, div(cls := "okay-view", Views.element(w.view)), problems,
-            div(cls := "okay-actions", w.actions.map(a => Forms.action(a, choose(w, _), s.busy)), backButton))
+          val problems = if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
+          val backButton = if (s.history.isEmpty) emptyNode else button(typ := "button", cls := Role.Back.classes, "Back", onClick --> Observer[dom.MouseEvent](_ => back()))
+          div(notices, sectionTag(cls := Role.View.classes, Views.element(w.view)), problems,
+            navTag(cls := Role.Actions.classes, w.actions.map(a => Forms.action(a, choose(w, _), s.busy)), backButton))
       }
     }
   }
@@ -91,20 +92,20 @@ class LaminarFace[F <: Runner](val faces: Faces[F]) {
 object Views {
   def element(v: View): HtmlElement = v match {
     case View.Empty => span()
-    case View.Text(s) => p(s)
-    case View.Heading(1, s) => h1(s)
-    case View.Heading(2, s) => h2(s)
-    case View.Heading(_, s) => h3(s)
-    case View.Notice(level, s) => div(cls := "okay-notice", cls := ("okay-" + level.toString.toLowerCase), s)
-    case View.Fields(rows) => dl(rows.flatMap { case (k, x) => List(dt(k), dd(element(x))) })
-    case View.Table(columns, rows) => table(
+    case View.Text(s) => p(cls := Role.Text.classes, s)
+    case View.Heading(1, s) => h1(cls := Role.Heading(1).classes, s)
+    case View.Heading(2, s) => h2(cls := Role.Heading(2).classes, s)
+    case View.Heading(l, s) => h3(cls := Role.Heading(l).classes, s)
+    case View.Notice(level, s) => p(cls := Role.Notice(level).classes, s)
+    case View.Fields(rows) => dl(cls := Role.Fields.classes, rows.flatMap { case (k, x) => List(dt(cls := Role.Label.classes, k), dd(element(x))) })
+    case View.Table(columns, rows) => table(cls := Role.Table.classes,
       if (columns.forall(_.isEmpty)) emptyNode else thead(tr(columns.map(c => th(c)))),
       tbody(rows.map(r => tr(r.map(c => td(element(c)))))))
-    case View.Items(items) => ul(items.map(i => li(element(i))))
-    case View.Group(title, children) => sectionTag(title.map(t => h4(t)), children.map(element))
-    case View.Ref(key, label) => a(href := s"#$key", label)
-    case View.Datum(json, _) => pre(Json.pretty(json))
-    case View.Masked(hint) => span(cls := "okay-masked", hint)
+    case View.Items(items) => ul(cls := Role.Items.classes, items.map(i => li(element(i))))
+    case View.Group(title, children) => sectionTag(cls := Role.Group.classes, title.map(t => h4(cls := Role.GroupTitle.classes, t)), children.map(element))
+    case View.Ref(key, label) => a(cls := Role.Ref.classes, href := s"#$key", label)
+    case View.Datum(json, _) => pre(cls := Role.Datum.classes, Json.pretty(json))
+    case View.Masked(hint) => span(cls := Role.Masked.classes, hint)
   }
 }
 
@@ -115,13 +116,13 @@ object Views {
 object Forms {
   def action[A](a: Action[A], choose: Chosen => Unit, busy: Boolean): HtmlElement = a.params.erased match {
     case Schema.Record(fields) if fields.isEmpty =>
-      button(typ := "button", cls := "okay-action", dataAttr("action") := a.name, disabled := busy, a.label,
+      button(typ := "button", cls := Role.Action.classes, dataAttr("action") := a.name, disabled := busy, a.label,
         onClick --> Observer[dom.MouseEvent](_ => choose(Chosen.plain(a.name))))
     case schema =>
       val inputs = new Inputs
       val body = inputs.of(Nil, schema)
-      form(cls := "okay-form", dataAttr("action") := a.name, a.doc.map(d => p(cls := "okay-doc", d)), body,
-        button(typ := "submit", disabled := busy, a.label),
+      form(cls := Role.Form.classes, dataAttr("action") := a.name, a.doc.map(d => p(cls := Role.Doc.classes, d)), body,
+        button(typ := "submit", cls := Role.Action.classes, disabled := busy, a.label),
         onSubmit.preventDefault --> Observer[dom.Event](_ => choose(Chosen(a.name, inputs.collect(Nil, schema)))))
   }
 
@@ -166,7 +167,7 @@ object Forms {
     }
     private def labelled(path: List[String], field: Option[Schema.Field], control: HtmlElement): HtmlElement = {
       val words: String = field.flatMap(_.label).orElse(field.map(_.name)).orElse(path.lastOption).getOrElse("value")
-      div(cls := "okay-field", label(forId := id(path), words), control, field.flatMap(_.doc).map(d => small(d)))
+      div(cls := Role.Field.classes, label(cls := Role.Label.classes, forId := id(path), words), control, field.flatMap(_.doc).map(d => small(cls := Role.Doc.classes, d)))
     }
 
     /** what was typed, as JSON along the schema; blank is absent */
@@ -193,4 +194,9 @@ object Forms {
       case _ => Json.Str(s)
     }
   }
+}
+
+object LaminarFace {
+  /** the look as a `<style>` for the document: the same stylesheet the HTML face serves */
+  def stylesheet(look: Look = Look.default): HtmlElement = styleTag(Css(look))
 }

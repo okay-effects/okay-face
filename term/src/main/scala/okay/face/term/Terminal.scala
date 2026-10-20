@@ -3,16 +3,17 @@ package okay.face.term
 import okay.effects.json.Json
 import okay.effects.shape.{Fields, Problem, Problems, Reading, Schema}
 import okay.effects.world.{Console, Io}
-import okay.face.{Action, Chosen, Faces, Rejected, Step, View}
+import okay.face.{Action, Chosen, Faces, Paint, Rejected, Role, Step, View}
 
 /**
  * THE TERMINAL FACE: a line dialogue — a program in okay-effects-io's `Console`, so it runs under `realConsole`, and
  * under `console(lines)` in a test. Two things, as every face: a `Step` loop (`terminal`) that shows a view and its
  * actions as a numbered menu and reads a choice; and the PERSON as a handler of `Fields` (`prompting`): an action's
  * parameters asked field by field, the label shown, a problem shown and the field asked again. `<` is back, `?` the
- * actions' docs, `q` quits.
+ * actions' docs, `q` quits. Plain text unless a `Paint` is given: `Ansi(look)` colours by role for a terminal, and a
+ * pipe gets none.
  */
-class Terminal[F <: okay.effects.Effects](val faces: Faces[F]) {
+class Terminal[F <: okay.effects.Effects](val faces: Faces[F], paint: Paint = Paint.none) {
   import faces.fx._
   val io: Io[faces.fx.type] = new Io[faces.fx.type]()(faces.fx)
   val reading: Reading[faces.fx.type] = new Reading[faces.fx.type]()(faces.fx)
@@ -20,7 +21,7 @@ class Terminal[F <: okay.effects.Effects](val faces: Faces[F]) {
 
   private def say[R[_]](lines: List[String])(implicit c: In[Console, R]): Unit ! R =
     lines.foldLeft(pure[Unit, R](()))((acc, l) => acc.flatMap(_ => printLine[R](l)))
-  private def problems[R[_]](ps: Problems)(implicit c: In[Console, R]): Unit ! R = say[R](ps.map(p => "problem: " + p.render))
+  private def problems[R[_]](ps: Problems)(implicit c: In[Console, R]): Unit ! R = say[R](ps.map(p => paint(Role.Problems, "problem: " + p.render)))
 
   // ---- THE PERSON AS A HANDLER OF Fields
   /** a field's words: its label, else its name, else what it is */
@@ -97,7 +98,7 @@ class Terminal[F <: okay.effects.Effects](val faces: Faces[F]) {
     type M[X] = X ! R
     type RF[X] = okay.effects.Sum[R, Fields, X]
     def menuOf(w: Step.Waiting[A, M]): List[String] =
-      List(w.actions.zipWithIndex.map { case (a, i) => s"${i + 1}) ${a.label}" }.mkString("  ") + "   (< back, ? help, q quit)")
+      List(w.actions.zipWithIndex.map { case (a, i) => paint(Role.Action, s"${i + 1}) ${a.label}") }.mkString("  ") + paint(Role.Doc, "   (< back, ? help, q quit)"))
     def docs(w: Step.Waiting[A, M]): List[String] = w.actions.map(a => s"${a.name}: ${a.doc.getOrElse(a.label)}")
     def pick(w: Step.Waiting[A, M], line: String): Option[Action[_]] = {
       val t = line.trim
@@ -110,9 +111,9 @@ class Terminal[F <: okay.effects.Effects](val faces: Faces[F]) {
     }
     def loop(step: Step[A, M], history: List[Step.Waiting[A, M]]): Option[A] ! R = step match {
       case Step.Done(a) => pure[Option[A], R](Some(a))
-      case Step.Told(view, next) => say[R](Render.view(view) :+ "").flatMap(_ => next).flatMap(loop(_, history))
+      case Step.Told(view, next) => say[R](Render.view(view, paint) :+ "").flatMap(_ => next).flatMap(loop(_, history))
       case w: Step.Waiting[A, M] @unchecked =>
-        say[R](Render.view(w.view) :+ "" ).flatMap(_ => say[R](menuOf(w))).flatMap(_ => printLine[R]("> ")).flatMap(_ => readLine[R]).flatMap {
+        say[R](Render.view(w.view, paint) :+ "" ).flatMap(_ => say[R](menuOf(w))).flatMap(_ => printLine[R]("> ")).flatMap(_ => readLine[R]).flatMap {
           case None => pure[Option[A], R](None)
           case Some(l) if l.trim == "q" => pure[Option[A], R](None)
           case Some(l) if l.trim == "<" => history match {
@@ -137,5 +138,5 @@ class Terminal[F <: okay.effects.Effects](val faces: Faces[F]) {
 }
 
 object Terminal {
-  def apply[F <: okay.effects.Effects](faces: Faces[F]): Terminal[F] = new Terminal[F](faces)
+  def apply[F <: okay.effects.Effects](faces: Faces[F], paint: Paint = Paint.none): Terminal[F] = new Terminal[F](faces, paint)
 }

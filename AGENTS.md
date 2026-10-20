@@ -9,5 +9,7 @@ design is a change of the spec first.
   required — okay-faces is complete on okay-simple alone, as okay-simple is on nothing.
 - face-core imports no platform; `Json`, `Shape`, `Schema` are okay-simple's (`json`, `shape` modules), not redone here; `View`, `Chosen` are values with no functions.
 - Every face is a loop over `Step`; what a face adds is how it shows a view and reads a choice, nothing else.
+- How it looks is data (`Look` = `Theme` + `Style`, `specs/style.md`): a face marks its output with `Role`s (classes on
+  the web, names in Swing) and interprets a look; it never hard-codes a colour, a font or a stylesheet.
 - Tests on both compilers, on the machine and on `Free`. Documentation code blocks compile and run.
 - Commits: plain messages, what and why, no attribution trailers.

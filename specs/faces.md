@@ -30,7 +30,7 @@ A program in okay-effects-io's `Console`, so it runs under `realConsole` and und
 def terminal[A, R[_]](step: Step[A, R]): A ! (R + Console)
 ```
 
-Rendering `View` as text, deterministic and pipe-friendly, no colour by default (`--color` later):
+Rendering `View` as text, deterministic and pipe-friendly, no colour unless a `Paint` is given (`Ansi(look)`, specs/style.md):
 
 | View | Text |
 |---|---|

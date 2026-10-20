@@ -146,4 +146,10 @@ class LifecycleSuite extends munit.FunSuite {
     root.unmount()   // Laminar's own unmount: the callbacks fire (a removal by innerHTML would not tell Laminar)
     life.asynchrony.toFuture(sleep[Async](50)).map(_ => assert(!arrived))
   }
+  test("the stylesheet element from the look, the roles' classes on the elements") {
+    assert(LaminarFace.stylesheet().ref.textContent.contains(".okay-face{"))
+    val el = Views.element(View.stack(View.heading("T"), View.problem("P")))
+    assertEquals(el.ref.querySelector("h1").getAttribute("class"), "okay-heading okay-heading-1")
+    assertEquals(el.ref.querySelector("p").getAttribute("class"), "okay-notice okay-notice-problem")
+  }
 }

@@ -36,7 +36,9 @@ class HtmlFaceSuite extends munit.FunSuite {
       form("name" -> "Ann", "age" -> "41"), Request.get("/s/s1"), Request.post("/s/s1/act/yes", "", "application/x-www-form-urlencoded"), Request.get("/s/s1"), Request.get("/s/zz"))
     assertEquals(rs.map(_.status), List(303, 200, 303, 200, 303, 200, 303, 200, 404))
     assertEquals(rs.head.headers("Location"), "/s/s1")
-    assert(rs(1).body.contains("<h1>Who are you?</h1>") && rs(1).body.contains("""<input type="number" name="age" id="f-age">""") && rs(1).body.contains("""<label for="f-name">Name</label>"""), rs(1).body)
+    assert(rs(1).body.contains("""<h1 class="okay-heading okay-heading-1">Who are you?</h1>""") && rs(1).body.contains("""<input type="number" name="age" id="f-age"/>""") && rs(1).body.contains("""<label class="okay-label" for="f-name">Name</label>"""), rs(1).body)
+    assert(rs(1).body.contains("""<link rel="stylesheet" href="/okay.css"/>""") && !rs(1).body.contains("<style") && !rs(1).body.contains("style="), rs(1).body)
+    rs.filter(_.status != 303).foreach(r => assertEquals(WellFormed(r.body), Nil, r.body))
     assert(rs(3).body.contains("<li>age: of age</li>") && rs(3).body.contains("Who are you?"), rs(3).body)
     assert(rs(5).body.contains("Greet &lt;Ann&gt;, 41?") && rs(5).body.contains("""value="yes""""), rs(5).body)
     assert(rs(5).body.contains("/s/s1/back"))
@@ -52,5 +54,29 @@ class HtmlFaceSuite extends munit.FunSuite {
     val form = Map("name" -> List("Ann"), "age" -> List(""), "pet" -> List("cat"), "tags" -> List("x\ny\n"), "home.city" -> List("Kyiv"), "kind.type" -> List("a"), "kind.a.x" -> List("7"))
     assertEquals(Json.print(Forms.collect(schema, form)), """{"name":"Ann","ok":false,"pet":"cat","tags":["x","y"],"home":{"city":"Kyiv"},"kind":{"type":"a","x":7}}""")
     assert(Forms.field(Nil, schema, None).contains("""<select name="kind.type""""))
+  }
+  test("the stylesheet served, compiled from the look; a dark look is another stylesheet") {
+    val css = talk(Request.get("/okay.css")).head
+    assertEquals(css.status, 200); assertEquals(css.headers("Content-Type"), "text/css; charset=utf-8")
+    assert(css.body.contains("--okay-bg:#ffffff") && css.body.contains(".okay-heading-1{"), css.body)
+    val dark = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), "Greeting", look = okay.face.Look.dark)
+    assert(Machine.run(https.scripted(List(Request.get("/okay.css")))(https.serve[H](dark.service)))._1.head.body.contains("--okay-bg:#0d1117"))
+  }
+}
+
+/** well-formed as XML: every tag closed in order, void elements self-closed; what is wrong, as a list */
+object WellFormed {
+  val voids = Set("meta", "link", "input", "br", "hr", "img")
+  def apply(html: String): List[String] = {
+    val tag = "<(/?)([a-zA-Z][a-zA-Z0-9]*)([^<>]*?)(/?)>".r
+    val body = html.replaceFirst("(?s)^\\s*<!DOCTYPE[^>]*>", "")
+    val (open, wrong) = tag.findAllMatchIn(body).foldLeft((List.empty[String], List.empty[String])) { case ((stack, bad), m) =>
+      val (closing, name, selfClosed) = (m.group(1) == "/", m.group(2).toLowerCase, m.group(4) == "/")
+      if (closing) stack match { case `name` :: rest => (rest, bad); case _ => (stack, s"unexpected </$name>" :: bad) }
+      else if (selfClosed) (stack, bad)
+      else if (voids(name)) (stack, s"<$name> not self-closed" :: bad)
+      else (name :: stack, bad)
+    }
+    (wrong ++ open.map(n => s"<$n> not closed")).reverse
   }
 }
