@@ -68,6 +68,7 @@ lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, 
 lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).crossType(CrossType.Pure)
   .settings(crossBuilt, name := "okay-face-laminar",
     libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1",
+      "io.github.okay-effects" %%% "okay-effects-async" % okayEffects,
       "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test),
     // jsdom for the tests: from NODE_PATH, else the global npm root on this machine; `npm install jsdom` here works too
     Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()

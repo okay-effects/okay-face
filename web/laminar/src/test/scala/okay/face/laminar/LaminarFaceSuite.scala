@@ -4,9 +4,12 @@ import com.raquo.laminar.api.L._
 import okay.effects.{Sum, Void}
 import okay.effects.machine.Machine
 import okay.effects.shape.Shape
-import okay.effects.shape.Shape.{field, int, record, text}
+import okay.effects.shape.Shape.{field, int, record, sub, sum, text, unit}
+import okay.effects.async.Async
 import okay.face.{Action, Face, Faces, View}
 import org.scalajs.dom
+import scala.concurrent.{Future, Promise}
+import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
 
 /** THE LAMINAR FACE under jsdom: the view drawn, a form filled and submitted, a problem shown, a button pressed, back */
 class LaminarFaceSuite extends munit.FunSuite {
@@ -26,6 +29,8 @@ class LaminarFaceSuite extends munit.FunSuite {
     }
 
   def mounted(el: HtmlElement): dom.html.Element = {
+    // one face in the document at a time: jsdom answers an id selector from the whole document, then checks the subtree
+    dom.document.body.innerHTML = ""
     val container = dom.document.createElement("div").asInstanceOf[dom.html.Element]
     dom.document.body.appendChild(container)
     render(container, el)
@@ -76,5 +81,47 @@ class LaminarFaceSuite extends munit.FunSuite {
     assertEquals(q(root, "span.okay-masked").textContent, "••")
     assertEquals(q(root, "dt").textContent, "k")
     assertEquals(q(root, "li").textContent, "x")
+  }
+  test("a sum in a form: the case chosen by a select, its fields the ones collected") {
+    sealed trait Pet
+    final case class Dog(name: String) extends Pet
+    final case class Fish(litres: Int) extends Pet
+    val pet: Shape[Pet] = sum(
+      sub[Pet, Dog]("dog", record(field("name", text))(Dog(_))(_.name)) { case d: Dog => Some(d); case _ => None },
+      sub[Pet, Fish]("fish", record(field("litres", int))(Fish(_))(_.litres)) { case f: Fish => Some(f); case _ => None })
+    var got = Option.empty[Pet]
+    val root = mounted(face.element(steps[Pet, F, Void](fill[Pet, F](View.text("A pet"), pet)), (p: Pet) => got = Some(p)))
+    val sel = q(root, "#f").asInstanceOf[dom.html.Select]
+    sel.value = "fish"; sel.dispatchEvent(new dom.Event("change", new dom.EventInit { bubbles = true }))
+    typeInto(root, "f-fish-litres", "20")
+    submit(root, "submit")
+    assertEquals(got, Some(Fish(20)))
+  }
+  test("Async in the rest: a step that waits, the next view when it is done") {
+    type AF[X] = Sum[Async, Face, X]
+    val asynchrony = new okay.effects.async.Asynchrony[Machine.type]()(Machine, queue)
+    def waiting: String ! AF = offer[Unit, AF](View.text("Press"), List(Action.plain[Unit]("go", "Go")(()))).flatMap(_ =>
+      asynchrony.sleep[AF](5)).flatMap(_ => show[AF](View.text("Waited")).map(_ => "done"))
+    val ended = Promise[String]()
+    val root = mounted(face.elementAsync(steps[String, AF, Async](waiting), (a: String) => ended.success(a)))
+    // the first step arrives when its future completes: a tick later
+    Future(()).flatMap { _ =>
+      assertEquals(q(root, "p").textContent, "Press")
+      press(root, "go")
+      // while the rest runs, the step stays shown with its actions disabled
+      assert(q(root, "button[data-action=go]").hasAttribute("disabled"), root.innerHTML)
+      ended.future.map { a =>
+        assertEquals(a, "done")
+        assert(root.innerHTML.contains("Waited"), root.innerHTML)
+      }
+    }
+  }
+  test("the browser's back: a popstate re-resumes the previous step") {
+    val root = mounted(face.element(steps[String, F, Void](greeting), browserHistory = true))
+    typeInto(root, "f-name", "Di"); typeInto(root, "f-age", "33")
+    submit(root, "submit")
+    assertEquals(q(root, "p").textContent, "Greet Di, 33?")
+    dom.window.dispatchEvent(new dom.Event("popstate"))
+    assertEquals(q(root, "h1").textContent, "Who are you?")
   }
 }
