@@ -145,6 +145,32 @@ Interpreters over `Shape` (the form, the JSON Schema, the terminal prompts) TRAV
 abstract type member, not an existential, so both compilers match it. Decoding is each node's own method, so the
 decoder needs no GADT matching at all.
 
+#### Reading a shape is an effect — DECIDED 2026-10-20, for step 2
+
+`decode(v: Value)` fixes the source of the fields to a JSON-shaped value, and that is a leak: nothing in a `Shape` says
+JSON. Reading the fields a shape names is a PROGRAM over an effect — "the field `name`, as text" — and where the field
+comes from is the handler's business: a `Json` (okay-simple's `okay.effects.json.Json`, which replaces `Value` here
+once okay-simple 0.1.1 is released), CBOR or any other encoding later, a command line's arguments, or a PERSON asked
+field by field at a terminal. That last handler is the point: the terminal face's loop of prompt, input, problem and
+prompt again is a handler of the field-reading effect, not code of its own, and the same handler serves every form.
+
+```scala
+sealed trait Fields[X]                                   // the effect: a primitive at a path, as the shape wants it
+object Fields {
+  final case class Read[X](path: List[String], prim: Prim, answer: Option[Either[Problem, Any]] => X) extends Fields[X]  // typed per Prim in code
+  final case class Enter[X](path: List[String], answer: Unit => X) extends Fields[X]   // into a record or a list element
+  final case class Leave[X](answer: Unit => X) extends Fields[X]
+  final case class Size[X](path: List[String], answer: Option[Int] => X) extends Fields[X]  // of a list
+}
+def read[P, R[_]](shape: Shape[P])(implicit in: In[Fields, R]): Either[Problems, P] ! R   // every problem kept, as now
+def fromJson(j: Json): handler of Fields answering from the value           // today's `decode`
+def write[P](shape: Shape[P], p: P): Json                                    // encoding stays a function: the shape knows its wire
+```
+
+`Shape` itself stays DATA, because the erased `Schema`, the JSON Schema and the form are derived from it; what becomes
+an effect is the reading. Writing stays a function to a value for now (a `Write` effect, for a face that shows a value
+field by field, when one needs it). `decode(v)` remains as `run(fromJson(v)(read(shape)))` for convenience.
+
 #### Schema — a Shape erased to a value
 
 ```scala
