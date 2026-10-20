@@ -7,10 +7,10 @@ handler: a line terminal, an MCP server, a test script today; a web page and RES
 implementations, with no dependency.
 
 Status: `core` — `View`, `Action`, the effect `Face` (`offer`, `show`, `confirm`, `choose`, `fill`) and the step
-machine, `steps` — and `test`, the scripted face with back, are in; the terminal and MCP faces are next. The data an
+machine, `steps` — `test`, the scripted face with back, and `term`, the terminal face — a line dialogue in okay-effects-io's `Console`, the person a handler of `Fields` asked field by field — are in; the MCP face is next, on okay-mcp. The data an
 application speaks — `Json`, `Shape`, `Schema` — is okay-simple's (`json`, `shape`). Read
 [specs/face-core.md](specs/face-core.md) and [specs/faces.md](specs/faces.md). The example is noughts and crosses in
-`examples/`; the first application is [verity](https://github.com/okay-effects/verity), a keeper of one's personal data.
+`examples/` (`sbt "examples/runMain okay.face.examples.NoughtsTerminal"` to play); the first application is [verity](https://github.com/okay-effects/verity), a keeper of one's personal data.
 
 ```scala
 import okay.effects.*

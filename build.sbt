@@ -52,9 +52,15 @@ lazy val test = crossBoth("test", "test").dependsOn(core).settings(name := "okay
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test,
     "io.github.okay-effects" %%% "okay-effects-free" % okayEffects % Test))
 
+/** THE TERMINAL FACE: a Step loop in Console, the person as a handler of Fields */
+lazy val term = crossBoth("term", "term").dependsOn(core).settings(name := "okay-face-term",
+  libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects-io" % okayEffects,
+    "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test,
+    "io.github.okay-effects" %%% "okay-effects-free" % okayEffects % Test))
+
 /** EXAMPLES: noughts and crosses — one program, every face */
-lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm)
+lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, term.jvm)
   .settings(crossBuilt, name := "okay-face-examples", publish / skip := true,
     libraryDependencies ++= Seq("io.github.okay-effects" %% "okay-effects-machine" % okayEffects, "io.github.okay-effects" %% "okay-effects-free" % okayEffects))
 
-lazy val root = (project in file(".")).aggregate(core.jvm, test.jvm, examples).settings(name := "okay-face-root", publish / skip := true)
+lazy val root = (project in file(".")).aggregate(core.jvm, test.jvm, term.jvm, examples).settings(name := "okay-face-root", publish / skip := true)

@@ -422,7 +422,9 @@ The docs' two-field greeting form (`name`, `language`) shows `Shape` and `ask`.
    parameterised by the program type of the remaining row (`[X] => X ! Rest`), `resume` gives the rest as a program and
    the face runs it; `Faces[F]` over any implementation, `Plays[F]` the test face over a `Runner` with `Pick`/`Back`
    entries; laws: a state handled inside Face comes back with Back, the machine and Free show the same views.
-3. `face-term`; the example on it. Verify: played interactively, and from a file on stdin.
+3. `face-term`; the example on it. Verify: played interactively, and from a file on stdin. DONE 2026-10-20: `Terminal[F]`
+   over any implementation, a program in `Console`; `prompting` the person as a `Fields` handler (presence asked only for
+   optionals; a choice's names before menu numbers); tests under a scripted console on the machine and Free.
 4. `face-mcp`, dialogue projection. Verify: Claude Code or the MCP inspector plays the example.
 5. `Describe`, domain projection in `face-mcp`. Verify: a described effect appears as tools with no scenario.
 6. verity (its own repository) as the first real consumer; then screen and the web faces; the okay bridges when
