@@ -1,6 +1,8 @@
 # web — Airstream, Laminar, Waypoint, and the Laminar face
 
-Status: specification, moved from okay-simple's backlog 2026-10-20. Not started.
+Status: specification, moved from okay-simple's backlog 2026-10-20. `web/laminar` — the FACE, `LaminarFace`, a Step
+machine as a Laminar element — is in (2026-10-20), for programs whose remaining row is done (`Runner.run`); the bridges
+below (Airstream's streams, an element's Owner, Waypoint's routes) are what an `Async` row will need, not started.
 
 ## The modules: Airstream, Laminar, Waypoint
 

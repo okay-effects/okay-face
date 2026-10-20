@@ -63,4 +63,16 @@ lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, 
   .settings(crossBuilt, name := "okay-face-examples", publish / skip := true,
     libraryDependencies ++= Seq("io.github.okay-effects" %% "okay-effects-machine" % okayEffects, "io.github.okay-effects" %% "okay-effects-free" % okayEffects))
 
-lazy val root = (project in file(".")).aggregate(core.jvm, test.jvm, term.jvm, examples).settings(name := "okay-face-root", publish / skip := true)
+/** THE LAMINAR FACE, Scala.js only: a Step machine as a Laminar element — the view drawn, the actions buttons and forms,
+ * a click is `resume`. Built and tested when js is asked: `sbt -Dplatforms=js laminarJS/test`, under jsdom */
+lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).crossType(CrossType.Pure)
+  .settings(crossBuilt, name := "okay-face-laminar",
+    libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1",
+      "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test),
+    // jsdom for the tests: from NODE_PATH, else the global npm root on this machine; `npm install jsdom` here works too
+    Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
+      .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
+  .jsConfigure(_.withId("laminarJS")).dependsOn(core)
+
+lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, examples) ++
+  (if (platformsAsked("js")) Seq[ProjectReference](laminar.js) else Nil)): _*).settings(name := "okay-face-root", publish / skip := true)
