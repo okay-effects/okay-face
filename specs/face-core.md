@@ -321,9 +321,9 @@ hold conveniences (context bounds, `Mirror` derivation goes to a separate Scala-
 | `mcp/` | `okay-face-mcp` | `okay.face.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |
 | `examples/` | — | `okay.face.examples` | noughts and crosses; the greeting form of the docs | core, test, term, mcp |
 
-Later, all here and on okay-simple alone: `screen/` (a keyed widget tree between `View` and the web platforms, with
-the diff), `laminar/` and `dom/` (Scala.js faces over okay-simple's ui/airstream and ui/laminar modules when they
-land), `rest/`, `graphql/`. And `interop/okay-ui`, `interop/okay-codec`, `interop/okay-mcp`: optional bridges to okay,
+Later, all here and on okay-simple alone: `web/` — `airstream`, `laminar`, `waypoint` (moved from okay-simple's
+backlog, specs/web.md) and `face-laminar`, the Laminar face over them; `screen/` (a keyed widget tree between `View`
+and the web platforms, with the diff) if the Laminar face needs it; `rest/`, `graphql/`. And `interop/okay-ui`, `interop/okay-codec`, `interop/okay-mcp`: optional bridges to okay,
 Scala 3 only, as okay-simple's interop modules are to cats and ZIO.
 
 Build: sbt, cross `3.3.8` / `2.13.18`, `crossproject` for JVM always, JS and Native when asked, as okay-simple's build;
