@@ -65,12 +65,12 @@ lazy val swing = (project in file("swing")).dependsOn(core.jvm)
 
 /** THE MCP FACE: the dialogue as tools for an agent, over okay-mcp — the actions a person would see, as tools */
 val okayMcp = "0.1.0-SNAPSHOT"
+val okayHttp = "0.1.0-SNAPSHOT"
 lazy val mcp = crossBoth("mcp", "mcp").dependsOn(core).settings(name := "okay-faces-mcp",
-  libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-mcp" % okayMcp,
+  libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-mcp" % okayMcp, "io.github.okay-effects" %%% "okay-http" % okayHttp,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
 /** THE REST FACE and THE HTML FACE, over okay-http: the dialogue as a JSON API with links, and as pages from the server */
-val okayHttp = "0.1.0-SNAPSHOT"
 lazy val rest = crossBoth("rest", "rest").dependsOn(core).settings(name := "okay-faces-rest",
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-http" % okayHttp, "io.github.okay-effects" %%% "okay-http-rest" % okayHttp,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))

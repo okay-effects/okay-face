@@ -63,7 +63,17 @@ DONE 2026-10-20 as the `mcp` module, a BRIDGE onto okay-mcp (its own repository)
 is an okay-mcp `Server` — the step's actions as tools with their JSON Schemas, `look`, `back`, the view a resource,
 `list_changed` after each change; the dialogue's rest runs in the server's row, so `Link` is there for a consent by
 elicitation. The domain projection is `McpFace.domain` (specs/face-core.md, "Describe"); the single-tool fallback is
-`McpFace.single` (below).
+`McpFace.single`: for a client that reads the tool list once, `act(action, arguments)` is every step's action, `look`
+and `back` as ever, the current actions with their schemas in every result's text and structured content —
+`server(..., singleTool = true)`. The forms of every face take a list of records as items added and removed (Laminar,
+Swing) or as slots, `min` and one spare, a blank one no item (HTML).
+
+OVER HTTP too (2026-10-21, `McpFace.http.service(() => server(...), path)`, on okay-http): the protocol's streamable
+HTTP transport, its request-and-answer half — `POST path` carries a message or a batch and answers with the replies as
+JSON (a notification alone `202`); `initialize` opens a session named by the `Mcp-Session-Id` header, each session its
+own server and dialogue, `DELETE path` ends it; `GET path` is `405`, no event stream, so nothing said unasked reaches
+the client: no `list_changed` (a client re-lists, or takes the single tool) and no elicitation (a consent comes another
+way). It serves beside the REST and HTML faces on one port; verity's `api` mode has it at `/mcp`.
 
 JSON-RPC 2.0, one message per line, over the process's stdin and stdout; stderr for logs. Our own `Json` and a hundred
 lines of framing; no dependency. JVM and Native. Protocol version `2025-06-18`; `initialize` answers capabilities

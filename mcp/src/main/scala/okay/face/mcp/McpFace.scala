@@ -20,6 +20,8 @@ class McpFace[F <: Runner, Fs <: Faces[F]](val faces: Fs) {
   val servers: Servers[faces.fx.type] = new Servers[faces.fx.type]()(faces.fx)
 
   type Dialogue[A, R[_]] = faces.Dialogue[A, R]
+  /** the same servers over HTTP: `http.service(() => server(...))` */
+  val http: McpHttp[faces.fx.type, servers.type] = new McpHttp[faces.fx.type, servers.type](servers)
   val domains: Domains[faces.fx.type] = new Domains[faces.fx.type]()(faces.fx)
 
   /** the dialogue as tools: the step's actions, `look`, `back` */
