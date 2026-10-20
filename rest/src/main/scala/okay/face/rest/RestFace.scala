@@ -3,7 +3,7 @@ package okay.face.rest
 import okay.effects.Effects
 import okay.effects.json.Json
 import okay.effects.shape.JsonSchema
-import okay.face.{Action, Chosen, Faces, Rejected, View}
+import okay.face.{Action, Chosen, Faces, Rejected, View, ViewJson}
 import okay.http.{Http, Https, Request, Response}
 import okay.http.rest.{Link, Resource, Rests, Trouble}
 
@@ -13,7 +13,8 @@ import okay.http.rest.{Link, Resource, Rests, Trouble}
  * with its method, its href and its parameters' JSON Schema; `POST /sessions/{id}/act/{name}` with the arguments is
  * `resume` — the next resource, or a 400 problem with the step unchanged; `POST /sessions/{id}/back`. Sessions live in
  * memory, by id. Every face adds two things to the step machine: how it shows, how it reads a choice; this one shows
- * JSON and reads JSON.
+ * JSON and reads JSON. The data carries the actions as affordances too — the exact `Schema`, for a client of ours such as
+ * the remote Laminar face; the links carry JSON Schema for everyone else.
  */
 class RestFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
   import faces.fx._
@@ -28,7 +29,7 @@ class RestFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
     def resource(id: String, d: faces.Dialogue[A, R]): Resource ! R = d.view.flatMap(v => d.actions.flatMap(as => d.done.map { over =>
       val links = as.map(a => Link(a.name, s"$base/$id/act/${a.name}", "POST", Some(a.doc.getOrElse(a.label)), Some(JsonSchema.of(a.params.erased)))) ++
         List(Link("self", s"$base/$id")) ++ (if (d.canGoBack) List(Link("back", s"$base/$id/back", "POST")) else Nil)
-      Resource(Json.obj("view" -> ViewJson.encode(v), "done" -> Json.Bool(over)), links)
+      Resource(Json.obj("view" -> ViewJson.encode(v), "done" -> Json.Bool(over), "back" -> Json.Bool(d.canGoBack), "actions" -> Json.Arr(as.map(_.affordance.json).toVector)), links)
     }))
     def routes: List[Route[R]] = List(
       post[R](base) { (_, _) => val id = fresh(); val d = open(); sessions(id) = d; resource(id, d).map(_.response(201).header("Location", s"$base/$id")) },
@@ -52,23 +53,6 @@ class RestFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
     def service: Request => Response ! R = dispatch[R](routes)
   }
   def sessions[A, R[_]](open: () => faces.Dialogue[A, R], base: String = "/sessions"): Sessions[A, R] = new Sessions[A, R](open, base)
-}
-
-/** a `View` as JSON: `{"type": ..., ...}` */
-object ViewJson {
-  def encode(v: View): Json = v match {
-    case View.Empty => Json.obj("type" -> Json.Str("empty"))
-    case View.Text(s) => Json.obj("type" -> Json.Str("text"), "text" -> Json.Str(s))
-    case View.Heading(level, s) => Json.obj("type" -> Json.Str("heading"), "level" -> Json.num(level), "text" -> Json.Str(s))
-    case View.Notice(level, s) => Json.obj("type" -> Json.Str("notice"), "level" -> Json.Str(level.toString.toLowerCase), "text" -> Json.Str(s))
-    case View.Fields(rows) => Json.obj("type" -> Json.Str("fields"), "rows" -> Json.Arr(rows.map { case (k, x) => Json.obj("label" -> Json.Str(k), "value" -> encode(x)) }))
-    case View.Table(columns, rows) => Json.obj("type" -> Json.Str("table"), "columns" -> Json.Arr(columns.map(Json.Str(_))), "rows" -> Json.Arr(rows.map(r => Json.Arr(r.map(encode)))))
-    case View.Items(items) => Json.obj("type" -> Json.Str("items"), "items" -> Json.Arr(items.map(encode)))
-    case View.Group(title, children) => Json.Obj(Vector("type" -> Json.Str("group")) ++ title.map(t => "title" -> Json.Str(t)) :+ ("children" -> Json.Arr(children.map(encode))))
-    case View.Ref(key, label) => Json.obj("type" -> Json.Str("ref"), "key" -> Json.Str(key), "label" -> Json.Str(label))
-    case View.Datum(json, schema) => Json.Obj(Vector("type" -> Json.Str("datum"), "value" -> json) ++ schema.map(s => "schema" -> okay.effects.shape.Schema.shape.encode(s)))
-    case View.Masked(hint) => Json.obj("type" -> Json.Str("masked"), "hint" -> Json.Str(hint))
-  }
 }
 
 object RestFace {

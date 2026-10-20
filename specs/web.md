@@ -69,3 +69,24 @@ env needs `NODE_PATH` (or a local `npm install jsdom`).
 **Check first.** `EventStream.fromCustomSource`'s exact signature in 17.2.1; Waypoint 9.0.0's `Router` constructor
 (routes, `getPageTitle`, `serializePage`, `deserializePage`, `popStateEvents`, `owner`) and whether it can run under
 jsdom; how `AsyncStreams` holds its `ExecutionContext` (the browser's is the macrotask one), to do the same.
+
+## The remote face — the dialogue on the server, the page in the browser
+
+`RemoteFace(transport).element(base)` is a Laminar element over a dialogue that lives behind the REST face. The client
+knows no application: it draws whatever `View` comes (`ViewJson.decode`), draws a form from whatever `Schema` comes
+(`Affordance.action`, structural over the schema, so a choice is checked where it is made before it travels), and
+sends a `Chosen` back. The wire is the REST face's resource — `data` with `view`, `actions` as affordances (the exact
+`Schema`, for us; the links keep JSON Schema for everyone else), `back`, `done`; `links` with `self` — and its three
+calls: `POST base` opens, `POST self/act/{name}` chooses (`400` with problems leaves the step), `POST self/back`.
+
+The transport is a function `Request => Future[Response]`: okay-http's `Browser.fetch()` in a page, the REST face's
+own service run on the machine in a test — so the whole loop, server and page, is tested under jsdom with no network
+(`RemoteFaceSuite`). DECIDED: the remote face keeps its own small state (`Shown`) rather than posing as a `Step`
+machine: a rejection comes back asynchronously as a `400`, and a `Step` rejects synchronously; forcing one onto the
+other would show problems as a new step and push a history entry for nothing.
+
+This is the case "write the application once, pick Laminar and REST, get a server with a rich page": verity's `app`
+mode is a REST server plus a shell page and the linked script, and the page is `RemoteFace(Browser.fetch()).element("/sessions")`
+and nothing else. The look comes as `/okay.css` from the same server. What is not in the browser: the program —
+every step is a round trip, as pages from the server are, with the page kept and the forms live. The other cut, the
+dialogue in the browser and the domain behind REST, waits for `Describe` (the domain projection).

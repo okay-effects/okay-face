@@ -83,17 +83,18 @@ lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, 
     libraryDependencies ++= Seq("io.github.okay-effects" %% "okay-effects-machine" % okayEffects, "io.github.okay-effects" %% "okay-effects-free" % okayEffects))
 
 /** THE LAMINAR FACE, Scala.js only: a Step machine as a Laminar element — the view drawn, the actions buttons and forms,
- * a click is `resume`. Built and tested when js is asked: `sbt -Dplatforms=js laminarJS/test`, under jsdom */
+ * a click is `resume`; and THE REMOTE FACE, the same page over a dialogue behind the REST face, through okay-http's `Browser.fetch`. Built and tested when js is asked: `sbt -Dplatforms=js laminarJS/test`, under jsdom */
 lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).crossType(CrossType.Pure)
   .settings(crossBuilt, name := "okay-faces-laminar",
     libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1",
       "io.github.okay-effects" %%% "okay-effects-async" % okayEffects,
+      "io.github.okay-effects" %%% "okay-http" % okayHttp,
       "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test),
     // jsdom for the tests: from NODE_PATH, else the global npm root on this machine; `npm install jsdom` here works too
     Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
       .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
-  // on core's JS project only when js is asked: core has no JS platform otherwise
-  .jsConfigure(p => if (platformsAsked("js")) p.withId("laminarJS").dependsOn(core.js) else p.withId("laminarJS"))
+  // on core's JS project only when js is asked: core has no JS platform otherwise; the REST face in the tests, as the remote face's server
+  .jsConfigure(p => if (platformsAsked("js")) p.withId("laminarJS").dependsOn(core.js, rest.js % "test->compile") else p.withId("laminarJS"))
 
 /** AIRSTREAM'S STREAMS AND OKAY'S, both ways, a Var as a State's handler — no Face: a Laminar team may take it alone */
 lazy val airstream = CrossProject("airstream", file("web/airstream"))(JSPlatform).crossType(CrossType.Pure)

@@ -378,7 +378,7 @@ hold conveniences (context bounds, `Mirror` derivation goes to a separate Scala-
 
 | Module | Artifact | Package | Content | Depends on |
 |---|---|---|---|---|
-| `core/` | `okay-faces` | `okay.face` | View, Action, Face, Step, Describe; Role, Theme, Style, Look, Css (specs/style.md) | `okay-effects`, `okay-effects-shape` (and `json` through it) |
+| `core/` | `okay-faces` | `okay.face` | View, Action, Face, Step, Describe; Role, Theme, Style, Look, Css (specs/style.md); Affordance, ViewJson (the wire) | `okay-effects`, `okay-effects-shape` (and `json` through it) |
 | `test/` | `okay-faces-test` | `okay.face.test` | the scripted face: `Script`, `play`, assertions on views | core |
 | `term/` | `okay-faces-term` | `okay.face.term` | the line terminal face, a program in `Console` | core, `okay-effects-io` |
 | `mcp/` | `okay-faces-mcp` | `okay.face.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |

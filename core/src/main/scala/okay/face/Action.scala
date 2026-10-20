@@ -16,6 +16,8 @@ sealed abstract class Action[A] {
   def make: P => A
   /** the action taken with these arguments, decoded by its shape */
   final def taken(args: okay.effects.json.Json): Either[okay.effects.shape.Problems, A] = params.decode(args).map(make)
+  /** the action as it crosses a wire: the shape erased to its schema */
+  final def affordance: Affordance = Affordance(name, label, doc, params.erased)
 }
 
 object Action {
