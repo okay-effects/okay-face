@@ -84,66 +84,89 @@ This is the unification point of the whole library: write the shape once, every 
 
 ```scala
 sealed trait Shape[P] {
-  def decode(v: Value): Either[Problems, P]
+  def decode(v: Value): Either[Problems, P]                           // EVERY problem, with its path, not the first
   def encode(p: P): Value
   def erased: Schema                                                  // the value, for files and wires
+  def absent: Option[P]                                               // what an absent field is: `Optional` says `None`, the rest nothing
+  def map[B](to: P => B)(from: B => P): Shape[B]; def refine[B](to: P => Either[String, B])(from: B => P): Shape[B]
+  def check(message: String)(ok: P => Boolean): Shape[P]; def described(label: String, doc: Option[String] = None): Shape[P]
+  def optional: Shape[Option[P]]; def many(min: Int = 0, max: Option[Int] = None): Shape[List[P]]
 }
 object Shape {
   // primitives, each with constraints as DATA (so a face can show them before decoding)
   final case class Text(constraints: List[Constraint.OnText] = Nil) extends Shape[String]
   final case class Integer(constraints: List[Constraint.OnNumber] = Nil) extends Shape[BigInt]
   final case class Number(constraints: List[Constraint.OnNumber] = Nil) extends Shape[BigDecimal]
-  final case class Bool() extends Shape[Boolean]
-  final case class Date() extends Shape[java.time.LocalDate]           // ISO text on the wire
+  case object Bool extends Shape[Boolean]
+  case object Date extends Shape[Day]                                  // `Day(y, m, d)`, ISO text on the wire — our own, no java.time (Scala.js, Native)
   final case class Choice[A](options: List[(String, A)]) extends Shape[A]  // one of a closed list, by name
   final case class Optional[A](of: Shape[A]) extends Shape[Option[A]]  // `Null` or absent is `None`
   final case class Many[A](of: Shape[A], min: Int = 0, max: Option[Int] = None) extends Shape[List[A]]
-  final case class Record[P](fields: Fields[P]) extends Shape[P]       // an `Obj`
+  final case class Record[P](fields: Fields[P], write: P => Vector[(String, Value)]) extends Shape[P]   // an `Obj`
+  /** a tagged union: `{"type": name, ...the case's fields}` for a record case, `{"type": name, "value": v}` otherwise */
+  final case class Sum[A](cases: List[Case[A]]) extends Shape[A]
   /** a refinement or a conversion: `to` may fail with a message (one `Problem` at this path) */
   final case class Mapped[A, B](of: Shape[A], to: A => Either[String, B], from: B => A) extends Shape[B]
-  /** the same shape with words for a person: label, doc, placeholder; a face shows them, a decoder ignores them */
+  /** the same shape with words for a person: label, doc; a face shows them, a decoder ignores them */
   final case class Described[A](of: Shape[A], label: String, doc: Option[String] = None) extends Shape[A]
   /** a loose shape: any `Value`, validated against an erased `Schema` (user-defined kinds in a file) */
-  final case class Loose(schema: Schema) extends Shape[Value]
-  val unit: Shape[Unit] = Mapped(Record(Fields.Pure(())), ...)        // no parameters
+  final case class Loose(schema: Schema, defs: Map[String, Schema] = Map.empty) extends Shape[Value]
+  case object AnyValue extends Shape[Value]
+  /** a shape named and given later: how a recursive shape is written; erased to `Schema.Ref(name)` */
+  final case class Deferred[A](name: String, of: () => Shape[A]) extends Shape[A]
 
-  /** a record's fields: a free applicative, so one value `P` is built from fields in order */
+  /** a record's fields: a free applicative, so one value `P` is built from fields in order, every field's problems kept */
   sealed trait Fields[P]
   object Fields {
     final case class Pure[P](p: P) extends Fields[P]
     final case class Ap[A, P](f: Fields[A => P], field: Field[A]) extends Fields[P]
   }
   final case class Field[A](name: String, shape: Shape[A], label: Option[String] = None, doc: Option[String] = None,
-                            secret: Boolean = false, default: Option[A] = None)
+                            secret: Boolean = false, default: Option[A] = None)   // `.labelled`, `.documented`, `.asSecret`, `.withDefault`
+  /** a case of a `Sum`: its name, the shape of its value `B`, `inject: B => A`, `project: A => Option[B]` */
+  sealed abstract class Case[A] { type B; ... }
 }
 ```
 
-Words: `text`, `integer`, `number`, `bool`, `date`, `choice(...)`, `field(name, shape)`, and a builder for records:
-`record(field("name", text), field("age", integer))((name, age) => Person(name, age))` for arities up to 12 (Scala 2
-has no tuple generalisation; generated once). `Shape[P]` is also the place for cross-field validation:
-`Mapped(record, p => Either[String, P])`.
+Words: `text`, `integer`, `int`, `long`, `number`, `bool`, `date`, `any`, `choice(...)`, `field(name, shape)`, `unit`,
+`sum(cases*)`, `sub[A, B <: A](name, shape)(project)` (a case whose value is a subtype), `Case(name, shape)(inject)(project)`,
+`deferred(name)(shape)`, `loose(schema, defs)`, and the records, generated for arities 1 to 12 (`project/records.py`):
 
-Interpreters over `Shape` (the form, the JSON Schema, the terminal prompts) TRAVERSE the nodes. Scala 2 recovers the
-existential `A` of `Ap` and `Mapped` within a case; both compilers are checked by the JSON Schema interpreter living
-in the shared source.
+```scala
+record(field("name", text), field("age", int))(Person(_, _))(p => (p.name, p.age)): Shape[Person]
+```
+
+`make` builds the value, `unmake` takes it apart for `encode` — the free applicative can decode but not encode on its
+own, so a record carries both. Cross-field validation is `record(...).check(message)(ok)`. A missing field decodes to
+its `default`, else to its shape's `absent` (`None` for `Optional`), else it is `required`; fields the shape does not
+name are ignored.
+
+Interpreters over `Shape` (the form, the JSON Schema, the terminal prompts) TRAVERSE the nodes; `Case`'s `B` is an
+abstract type member, not an existential, so both compilers match it. Decoding is each node's own method, so the
+decoder needs no GADT matching at all.
 
 #### Schema — a Shape erased to a value
 
 ```scala
 sealed trait Schema   // Text(constraints), Integer, Number, Bool, Date, Choice(names), Optional(of), Many(of, min, max),
-                      // Record(fields: Vector[SchemaField]), Described(of, label, doc)
+                      // Record(fields: Vector[Schema.Field]), Sum(cases), Described(of, label, doc), Ref(name), Any
 ```
 
-`shape.erased: Schema` drops decoders and constructors; `Schema.loose(s): Shape[Value]` validates a `Value` against
-a `Schema` with no typed result. This duality is what lets an application store a user-defined kind of record in a
-file as data and still derive its form, its tool schema and its validation. `Schema` itself has a `Shape[Schema]`
-(the meta-schema), so a file of schemas is read with the same decoder as everything else.
+`shape.erased: Schema` drops decoders and constructors; `Schema.loose(s, defs): Shape[Value]` validates a `Value`
+against a `Schema` with no typed result, NORMALISED as the typed shape would write it back (fields in the schema's
+order, known fields only, an absent optional as `Null`, a date in ISO) — so typed decode-then-encode and loose decode
+agree, which a test states. This duality is what lets an application store a user-defined kind of record in a file as
+data and still derive its form, its tool schema and its validation. `Schema.shape: Shape[Schema]` is the meta-schema,
+recursive through `Deferred("schema")`, so a file of schemas is read with the same decoder as everything else, and
+`Schema.defs` gives its one definition for `JsonSchema.of`.
 
 #### JSON Schema
 
-`JsonSchema.of(s: Schema): Value` — a JSON Schema draft 2020-12 object: `type`, `properties`, `required`, `enum`,
-`minimum`, `maxLength`, `format: date`, `description` from `Described`, `items`. What MCP, OpenAPI and most form
-libraries read. Secret fields are marked `"x-secret": true`, nothing more: the policy is the application's.
+`JsonSchema.of(s: Schema, defs: Map[String, Schema] = Map.empty): Value` — a JSON Schema draft 2020-12 object:
+`type`, `properties`, `required`, `enum`, `minimum`, `maxLength`, `format: date`, `title` and `description` from
+`Described` and a field's words, `default`, `items`, `oneOf` with a `type` tag for a `Sum`, `$ref` into `$defs` for a
+`Ref`. What MCP, OpenAPI and most form libraries read. An optional field is its inner schema and not required. Secret
+fields are marked `"x-secret": true`, nothing more: the policy is the application's.
 
 ### View — the semantic representation
 
@@ -362,7 +385,7 @@ The docs' two-field greeting form (`name`, `language`) shows `Shape` and `ask`.
 
 ## Order of work
 
-1. Value, Json, Problem, Shape, Schema, JsonSchema. Verify: the Shape tests above, both compilers.
+1. Value, Json, Problem, Shape, Schema, JsonSchema. Verify: the Shape tests above, both compilers. DONE 2026-10-20.
 2. View, Action, Face, Step, `steps`; `face-test`. Verify: the Step tests above.
 3. `face-term`; the example on it. Verify: played interactively, and from a file on stdin.
 4. `face-mcp`, dialogue projection. Verify: Claude Code or the MCP inspector plays the example.
