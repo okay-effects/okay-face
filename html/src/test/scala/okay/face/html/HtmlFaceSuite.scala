@@ -9,9 +9,8 @@ import okay.face.{Face, Faces, View}
 import okay.http.{Http, Https, Query, Request}
 
 class HtmlFaceSuite extends munit.FunSuite {
-  val face = new HtmlFace[Machine.type](new Faces[Machine.type]()(Machine))
-  /** THE faces: the face's own, so the dialogue's path is one */
-  val faces: face.faces.type = face.faces
+  val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
+  val face = HtmlFace(faces)
   val https: Https[Machine.type] = new Https[Machine.type]()(Machine)
   import Machine._
   import faces._

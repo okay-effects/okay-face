@@ -13,7 +13,7 @@ import okay.http.rest.{Rests, Trouble}
  * button; `POST /s/{id}/act/{name}` with the form's fields is `resume`, then a redirect to the page (post, redirect, get);
  * a rejected choice shows the page with the problems. What is typed becomes JSON along the schema; the shape validates.
  */
-class HtmlFace[F <: Effects](val faces: Faces[F]) {
+class HtmlFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
   import faces.fx._
   val rests: Rests[faces.fx.type] = new Rests[faces.fx.type]()(faces.fx)
   import rests.{Route, dispatch, get, post}
@@ -142,4 +142,9 @@ object Forms {
     case Schema.Described(of, _, _) => typed(of, s)
     case _ => Json.Str(s)
   }
+}
+
+object HtmlFace {
+  /** over these faces, their path kept: `HtmlFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
+  def apply[F <: Effects](faces: Faces[F]): HtmlFace[F, faces.type] = new HtmlFace[F, faces.type](faces)
 }

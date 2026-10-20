@@ -15,7 +15,7 @@ import okay.http.rest.{Link, Resource, Rests, Trouble}
  * memory, by id. Every face adds two things to the step machine: how it shows, how it reads a choice; this one shows
  * JSON and reads JSON.
  */
-class RestFace[F <: Effects](val faces: Faces[F]) {
+class RestFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
   import faces.fx._
   val rests: Rests[faces.fx.type] = new Rests[faces.fx.type]()(faces.fx)
   import rests.{Route, dispatch, get, post}
@@ -69,4 +69,9 @@ object ViewJson {
     case View.Datum(json, schema) => Json.Obj(Vector("type" -> Json.Str("datum"), "value" -> json) ++ schema.map(s => "schema" -> okay.effects.shape.Schema.shape.encode(s)))
     case View.Masked(hint) => Json.obj("type" -> Json.Str("masked"), "hint" -> Json.Str(hint))
   }
+}
+
+object RestFace {
+  /** over these faces, their path kept: `RestFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
+  def apply[F <: Effects](faces: Faces[F]): RestFace[F, faces.type] = new RestFace[F, faces.type](faces)
 }

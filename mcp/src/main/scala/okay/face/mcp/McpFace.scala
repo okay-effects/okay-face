@@ -13,7 +13,7 @@ import okay.mcp.{Content, ResourceContent, ResourceSpec, Servers, ToolCall, Tool
  * is unchanged. The view is a resource too. The step machine's rest runs by the `Runner`: the row is done before the
  * face, but for `Link`, which the server's loop needs (and `Consent` by elicitation performs).
  */
-class McpFace[F <: Runner](val faces: Faces[F]) {
+class McpFace[F <: Runner, Fs <: Faces[F]](val faces: Fs) {
   import faces.fx._
   /** the server over the SAME implementation value, so one `!` serves both */
   val servers: Servers[faces.fx.type] = new Servers[faces.fx.type]()(faces.fx)
@@ -101,4 +101,9 @@ object ViewJson {
     case View.Datum(json, schema) => Json.Obj(Vector("type" -> Json.Str("datum"), "value" -> json) ++ schema.map(s => "schema" -> Schema.shape.encode(s)))
     case View.Masked(hint) => Json.obj("type" -> Json.Str("masked"), "hint" -> Json.Str(hint))
   }
+}
+
+object McpFace {
+  /** over these faces, their path kept: `McpFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
+  def apply[F <: Runner](faces: Faces[F]): McpFace[F, faces.type] = new McpFace[F, faces.type](faces)
 }
