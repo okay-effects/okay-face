@@ -39,10 +39,13 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
     root
   }
 
-  /** the face in a window, on the event dispatch thread */
-  def window[A](title: String, first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => ()): Unit =
+  /** the face in a window, on the event dispatch thread; with `pages` (core's `Navigation` in memory) the window's title
+   * follows the program's current page */
+  def window[A](title: String, first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (),
+                pages: Option[(okay.face.Pages[_], Any => String)] = None): Unit =
     SwingUtilities.invokeLater(new Runnable { def run(): Unit = {
       val frame = new JFrame(title)
+      pages.foreach { case (ps, name) => ps.asInstanceOf[okay.face.Pages[Any]].onChange(p => frame.setTitle(s"$title — ${name(p)}")) }
       frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
       frame.getContentPane.add(new JScrollPane(panel(first, done)))
       frame.setSize(640, 480); frame.setLocationRelativeTo(null); frame.setVisible(true)

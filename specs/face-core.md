@@ -347,6 +347,15 @@ derivation from the GADT by Scala 3's `Mirror` later, in a Scala 3 module (cross
 Authorisation and audit are interceptors (`observe`, `around`) over the domain effect and do not care which face
 performed it. `Describe` is step 5 of the plan; its interface is fixed here so `face-mcp` is built with it in mind.
 
+## Navigation — routes as an effect, of no platform (2026-10-20)
+
+`Navigation[P]`: `Push(page)`, `Replace(page)`, `Current` — a page any value the application names its places by. The
+program knows no router, no window, no URL; the handler is the face's: Waypoint's `Router` in a browser
+(`web/waypoint`'s `router`, the URL and the browser's history), `memory(pages)` anywhere — a stack in memory, `Pages`,
+that tells the face of each change, so a Swing window's title or a terminal's line follows the page, and `back()` for
+the face's own back — and `recording(first)` for a test. The law: the same program under `recording`, `memory` and
+`router` asks for the same pages.
+
 ## Laws
 
 1. `View`, `Value`, `Schema`, `Chosen` are values: no functions, structural equality, printable as JSON.

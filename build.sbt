@@ -97,7 +97,7 @@ lazy val waypoint = CrossProject("waypoint", file("web/waypoint"))(JSPlatform).c
     libraryDependencies ++= Seq("com.raquo" %%% "waypoint" % "9.0.0", "com.raquo" %%% "laminar" % "17.2.1"),
     Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
       .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
-  .jsConfigure(_.withId("waypointJS")).dependsOn(airstream)
+  .jsConfigure(p => if (platformsAsked("js")) p.withId("waypointJS").dependsOn(core.js) else p.withId("waypointJS")).dependsOn(airstream)
 
 lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, examples) ++
   (if (platformsAsked("js")) Seq[ProjectReference](laminar.js, airstream.js, waypoint.js) else Nil)): _*).settings(name := "okay-face-root", publish / skip := true)

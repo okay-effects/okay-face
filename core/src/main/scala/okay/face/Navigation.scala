@@ -1,17 +1,12 @@
-package okay.face.waypoint
+package okay.face
 
-import com.raquo.airstream.ownership.Owner
-import com.raquo.waypoint.Router
-import okay.effects.Runner
-import okay.effects.async.Async
-import okay.face.airstream.AirStreams
-import okay.effects.stream.Streams
+import okay.effects.Effects
 
 /**
- * ROUTES AS AN EFFECT: a program `Push`es a page, `Replace`s it, asks the `Current` one — and knows no router. The
- * handler is Waypoint's `Router` (`router(r)`): `pushState`, `replaceState`, `currentPageSignal.now()`; or a recording
- * one for a test (`recording(first)`): the pages asked for, with no browser history. `pages(r)` is the current page as
- * a stream, the airstream bridge's.
+ * ROUTES AS AN EFFECT, of no platform: a program `push`es a page, `replace`s it, asks the `current` one — a page any
+ * value the application names its places by — and knows no router, no window, no URL. Where it lands is the face's
+ * handler: a browser's history through Waypoint (`web/waypoint`'s `router`), a window's title, a terminal's line, a
+ * stack in memory (`memory`) that tells the face of each change, a recording for a test (`recording`).
  */
 sealed trait Navigation[P, X]
 object Navigation {
@@ -20,8 +15,22 @@ object Navigation {
   final case class Current[P, X](answer: P => X) extends Navigation[P, X]
 }
 
-class Navigating[I <: Runner, S <: Streams[I]](val bridge: AirStreams[I, S]) {
-  val fx: bridge.fx.type = bridge.fx
+/** the pages in memory: where the program is, where it was; a face reads `current`, is told of changes, may go `back` */
+final class Pages[P](first: P) {
+  private var stack: List[P] = List(first)
+  private var listeners: List[P => Unit] = Nil
+  def current: P = stack.head
+  def history: List[P] = stack
+  def push(p: P): Unit = { stack = p :: stack; tell() }
+  def replace(p: P): Unit = { stack = p :: stack.drop(1); tell() }
+  /** one page back, where there is one */
+  def back(): Boolean = stack match { case _ :: rest if rest.nonEmpty => stack = rest; tell(); true; case _ => false }
+  def onChange(f: P => Unit): Unit = listeners = f :: listeners
+  private def tell(): Unit = listeners.foreach(_(current))
+}
+
+class Navigations[F <: Effects](implicit implementation: F) {
+  val fx: F = implementation
   import fx._
 
   def push[P, R[_]](page: P)(implicit in: In[({ type L[x] = Navigation[P, x] })#L, R]): Unit ! R =
@@ -31,16 +40,16 @@ class Navigating[I <: Runner, S <: Streams[I]](val bridge: AirStreams[I, S]) {
   def current[P, R[_]](implicit in: In[({ type L[x] = Navigation[P, x] })#L, R]): P ! R =
     perform[({ type L[x] = Navigation[P, x] })#L].apply[R, P](Navigation.Current[P, P](p => p))
 
-  /** Waypoint's router as the handler, in place */
-  def router[P](r: Router[P]): RouterHandler[P] = new RouterHandler[P](r)
-  final class RouterHandler[P](r: Router[P]) {
+  /** the pages kept in memory, in place; the face given the `Pages` reads and listens */
+  def memory[P](pages: Pages[P]): Memory[P] = new Memory[P](pages)
+  final class Memory[P](pages: Pages[P]) {
     def apply[R[_], Rest[_], A](p: A ! R)(implicit sp: Split[({ type L[x] = Navigation[P, x] })#L, R, Rest]): A ! Rest =
       handle[({ type L[x] = Navigation[P, x] })#L, R, Rest, A, A](p, new TailHandler[({ type L[x] = Navigation[P, x] })#L, Rest, A, A] {
         def ret(a: A) = pure(a)
         def answer[X](op: Navigation[P, X]): X = op match {
-          case Navigation.Push(page, answer) => r.pushState(page); answer(())
-          case Navigation.Replace(page, answer) => r.replaceState(page); answer(())
-          case Navigation.Current(answer) => answer(r.currentPageSignal.now())
+          case Navigation.Push(page, answer) => pages.push(page); answer(())
+          case Navigation.Replace(page, answer) => pages.replace(page); answer(())
+          case Navigation.Current(answer) => answer(pages.current)
         }
       })
   }
@@ -58,10 +67,11 @@ class Navigating[I <: Runner, S <: Streams[I]](val bridge: AirStreams[I, S]) {
           }
         })
   }
-  /** the current page as a stream: now, and each change */
-  def pages[P](r: Router[P])(implicit owner: Owner): bridge.streams.Stream[P, Async] = bridge.fromSignal(r.currentPageSignal)
 }
 
-object Navigating {
-  def apply[I <: Runner, S <: Streams[I]](bridge: AirStreams[I, S]): Navigating[I, S] = new Navigating[I, S](bridge)
+object Navigations {
+  def apply()(implicit fx: Effects): Navigations[fx.type] = {
+    implicit val exact: fx.type = fx
+    new Navigations[fx.type]
+  }
 }

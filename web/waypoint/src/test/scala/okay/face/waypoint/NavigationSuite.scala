@@ -7,15 +7,18 @@ import okay.effects.async.Async
 import okay.effects.machine.Machine
 import okay.effects.stream.Streams
 import okay.face.airstream.AirStreams
+import okay.face.{Navigation, Navigations}
 import org.scalajs.dom
 import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
 
 class NavigationSuite extends munit.FunSuite {
   val streams = new Streams[Machine.type]()(Machine)
   val bridge = new AirStreams[Machine.type, streams.type](streams)
-  val nav = new Navigating[Machine.type, streams.type](bridge)
+  val routes = new Routes[Machine.type, streams.type](bridge)
+  val nav = new Navigations[Machine.type]()(Machine)
   import Machine._
-  import nav._
+  import nav.{push, replace, current, recording}
+  import routes.router
 
   sealed trait Page
   case object Home extends Page
@@ -30,10 +33,10 @@ class NavigationSuite extends munit.FunSuite {
   }
   test("Waypoint's router: pushState changes the current page and the URL") {
     val origin = dom.window.location.origin   // jsdom's document is http://localhost/
-    val routes = List(
+    val table = List(
       Route.static(Home, root / endOfSegments),
       Route[User, Int](encode = _.id, decode = User(_), pattern = root / "user" / segment[Int] / endOfSegments))
-    val r = new Router[Page](routes = routes, serializePage = { case Home => "home"; case User(i) => s"user:$i" },
+    val r = new Router[Page](routes = table, serializePage = { case Home => "home"; case User(i) => s"user:$i" },
       deserializePage = s => if (s == "home") Home else User(s.drop(5).toInt), getPageTitle = _.toString,
       routeFallback = _ => Home, origin = origin, initialUrl = dom.window.location.href)
     assertEquals(run(router(r)(visit)), User(3): Page)

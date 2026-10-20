@@ -7,7 +7,7 @@ import okay.effects.machine.Machine
 import okay.effects.free.Free
 import okay.effects.shape.{Problem, Shape}
 import okay.effects.shape.Shape.{field, int, record, text}
-import okay.face.{Action, Chosen, Face, Faces, Rejected, Step, View}
+import okay.face.{Action, Chosen, Face, Faces, Navigation, Navigations, Pages, Rejected, Step, View}
 
 /** THE STEP MACHINE AND THE TEST FACE, on an implementation: a scenario of three screens with a branch, a rejected
  * choice, back restoring a state handled inside, the views shown */
@@ -84,6 +84,28 @@ abstract class PlaysChecks(val fx0: Runner, name: String) extends munit.FunSuite
       case Played.Stuck(_, at, None) => assertEquals(at.actions.map(_.name), List("a-b", "a-b-2", "x"))
       case other => fail(s"$other")
     }
+  }
+}
+
+class NavigationSuite extends munit.FunSuite {
+  val nav = new Navigations[Machine.type]()(Machine)
+  import Machine._
+  import nav._
+  sealed trait Page; case object Home extends Page; final case class User(id: Int) extends Page
+  type N[X] = Navigation[Page, X]
+  type R[X] = Sum[Void, N, X]
+  def visit: Page ! R = push[Page, R](User(1)).flatMap(_ => push[Page, R](User(2))).flatMap(_ => replace[Page, R](User(3))).flatMap(_ => current[Page, R])
+
+  test("recording: the pages asked for; memory: the pages kept, the face told, back") {
+    assertEquals(run(recording[Page](Home)(visit)), (List(Home, User(1), User(3)), User(3): Page))
+    val pages = new Pages[Page](Home)
+    val seen = scala.collection.mutable.ListBuffer.empty[Page]
+    pages.onChange(seen += _)
+    assertEquals(run(memory[Page](pages)(visit)), User(3): Page)
+    assertEquals(pages.history, List(User(3), User(1), Home))
+    assertEquals(seen.toList, List(User(1), User(2), User(3)))
+    assert(pages.back()); assertEquals(pages.current, User(1): Page)
+    assert(pages.back()); assert(!pages.back()); assertEquals(pages.current, Home: Page)
   }
 }
 
