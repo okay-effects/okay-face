@@ -42,7 +42,10 @@ def crossBoth(id: String, dir: String, can: Set[String] = Set("js", "native")): 
 
 /** FACE-CORE: Value, Json, Shape and its erased Schema, JSON Schema, View, Action, the effect Face, the step machine */
 lazy val core = crossBoth("core", "core").settings(name := "okay-face",
-  libraryDependencies += "io.github.okay-effects" %%% "okay-effects" % okayEffects)
+  libraryDependencies += "io.github.okay-effects" %%% "okay-effects" % okayEffects,
+  // the tests only: the machine to run programs on, and okay-simple's parsing module, whose JSON grammar must agree with `Json.parse`
+  libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test,
+    "io.github.okay-effects" %%% "okay-effects-parsing" % okayEffects % Test))
 
 /** `sbt records`: rewrites core's RecordWords.scala, the record words for arities 1 to 12 (project/Records.scala) */
 val records = taskKey[Unit]("generate RecordWords.scala")
