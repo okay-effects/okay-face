@@ -56,6 +56,15 @@ abstract class TerminalChecks(val fx0: Runner, name: String) extends munit.FunSu
     assertEquals(printed.count(_ == "Greet Ann, 41?"), 1)
     assertEquals(printed.count(_ == "Greet Cy, 30?"), 1)
   }
+  test(s"$name: a secret field is asked without echo, and says so") {
+    final case class Login(user: String, pin: String)
+    val login: Shape[Login] = record(field("user", text), field("pin", text).asSecret)(Login(_, _))(l => (l.user, l.pin))
+    type LF[X] = Sum[C, Face, X]
+    val p: Login ! LF = fill[Login, LF](View.text("Log in"), login)
+    val (printed, result) = fx0.run(console(List("1", "ann", "1234"))(term.terminal[Login, C](steps[Login, LF, C](p))))
+    assertEquals(result, Some(Login("ann", "1234")))
+    assert(printed.contains("pin (hidden): "), printed.mkString("\n"))
+  }
   test(s"$name: rendering — headings, fields, tables, items, groups, wrapping") {
     assertEquals(Render.view(View.heading("Hi", 2)), List("Hi", "--"))
     assertEquals(Render.view(View.fields("name" -> View.text("Ann"), "born" -> View.text("1985"))), List("name: Ann", "born: 1985"))

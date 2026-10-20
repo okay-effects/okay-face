@@ -16,7 +16,7 @@ class Terminal[F <: okay.effects.Effects](val faces: Faces[F]) {
   import faces.fx._
   val io: Io[faces.fx.type] = new Io[faces.fx.type]()(faces.fx)
   val reading: Reading[faces.fx.type] = new Reading[faces.fx.type]()(faces.fx)
-  import io.{printLine, readLine}
+  import io.{printLine, readLine, readSecret}
 
   private def say[R[_]](lines: List[String])(implicit c: In[Console, R]): Unit ! R =
     lines.foldLeft(pure[Unit, R](()))((acc, l) => acc.flatMap(_ => printLine[R](l)))
@@ -58,9 +58,10 @@ class Terminal[F <: okay.effects.Effects](val faces: Faces[F]) {
     case Schema.Choice(options) =>
       printLine[R](labelOf(path, f) + ":").flatMap(_ => menu[R](options.map(o => (o, o)))).map(_.map(Json.Str(_)))
     case other =>
-      val hint = (hintOf(other).toList ++ f.default.map(d => "default " + Json.print(d)).toList ++ f.doc.toList).mkString(", ")
+      val hint = (hintOf(other).toList ++ f.default.map(d => "default " + Json.print(d)).toList ++ f.doc.toList ++ (if (f.secret) List("hidden") else Nil)).mkString(", ")
       val label = labelOf(path, f) + (if (hint.isEmpty) "" else s" ($hint)") + ": "
-      printLine[R](label).flatMap(_ => readLine[R]).map {
+      // a secret is typed without echo, where the console can hide it
+      printLine[R](label).flatMap(_ => if (f.secret) readSecret[R] else readLine[R]).map {
         case None => None
         case Some(l) if l.trim.isEmpty => None
         case Some(l) => Some(typed(other, l))
