@@ -16,9 +16,10 @@ ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 ThisBuild / scalaVersion := scala3
-/** okay-simple's release, from its Pages repository: the only dependency */
+/** okay-simple, the only dependency: its release from its Pages repository — until 0.1.1 is released, with the `json` and
+ * `shape` modules this needs, the snapshot published locally: in okay-simple, `sbt +shape/publishLocal` and its dependencies */
 ThisBuild / resolvers += "okay-effects" at "https://okay-effects.github.io/okay-simple/maven"
-val okayEffects = "0.1.0"
+val okayEffects = "0.1.1-SNAPSHOT"
 
 def major(v: String): String = if (v.startsWith("3")) "3" else "2"
 
@@ -40,19 +41,10 @@ def crossBoth(id: String, dir: String, can: Set[String] = Set("js", "native")): 
   CrossProject(id, file(dir))(platformsOf(can): _*).crossType(CrossType.Pure)
     .settings(crossBuilt).jvmConfigure(_.withId(id)).onJS(_.withId(id + "JS")).onNative(_.withId(id + "Native"))
 
-/** FACE-CORE: Value, Json, Shape and its erased Schema, JSON Schema, View, Action, the effect Face, the step machine */
+/** FACE-CORE: View, Action, the effect Face, the step machine — over okay-simple's `shape` (Shape, Schema) and `json` (Json) */
 lazy val core = crossBoth("core", "core").settings(name := "okay-face",
-  libraryDependencies += "io.github.okay-effects" %%% "okay-effects" % okayEffects,
-  // the tests only: the machine to run programs on, and okay-simple's parsing module, whose JSON grammar must agree with `Json.parse`
-  libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test,
-    "io.github.okay-effects" %%% "okay-effects-parsing" % okayEffects % Test))
-
-/** `sbt records`: rewrites core's RecordWords.scala, the record words for arities 1 to 12 (project/Records.scala) */
-val records = taskKey[Unit]("generate RecordWords.scala")
-records := {
-  val target = (ThisBuild / baseDirectory).value / "core" / "src" / "main" / "scala" / "okay" / "face" / "RecordWords.scala"
-  IO.write(target, Records.source)
-  streams.value.log.info(s"wrote $target")
-}
+  libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects" % okayEffects,
+    "io.github.okay-effects" %%% "okay-effects-shape" % okayEffects,
+    "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
 lazy val root = (project in file(".")).aggregate(core.jvm).settings(name := "okay-face-root", publish / skip := true)

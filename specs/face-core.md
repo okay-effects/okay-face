@@ -47,7 +47,12 @@ functions; a form is rendered from the same schema that decodes it; an MCP serve
 
 ## The four data types
 
-Everything is built from four data types, none knowing any platform. All are VALUES: no functions inside `Value`,
+Everything is built from four data types, none knowing any platform. MOVED 2026-10-20: `Value` (now `Json`), `Shape`,
+`Schema` and `JsonSchema` are okay-simple's modules `json` and `shape` (docs/modules/json.md, shape.md there), because
+every consumer — okay-face's forms, okay-mcp's tool schemas, verity's kinds — needs them and none should depend on
+another for them. Their description below is kept as the design record; the code is okay-simple's, as are the two
+next steps, reading a shape as an effect and derivation from a type (okay-simple's BACKLOG.md, "shape:"). okay-face
+keeps `View` and `Action`, the effect and the step machine. All are VALUES: no functions inside `Value`,
 `View` and the erased `Schema`, so they have equality and cross a wire. `Shape[P]` and `Action[A]` carry functions
 (decoders and constructors) and stay in the program; their erasures are values.
 
@@ -364,7 +369,7 @@ hold conveniences (context bounds, `Mirror` derivation goes to a separate Scala-
 
 | Module | Artifact | Package | Content | Depends on |
 |---|---|---|---|---|
-| `core/` | `okay-face` | `okay.face` | Value, Json, Problem, Shape, Schema, JsonSchema, View, Action, Face, Step, Describe | `okay-effects` |
+| `core/` | `okay-face` | `okay.face` | View, Action, Face, Step, Describe | `okay-effects`, `okay-effects-shape` (and `json` through it) |
 | `test/` | `okay-face-test` | `okay.face.test` | the scripted face: `Script`, `play`, assertions on views | core |
 | `term/` | `okay-face-term` | `okay.face.term` | the line terminal face, a program in `Console` | core, `okay-effects-io` |
 | `mcp/` | `okay-face-mcp` | `okay.face.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |
@@ -411,7 +416,8 @@ The docs' two-field greeting form (`name`, `language`) shows `Shape` and `ask`.
 
 ## Order of work
 
-1. Value, Json, Problem, Shape, Schema, JsonSchema. Verify: the Shape tests above, both compilers. DONE 2026-10-20.
+1. Value, Json, Problem, Shape, Schema, JsonSchema. Verify: the Shape tests above, both compilers. DONE 2026-10-20,
+   then MOVED to okay-simple (`json`, `shape`) the same day; okay-face depends on them.
 2. View, Action, Face, Step, `steps`; `face-test`. Verify: the Step tests above.
 3. `face-term`; the example on it. Verify: played interactively, and from a file on stdin.
 4. `face-mcp`, dialogue projection. Verify: Claude Code or the MCP inspector plays the example.
