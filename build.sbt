@@ -62,6 +62,12 @@ lazy val term = crossBoth("term", "term").dependsOn(core).settings(name := "okay
 lazy val swing = (project in file("swing")).dependsOn(core.jvm)
   .settings(crossBuilt, name := "okay-face-swing", libraryDependencies += "io.github.okay-effects" %% "okay-effects-machine" % okayEffects % Test)
 
+/** THE MCP FACE: the dialogue as tools for an agent, over okay-mcp — the actions a person would see, as tools */
+val okayMcp = "0.1.0-SNAPSHOT"
+lazy val mcp = crossBoth("mcp", "mcp").dependsOn(core).settings(name := "okay-face-mcp",
+  libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-mcp" % okayMcp,
+    "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
+
 /** EXAMPLES: noughts and crosses — one program, every face */
 lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, term.jvm, swing)
   .settings(crossBuilt, name := "okay-face-examples", publish / skip := true,
@@ -99,5 +105,5 @@ lazy val waypoint = CrossProject("waypoint", file("web/waypoint"))(JSPlatform).c
       .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
   .jsConfigure(p => if (platformsAsked("js")) p.withId("waypointJS").dependsOn(core.js) else p.withId("waypointJS")).dependsOn(airstream)
 
-lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, examples) ++
+lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, mcp.jvm, examples) ++
   (if (platformsAsked("js")) Seq[ProjectReference](laminar.js, airstream.js, waypoint.js) else Nil)): _*).settings(name := "okay-face-root", publish / skip := true)

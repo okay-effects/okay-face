@@ -58,6 +58,11 @@ program is abandoned; `terminal` answers `None` in a variant `terminalOrQuit`). 
 
 ## face-mcp — the Model Context Protocol over stdio
 
+DONE 2026-10-20 as the `mcp` module, a BRIDGE onto okay-mcp (its own repository): `McpFace.server(name, version, steps)`
+is an okay-mcp `Server` — the step's actions as tools with their JSON Schemas, `look`, `back`, the view a resource,
+`list_changed` after each change; the dialogue's rest runs in the server's row, so `Link` is there for a consent by
+elicitation. The single-tool fallback and the domain projection (`Describe`) are not done.
+
 JSON-RPC 2.0, one message per line, over the process's stdin and stdout; stderr for logs. Our own `Json` and a hundred
 lines of framing; no dependency. JVM and Native. Protocol version `2025-06-18`; `initialize` answers capabilities
 `tools` (with `listChanged: true`), `resources`, and `elicitation` when the application asks for it.
