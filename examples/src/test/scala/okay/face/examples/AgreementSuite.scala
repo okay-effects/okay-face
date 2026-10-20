@@ -1,0 +1,99 @@
+package okay.face.examples
+
+import javax.swing.{JButton, JComboBox}
+import okay.effects.{Sum, Void}
+import okay.effects.json.Json
+import okay.effects.json.Json.{Str, obj}
+import okay.effects.machine.Machine
+import okay.effects.world.Console
+import okay.face.{Chosen, Face, Faces, View, ViewJson}
+import okay.face.html.{Html, HtmlFace}
+import okay.face.rest.RestFace
+import okay.face.swing.SwingFace
+import okay.face.term.{Render, Terminal}
+import okay.face.test.Plays
+import okay.http.{Http, Https, Query, Request}
+
+/** THE FACES AGREE: one game, one script of choices — X down the left, the program answering — and every face shows
+ * the test face's views, in order, and ends the same. The test face is the reference: what it shows is what the
+ * program said; a face that shows more, less or otherwise is wrong */
+class AgreementSuite extends munit.FunSuite {
+  System.setProperty("java.awt.headless", "true")
+  val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
+  val plays: Plays[Machine.type] = new Plays[Machine.type]()(Machine)
+  val game = new Noughts[Machine.type](faces)
+  import game._
+  import Machine._
+  type F[X] = Sum[Void, Face, X]
+  val moves = List(1, 4, 7)
+  def cell(n: Int): Chosen = Chosen("play", obj("cell" -> Str(n.toString)))
+
+  /** the reference: the views the program shows, and how it ends */
+  val (views, outcome) = plays.play(faces.steps[Outcome, F, Void](game.game[F](Board.empty)), plays.Script.of(moves.map(cell): _*)) match {
+    case plays.Played.Finished(vs, o) => (vs, o)
+    case other => fail(s"the reference did not finish: $other")
+  }
+  test("the reference: four views — three boards offered, the end told — and X won") {
+    assertEquals(views.size, 4); assertEquals(outcome, Won('X'))
+    assert(views.last match { case View.Group(_, children) => children.contains(View.text("X won")); case _ => false }, views.last.toString)
+  }
+
+  test("the terminal shows every view as the test face's, rendered, in order, and ends the same") {
+    type C[X] = Sum[Void, Console, X]
+    type CF[X] = Sum[C, Face, X]
+    val term = new Terminal[Machine.type](faces)
+    val inputs = moves.flatMap(n => List("play", n.toString))
+    val (printed, ended) = Machine.run(term.io.console(inputs)(term.terminal[Outcome, C](faces.steps[Outcome, CF, C](game.game[CF](Board.empty)))))
+    assertEquals(ended, Some(outcome))
+    val text = printed.mkString("\n")
+    val positions = views.map(v => text.indexOf(Render.view(v).mkString("\n")))
+    assert(positions.forall(_ >= 0), s"a view not printed: $positions\n$text")
+    assertEquals(positions, positions.sorted, "in order")
+  }
+
+  test("the Swing panel shows every view's text, and ends the same") {
+    val face = new SwingFace[Machine.type](faces)
+    var result = Option.empty[Outcome]
+    val root = face.panel[Outcome](faces.steps[Outcome, F, Void](game.game[F](Board.empty)), (o: Outcome) => result = Some(o))
+    def all(c: java.awt.Component): List[java.awt.Component] = c match { case p: java.awt.Container => c :: p.getComponents.toList.flatMap(all); case _ => List(c) }
+    def byName[C <: java.awt.Component](name: String): C = all(root).find(_.getName == name).getOrElse(fail(s"no $name")).asInstanceOf[C]
+    def shown: String = all(root).collect { case l: javax.swing.JLabel => l.getText; case t: javax.swing.table.JTableHeader => ""; case a: javax.swing.JTextArea => a.getText }.mkString("\n")
+    val seen = scala.collection.mutable.ListBuffer(shown)
+    moves.foreach { n => byName[JComboBox[String]]("f-cell").setSelectedItem(n.toString); byName[JButton]("submit:play").doClick(); seen += shown }
+    assertEquals(result, Some(outcome))
+    views.zip(seen.toList).foreach { case (v, s) => assert(s.contains(okay.face.swing.Views.text(View.Heading(1, "Noughts and crosses"))) || s.contains("won"), s) }
+    assert(seen.last.contains("X won") && seen.last.contains("done: Won(X)"), seen.last)
+  }
+
+  test("the HTML pages show every view as the test face's, marked up, in order, and end the same") {
+    type H[X] = Sum[Void, Http, X]
+    type HF[X] = Sum[H, Face, X]
+    val https: Https[Machine.type] = new Https[Machine.type]()(Machine)
+    val pages = HtmlFace(faces).pages[Outcome, H](() => faces.dialogue[Outcome, H](faces.steps[Outcome, HF, H](game.game[HF](Board.empty))), "Noughts")
+    val requests = Request.get("/") :: Request.get("/s/s1") :: moves.flatMap(n => List(
+      Request.post("/s/s1/act/play", Query.print(Map("cell" -> List(n.toString))), "application/x-www-form-urlencoded"), Request.get("/s/s1")))
+    val responses = Machine.run(https.scripted(requests)(https.serve[H](pages.service)))._1
+    val gets = responses.filter(_.status == 200).map(_.body)
+    assertEquals(gets.size, 4)
+    views.zip(gets).foreach { case (v, page) => assert(page.contains(Html.view(v)), s"the page does not show the view:\n${Html.view(v)}\n$page") }
+    assert(gets.last.contains("done: Won(X)"))
+  }
+
+  test("the REST resources carry every view as the test face's, as JSON, in order, and end the same") {
+    type H[X] = Sum[Void, Http, X]
+    type HF[X] = Sum[H, Face, X]
+    val https: Https[Machine.type] = new Https[Machine.type]()(Machine)
+    val sessions = RestFace(faces).sessions[Outcome, H](() => faces.dialogue[Outcome, H](faces.steps[Outcome, HF, H](game.game[HF](Board.empty))))
+    val requests = Request.post("/sessions", "", "application/json") :: moves.map(n => Request.json("POST", "/sessions/s1/act/play", obj("cell" -> Str(n.toString))))
+    val responses = Machine.run(https.scripted(requests)(https.serve[H](sessions.service)))._1
+    assertEquals(responses.map(_.status), List(201, 200, 200, 200))
+    // a resource's view is what was told since the last step and the step's own view; at the end, the told and "done"
+    val shown = responses.map(r => okay.effects.json.Descent.parse(r.body).toOption.flatMap {
+      case o: Json.Obj => o.get("data").collect { case d: Json.Obj => d }.flatMap(_.get("view")).collect { case v: Json.Obj => v.get("children") }.flatten.collect { case Json.Arr(cs) => cs.toList }
+      case _ => None
+    }.getOrElse(fail(s"no view in ${r.body}")))
+    views.zip(shown).foreach { case (v, cs) => assert(cs.contains(ViewJson.encode(v)), s"not carried: $v in $cs") }
+    assertEquals(shown.init.map(_.last), views.init.map(ViewJson.encode), "a waiting step's own view is the last child")
+    assert(responses.last.body.contains("\"done\":true"))
+  }
+}
