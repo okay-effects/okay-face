@@ -38,8 +38,8 @@ object Noughts {
   val dark: Look = Look(Theme.dark, style)
 
   /** the rules: shown first, so a face has them to tell — the terminal prints them, an agent gets them as instructions */
-  val rules: View = View.stack(View.heading("Noughts and crosses"), View.text("You are X, the program is O. A free cell is a [number]: choose one and X goes there, then O answers. " +
-    "Three in a row — across, down or diagonally — wins; a full board with no row is a draw."))
+  val rules: View = View.text("You are X, the program is O. A free cell is a [number]: choose one and X goes there, then O answers. " +
+    "Three in a row — across, down or diagonally — wins; a full board with no row is a draw.")
   /** the board: a taken cell its mark, a free one a `Ref` by its number — live, since `ref` is offered: a face that can
    * click plays by a click; the terminal and an agent give the number */
   def picture(board: Board): View = View.stack(View.heading("Noughts and crosses"),
