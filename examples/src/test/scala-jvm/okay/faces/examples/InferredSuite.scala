@@ -18,6 +18,6 @@ class InferredSuite extends munit.FunSuite {
     val io = new okay.effects.world.Io()
     val played = term.handle(Noughts.game)
     val (printed, result) = run(io.console(List("1", "4", "7", "again"))(played))
-    assertEquals(result, Some(Won('X'))); assert(printed.exists(_.contains("X won")), printed.mkString("\n"))
+    assertEquals(result, Some(Won(X))); assert(printed.exists(_.contains("X won")), printed.mkString("\n"))
   }
 }

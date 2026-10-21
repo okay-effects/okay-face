@@ -15,7 +15,7 @@ class NoughtsSuite extends munit.FunSuite {
 
   test("X wins down the left: the rules told, three boards, the end; Play again ends the game with the outcome") {
     plays.handle(Noughts.game)(Script.of(cell(1), cell(4), cell(7), Chosen.plain("again"))) match {
-      case Played.Finished(views, Won('X')) => assertEquals(views.size, 5); assertEquals(views.head, rules)
+      case Played.Finished(views, Won(X)) => assertEquals(views.size, 5); assertEquals(views.head, rules)
       case other => fail(s"$other")
     }
   }
@@ -50,7 +50,7 @@ class NoughtsTerminalSuite extends munit.FunSuite {
   test("X wins down the left at the terminal: the boards printed, a cell by its key, the outcome once played again") {
     val played = term.handle(Noughts.game)
     val (printed, result) = run(io.console(List("1", "4", "7", "again"))(played))
-    assertEquals(result, Some(Won('X')))
+    assertEquals(result, Some(Won(X)))
     assert(printed.contains("NOUGHTS AND CROSSES"))
     assert(printed.exists(_.contains("You are X, the program is O")), printed.mkString("\n"))
     assert(printed.contains("X won"), printed.mkString("\n"))

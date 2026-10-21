@@ -31,7 +31,7 @@ class AgreementSuite extends munit.FunSuite {
     case other => fail(s"the reference did not finish: $other")
   }
   test("the reference: five views — the rules, three boards offered, the end — and X won") {
-    assertEquals(views.size, 5); assertEquals(outcome, Won('X')); assertEquals(views.head, rules)
+    assertEquals(views.size, 5); assertEquals(outcome, Won(X)); assertEquals(views.head, rules)
     assert(views.last match { case View.Group(_, children) => children.contains(marks.mark(Result, View.text("X won"))); case _ => false }, views.last.toString)
   }
   test("the game's typed mark: named from its case, carried by HTML as a class, by REST as JSON, by Swing as a name, read back as the type") {
