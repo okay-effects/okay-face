@@ -1,7 +1,7 @@
 package okay.faces.examples
 
 import okay.effects.shape.{Day, Shape}
-import okay.faces.{Action, Face, Look, Marks, Role, Rule, Style, Tone, View}
+import okay.faces.{Look, Marks, Role, Rule, Style, Tone, View}
 
 /** TO DO: the second example, with nothing of a game in it — a list kept from step to step, an item added by a FORM
  * (an action with parameters), an item done or to do again by a click on it (`ref`), one removed by a CHOICE and a
@@ -36,7 +36,6 @@ object Todo {
   final case class Toggle(id: Int) extends Move
   case object RemoveOne extends Move
   case object Clear extends Move
-  case object Leave extends Move
 
   /** THE LIST'S OWN MARKS, typed: an item still to do, one done, when one is due */
   sealed trait Mark
@@ -55,6 +54,14 @@ object Todo {
   /** what is told first: a face has it to tell, an agent gets it as instructions */
   val about: View = View.text("Your list, kept while you are here. An item is a [number]: choose one and it is done, " +
     "or to do again. Add one by the form; remove one, or clear the done ones, after a yes. Back undoes the last step.")
+  /** what the listing says: each item's mark and title, in order — a test reads the list off the view */
+  def shown(v: View): Vector[(String, String)] = v match {
+    case View.Items(items) => items.flatMap(shown)
+    case View.Marked(mark, View.Ref(_, title)) => Vector(mark -> title)
+    case View.Marked(mark, View.Group(_, children)) => children.collect { case View.Ref(_, title) => mark -> title }
+    case View.Group(_, children) => children.flatMap(shown)
+    case _ => Vector.empty
+  }
   /** the list: each item a `Ref` by its number — live, since `ref` is offered — marked done or pending, its due day
    * beside it; then how many are done */
   def listing(t: Todos): View = View.stack(View.heading("To do"),
@@ -66,11 +73,12 @@ object Todo {
     }),
     View.text(s"${t.done.size} of ${t.items.size} done"))
 
-  /** THE PROGRAM: a value over the faces' words alone, `A ! Face`; it ends with the list, when one leaves */
+  /** THE PROGRAM: a value over the faces' words alone, `A ! Face`; the list is kept as long as one is here, so it has
+   * no end — the face's own way out (a window closed, a session dropped, a quit at the terminal) is the way out */
   import okay.faces._
-  val keeping: Todos ! Face = show[Face](about).flatMap(_ => keep(Todos.empty))
+  val keeping: Unit ! Face = show[Face](about).flatMap(_ => keep(Todos.empty))
   /** the list offered with what one can do to it; every step may be returned to, so back is undo */
-  def keep(t: Todos): Todos ! Face = {
+  def keep(t: Todos): Unit ! Face = {
     val ids = Shape.choice[Int](t.items.map { case (id, i) => id.toString -> id }: _*)
       .described("Item", Some("an item by its number"))
     val toggle = Action[Int, Move]("ref", "Done / to do", Shape.record(Shape.field("key", ids))(c => c)(c => c),
@@ -79,9 +87,8 @@ object Todo {
       Add(_))
     val remove = Action.plain[Move]("remove", "Remove one", Some("choose an item, then say yes"))(RemoveOne)
     val clear = Action.plain[Move]("clear", "Clear the done", Some("every done item removed, after a yes"))(Clear)
-    val leave = Action.plain[Move]("leave", "Leave", Some("done here: the list as it is"))(Leave)
     val actions = List(add) ++ (if (t.items.nonEmpty) List(toggle, remove) else Nil) ++
-      (if (t.done.nonEmpty) List(clear) else Nil) ++ List(leave)
+      (if (t.done.nonEmpty) List(clear) else Nil)
     offer[Move, Face](listing(t), actions).flatMap {
       case Add(item) => show[Face](View.info(s"added: ${item.title}")).flatMap(_ => keep(t.added(item)))
       case Toggle(id) => keep(t.toggled(id))
@@ -91,7 +98,6 @@ object Todo {
             confirm[Face](View.text(s"Remove '${t.titled(id)}'?")).flatMap(yes => keep(if (yes) t.removed(id) else t)))
       case Clear =>
         confirm[Face](View.text(s"Clear the ${t.done.size} done?")).flatMap(yes => keep(if (yes) t.cleared else t))
-      case Leave => pure[Todos, Face](t)
     }
   }
 }

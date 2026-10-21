@@ -10,12 +10,11 @@ import okay.faces.mcp.McpFace
 import okay.faces.rest.RestFace
 import okay.faces.swing.SwingFace
 import okay.faces.term.Terminal
-import okay.faces.{Chosen, View}
 import okay.http.{Http, Https, Request}
 import okay.mcp.{Link, Links, Rpc}
 
 /** THE FACES HANDLE A PROGRAM THEY WERE NOT WRITTEN FOR: the list, whole, on each — the form asked by prompts, by a
- * dialog's fields, by a page's inputs, by a tool's arguments; the items clicked; the same list at the end */
+ * dialog's fields, by a page's inputs, by a tool's arguments; the items clicked; the same list shown */
 class TodoFacesSuite extends munit.FunSuite {
   System.setProperty("java.awt.headless", "true")
   type H[X] = Row[*[Pure] + *[Http], X]
@@ -27,66 +26,65 @@ class TodoFacesSuite extends munit.FunSuite {
     case _ => List(c)
   }
 
-  test("the terminal: the form field by field, an optional one asked for, an item by its number; the list at the end") {
+  test("the terminal: the form field by field, an optional one asked for, an item by its number; the input runs out") {
     val term = Terminal()
     val io = new okay.effects.world.Io()
-    // add: title, due? no, note? no; add: title, due? yes and the day, note? no; item 1 by its key; leave
-    val lines = List("add", "milk", "n", "n", "add", "bread", "y", "2026-10-25", "n", "1", "leave")
+    // add: title, due? no, note? no; add: title, due? yes and the day, note? no; item 1 by its key; then nothing
+    val lines = List("add", "milk", "n", "n", "add", "bread", "y", "2026-10-25", "n", "1")
     val (printed, ended) = run(io.console(lines)(term.handle(Todo.keeping)))
-    val t = ended.getOrElse(fail(s"not ended:\n${printed.mkString("\n")}"))
-    assertEquals(t.items.map(_._2.title), Vector("milk", "bread")); assertEquals(t.done, Set(1))
+    assertEquals(ended, None)   // no input left is a quit: the program has no end of its own
     assert(printed.exists(_.contains("added: milk")) && printed.exists(_.contains("due 2026-10-25")),
       printed.mkString("\n"))
     assert(printed.exists(_.contains("1 of 2 done")), printed.mkString("\n"))
   }
 
-  test("the Swing panel: the form's fields filled and submitted, an item a button, the list at the end") {
+  test("the Swing panel: the form's fields filled and submitted, an item a button, the list shown") {
     val face = SwingFace()
-    var result = Option.empty[Todos]
-    val root = face.panel[Todos](face.faces.steps[Todos, okay.faces.Face, Pure](face.faces.of(Todo.keeping)),
-      (t: Todos) => result = Some(t))
+    val root = face.panel[Unit](face.faces.steps[Unit, okay.faces.Face, Pure](face.faces.of(Todo.keeping)))
     def byName[C](name: String): C = all(root).collectFirst { case c if c.getName == name => c.asInstanceOf[C] }
       .getOrElse(fail(s"no $name among ${all(root).map(_.getName).filter(_ != null).mkString(", ")}"))
     byName[JTextField]("f-title").setText("milk"); byName[JButton]("submit:add").doClick()
     byName[JTextField]("f-title").setText("bread"); byName[JButton]("submit:add").doClick()
     all(root).collectFirst { case b: JButton if b.getToolTipText == "1" => b }.getOrElse(fail("no item 1")).doClick()
-    byName[JButton]("action:leave").doClick()
-    assertEquals(result.map(_.items.map(_._2.title)), Some(Vector("milk", "bread")));
-    assertEquals(result.map(_.done), Some(Set(1)))
+    val texts = all(root).collect {
+      case a: javax.swing.JTextArea => a.getText
+      case l: javax.swing.JLabel => l.getText
+    }
+    assert(texts.contains("1 of 2 done"), texts.toString)
+    assert(all(root).collectFirst { case b: JButton if b.getToolTipText == "2" => b }.isDefined, "item 2 a button")
+    assertEquals(byName[javax.swing.JPanel]("okay-items").getComponent(0).getName, "okay-mark-done")
   }
 
-  test("the HTML pages: the form posted, an item a link, the list ended") {
+  test("the HTML pages: the form posted, an item a link, the list shown") {
     val html = HtmlFace()
     val pages = html.handle(Todo.keeping)
     val form = "application/x-www-form-urlencoded"
     val requests = List(Request.get("/"), Request.get("/s/s1"), Request.post("/s/s1/act/add", "title=milk", form),
       Request.post("/s/s1/act/add", "title=bread&due=2026-10-25", form), Request.get("/s/s1"),
-      Request.get("/s/s1/ref/1"), Request.post("/s/s1/act/leave", "", form), Request.get("/s/s1"))
+      Request.get("/s/s1/ref/1"), Request.get("/s/s1"))
     val responses = run(https.scripted(requests)(https.serve[H](pages)))._1
-    assertEquals(responses.map(_.status), List(303, 200, 303, 303, 200, 303, 303, 200))
+    assertEquals(responses.map(_.status), List(303, 200, 303, 303, 200, 303, 200))
     val listed = responses(4).body
     assert(listed.contains("""href="/s/s1/ref/2"""") && listed.contains("okay-mark-due") && listed.contains("f-title"),
       listed)
     val last = responses.last.body
-    assert(last.contains("done: Todos(") && last.contains("milk") && last.contains("bread"), last)
+    assert(last.contains("okay-mark-done") && last.contains("1 of 2 done"), last)
   }
 
-  test("the REST resources: the form as a tool with its schema, an item by key, the list ended") {
+  test("the REST resources: the form as a tool with its schema, an item by key, a bad form a 400") {
     val rest = RestFace()
     val sessions = rest.handle(Todo.keeping, vocabulary = marks.vocabulary)
     val requests = List(Request.post("/sessions", "", "application/json"),
       Request.json("POST", "/sessions/s1/act/add", obj("title" -> Str("milk"))),
       Request.json("POST", "/sessions/s1/act/ref", obj("key" -> Str("1"))),
-      Request.json("POST", "/sessions/s1/act/add", obj()),
-      Request.json("POST", "/sessions/s1/act/leave", obj()))
+      Request.json("POST", "/sessions/s1/act/add", obj()))
     val responses = run(https.scripted(requests)(https.serve[H](sessions)))._1
-    assertEquals(responses.map(_.status), List(201, 200, 200, 400, 200))
+    assertEquals(responses.map(_.status), List(201, 200, 200, 400))
     assert(responses.head.body.contains("\"name\":\"add\"") && responses.head.body.contains("\"title\""),
       responses.head.body)
     assert(responses(2).body.contains("okay-mark-done") || responses(2).body.contains("\"mark\":\"done\""),
       responses(2).body)
     assert(responses(3).body.contains("title"), responses(3).body)
-    assert(responses.last.body.contains("\"done\":true"), responses.last.body)
   }
 
   test("MCP: the form a tool with the item's schema; a call adds, the items are the view's refs") {

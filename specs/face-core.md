@@ -470,7 +470,8 @@ A list of items (`examples/.../Todo.scala`), so that the faces are checked again
 for, with nothing of a game in it: an item added by a FORM (an action with parameters, `Shape.derived[Item]`, a
 `Day` and two optional fields), an item done or to do again by a click on it (`ref` again, in a `View.Items`), one
 removed by a `choose` and a `confirm`, the done ones cleared after a yes, a `show` mid-dialogue ("added: …"), and
-BACK, which here undoes, since every step is kept. It ends with the list, when one leaves. The same one-line mains
+BACK, which here undoes, since every step is kept. It has no end of its own: the list is kept as long as one is there,
+and the way out is the face's (a window closed, a quit at the terminal, a session dropped). The same one-line mains
 (`TodoSwing`, `TodoTerminal`, `TodoMcp`, `TodoHtml`, `TodoWebLocal`, `TodoWebRemote`, in `TodoMains.scala`; the game's
 in `NoughtsMains.scala`); in the browser its own script, `TodoLocal` (`examplesTodoJS`, `examples/todo/.js`), as the
 game has `NoughtsLocal`: one page, one script. `TodoSuite` plays it by script on the test face; `TodoFacesSuite`

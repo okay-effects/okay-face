@@ -2,7 +2,7 @@ package okay.faces.examples
 
 import okay.effects.json.Json.{Str, obj}
 import okay.effects.machine.Machine._
-import okay.effects.shape.{Day, Problem}
+import okay.effects.shape.Problem
 import okay.faces.examples.Todo._
 import okay.faces.test.Plays
 import okay.faces.{Chosen, Rejected, View}
@@ -17,23 +17,25 @@ class TodoSuite extends munit.FunSuite {
     Chosen("add", obj(("title" -> Str(title)) :: due.toList.map(d => "due" -> Str(d)): _*))
   def item(n: Int): Chosen = Chosen("ref", obj("key" -> Str(n.toString)))
 
-  test("two added, one done, then left: the list kept, what was told and shown in order") {
-    plays.handle(Todo.keeping)(Script.of(add("milk"), add("bread", Some("2026-10-25")), item(1),
-        Chosen.plain("leave"))) match {
-      case Played.Finished(views, t) =>
-        assertEquals(t.items.map(_._2), Vector(Item("milk"), Item("bread", Some(Day(2026, 10, 25)))))
-        assertEquals(t.done, Set(1))
-        assertEquals(views.head, about)
-        assertEquals(views(2), View.info("added: milk"))
-        assert(views.last.toString.contains("1 of 2 done"), views.last.toString)
-      case other => fail(s"$other")
-    }
+  /** the list as the last view shows it: the script runs out at the list, so the play is stuck there */
+  def ending(script: Script): (List[View], Vector[(String, String)]) = plays.handle(Todo.keeping)(script) match {
+    case Played.Stuck(views, _, None) => (views, shown(views.last))
+    case other => fail(s"$other")
+  }
+
+  test("two added, one done: the list kept, what was told and shown in order; the program has no end") {
+    val (views, list) = ending(Script.of(add("milk"), add("bread", Some("2026-10-25")), item(1)))
+    assertEquals(list, Vector("done" -> "milk", "pending" -> "bread"))
+    assertEquals(views.head, about)
+    assertEquals(views(2), View.info("added: milk"))
+    assert(views.last.toString.contains("1 of 2 done") && views.last.toString.contains("due 2026-10-25"),
+      views.last.toString)
   }
   test("the form checks: no title, the step unchanged, the problem at the field; a due day that is not a day") {
     plays.handle(Todo.keeping)(Script.of(Chosen("add", obj()))) match {
       case Played.Stuck(_, at, Some(Rejected(problems))) =>
         assertEquals(problems.map(_.path), List(List("title")));
-        assertEquals(at.actions.map(_.name), List("add", "leave"))
+        assertEquals(at.actions.map(_.name), List("add"))
       case other => fail(s"$other")
     }
     plays.handle(Todo.keeping)(Script.of(add("x", Some("soon")))) match {
@@ -42,33 +44,24 @@ class TodoSuite extends munit.FunSuite {
     }
   }
   test("remove one: a choice among the items by title, a yes; no undoes nothing") {
-    val script = Script.of(add("milk"), add("bread"), Chosen.plain("remove"), Chosen.plain("bread"),
-      Chosen.plain("yes"),
-      Chosen.plain("remove"), Chosen.plain("milk"), Chosen.plain("no"), Chosen.plain("leave"))
-    plays.handle(Todo.keeping)(script) match {
-      case Played.Finished(views, t) =>
-        assertEquals(t.items.map(_._2.title), Vector("milk"))
-        assert(views.exists(_ == View.text("Remove which?")) && views.exists(_ == View.text("Remove 'bread'?")),
-          views.toString)
-      case other => fail(s"$other")
-    }
+    val (views, list) = ending(Script.of(add("milk"), add("bread"), Chosen.plain("remove"), Chosen.plain("bread"),
+      Chosen.plain("yes"), Chosen.plain("remove"), Chosen.plain("milk"), Chosen.plain("no")))
+    assertEquals(list, Vector("pending" -> "milk"))
+    assert(views.exists(_ == View.text("Remove which?")) && views.exists(_ == View.text("Remove 'bread'?")),
+      views.toString)
   }
   test("clear the done: offered only once something is done; a yes removes them all") {
-    plays.handle(Todo.keeping)(Script.of(add("a"), add("b"), item(1), Chosen.plain("clear"), Chosen.plain("yes"),
-        Chosen.plain("leave"))) match {
-      case Played.Finished(_, t) =>
-        assertEquals(t.items.map(_._2.title), Vector("b")); assertEquals(t.done, Set.empty[Int])
-      case other => fail(s"$other")
-    }
+    val (_, list) = ending(Script.of(add("a"), add("b"), item(1), Chosen.plain("clear"), Chosen.plain("yes")))
+    assertEquals(list, Vector("pending" -> "b"))
     plays.handle(Todo.keeping)(Script.of(add("a"), Chosen.plain("clear"))) match {
       case Played.Stuck(_, at, Some(Rejected(List(Problem(List("action"), _))))) =>
-        assertEquals(at.actions.map(_.name), List("add", "ref", "remove", "leave"))
+        assertEquals(at.actions.map(_.name), List("add", "ref", "remove"))
       case other => fail(s"$other")
     }
   }
   test("back is undo: the list as it was before the last step") {
-    plays.handle(Todo.keeping)(Script(Pick(add("a")), Pick(add("b")), Back, Pick(Chosen.plain("leave")))) match {
-      case Played.Finished(_, t) => assertEquals(t.items.map(_._2.title), Vector("a"))
+    plays.handle(Todo.keeping)(Script(Pick(add("a")), Pick(add("b")), Back)) match {
+      case Played.Stuck(views, _, None) => assertEquals(shown(views.last), Vector("pending" -> "a"))
       case other => fail(s"$other")
     }
   }
