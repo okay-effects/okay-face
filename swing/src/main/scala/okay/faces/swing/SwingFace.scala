@@ -135,7 +135,7 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
     val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS))
     s.told.foreach(v => box.add(named(Views.component(v), Role.Told.cls)))
     s.step match {
-      case Step.Done(a) => box.add(label(s"done: $a", "okay-done"))
+      case Step.Done(_) => box.add(named(Views.component(okay.faces.Session.over), "okay-done"))
       case Step.Told(_, _) => ()
       case w: Step.Waiting[A, M] @unchecked =>
         def choose(chosen: Chosen): Unit = w.resume(chosen) match {

@@ -26,13 +26,14 @@ class McpFace[F <: Runner with Singleton](implicit val fx: F) {
   val http: McpHttp[fx.type, servers.type] = new McpHttp[fx.type, servers.type](servers)
   val domains: Domains[fx.type] = new Domains[fx.type]()(fx)
 
-  /** the dialogue as tools: the step's actions, `look`, `back` */
+  /** the dialogue as tools: the step's actions, `look`, and `back` when there is a step to go back to — the list
+   * changes as the dialogue moves, and `list_changed` says so */
   def tools[A, R[_]](d: Dialogue[A, R], vocabulary: Vocabulary = Vocabulary.empty): servers.Tools[R] =
     new servers.Tools[R] {
       def list: List[ToolSpec] ! R = d.actions.map(as =>
         as.map(a => ToolSpec(a.name, a.doc.getOrElse(a.label), JsonSchema.of(a.params.erased))) ++ List(
           ToolSpec("look", "the current view, as it stands", Json.obj("type" -> Json.Str("object")))) ++
-          (if (d.allowsBack) List(ToolSpec("back", "one step back: the previous view and its actions",
+          (if (d.canGoBack) List(ToolSpec("back", "one step back: the previous view and its actions",
                Json.obj("type" -> Json.Str("object"))))
            else Nil))
       def call(c: ToolCall): ToolResult ! R = c.name match {

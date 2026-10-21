@@ -118,7 +118,7 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
     def render(s: Shown[A, M]): HtmlElement = {
       val notices = s.told.map(v => sectionTag(cls := Role.Told.classes, Views.element(v)))
       s.step match {
-        case Step.Done(a) => div(notices, div(cls := "okay-done", s"done: $a"))
+        case Step.Done(_) => div(notices, div(cls := "okay-done", Views.element(okay.faces.Session.over)))
         case Step.Told(_, _) => div(notices, div(cls := "okay-busy", "…"))
         case w: Step.Waiting[A, M] @unchecked =>
           val problems =

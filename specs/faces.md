@@ -131,6 +131,12 @@ A scripted stdio session in-process: lines in, lines out, golden. `initialize`; 
 result and `tools/list` is unchanged; `back` restores the previous board; a finished game leaves `look` alone; the
 single-tool mode plays the same script.
 
+The `back` tool is listed only while there is a step to go back to (2026-10-21; it was listed whenever the dialogue
+allowed back at all, and answered "nothing to go back to" nearly always once steps stopped being returnable by
+default); `list_changed` follows every call, so the agent sees it come and go. The end of a dialogue is shown as
+"done" (`Session.over`, an info notice) by every face that serves sessions, by Swing and by Laminar: the program's
+value is the program's, not shown — a program shows what it wants seen before it ends.
+
 ## face-swing — a panel, a window
 
 DONE 2026-10-20 as `swing` (the JVM): `SwingFace(faces).panel(steps, done, look)` is a `JPanel` rebuilt at every step —

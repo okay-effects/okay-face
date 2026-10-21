@@ -53,7 +53,8 @@ class McpFaceSuite extends munit.FunSuite {
     replies(1) match {
       case Rpc.Answer(_, r: Json.Obj) =>
         val tools = r.get("tools").collect { case Json.Arr(ts) => ts.toList.collect { case o: Json.Obj => o } }.get
-        assertEquals(tools.map(_.get("name").get), List(Str("submit"), Str("look"), Str("back")))
+        // no `back` yet: nothing to go back to at the first step; it is listed once there is
+        assertEquals(tools.map(_.get("name").get), List(Str("submit"), Str("look")))
         assert(Json.print(tools.head.get("inputSchema").get).contains(
             "\"age\":{\"type\":\"integer\",\"description\":\"in years\"}"))
       case other => fail(s"$other")
@@ -97,10 +98,10 @@ class McpFaceSuite extends munit.FunSuite {
     last match {
       case Rpc.Answer(_, r: Json.Obj) => assertEquals(r.get("tools").collect { case Json.Arr(ts) => ts.size }, Some(2));
       case other => fail(s"$other")
-    } // look and back alone
+    } // look and back: over, and the confirmation was a step to return to
     assert(replies.exists {
       case Rpc.Answer(_, r: Json.Obj) =>
-        Json.print(r).contains("Hello, Bo!") && Json.print(r).contains("done: greeted Bo")
+        Json.print(r).contains("Hello, Bo!") && Json.print(r).contains("done") && !Json.print(r).contains("greeted Bo")
       case _ => false
     })
   }

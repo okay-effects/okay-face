@@ -84,7 +84,7 @@ class AgreementSuite extends munit.FunSuite {
     all(root).collectFirst { case b: JButton if b.getName == "action:again" => b }.getOrElse(
       fail("no again")).doClick(); seen += shown
     assertEquals(result, Some(outcome))
-    assert(seen.init.last.contains("X won") && seen.last.contains("done: Won(X)"),
+    assert(seen.init.last.contains("X won") && seen.last.contains("done"),
       seen.takeRight(2).mkString("\n---\n"))
     assert(!all(root).exists(_.getName == "okay-back"), "no back: the step refuses it")
   }
@@ -106,7 +106,7 @@ class AgreementSuite extends munit.FunSuite {
     assert(gets.head.contains("""href="/s/s1/ref/2"""") && gets.head.contains("<title>Noughts and crosses</title>"),
       "a free cell is a link to play it; the page titled by the heading")
     assert(gets.forall(!_.contains("okay-back")), "no back: the steps refuse it")
-    assert(gets.last.contains("done: Won(X)"))
+    assert(gets.last.contains("okay-done") || gets.last.contains("okay-notice-info"))
   }
 
   test("the REST resources carry every view as the test face's, as JSON, in order, and end the same") {

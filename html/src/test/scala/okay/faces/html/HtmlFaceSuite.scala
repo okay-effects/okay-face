@@ -51,7 +51,7 @@ class HtmlFaceSuite extends munit.FunSuite {
     assert(rs(3).body.contains("<li>age: of age</li>") && rs(3).body.contains("Who are you?"), rs(3).body)
     assert(rs(5).body.contains("Greet &lt;Ann&gt;, 41?") && rs(5).body.contains("""value="yes""""), rs(5).body)
     assert(rs(5).body.contains("/s/s1/back"))
-    assert(rs(7).body.contains("Hello, Ann!") && rs(7).body.contains("done: greeted Ann"), rs(7).body)
+    assert(rs(7).body.contains("Hello, Ann!") && rs(7).body.contains("okay-notice-info") && !rs(7).body.contains("greeted Ann"), rs(7).body)
   }
   test("a form's fields to JSON along the schema: nested, optional blank, checkbox, choice, list, sum") {
     val schema = Schema.Record(Vector(
