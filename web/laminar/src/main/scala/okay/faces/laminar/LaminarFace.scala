@@ -33,7 +33,7 @@ class LaminarFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   }
 
   /** THE HANDLER: a program of the face as an element — the dialogue run here, in the browser, with its look as a `<style>`
-   * when one is given; `mount` puts it into `#app` or the body: `new LaminarFace().mount(Noughts.game)` */
+   * when one is given; `mount` puts it into `#app` or the body: `new LaminarFace().mount(Noughts.games)` */
   def handle[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true): HtmlElement =
     div(look.map(LaminarFace.stylesheet).toList, element[A](faces.steps[A, okay.faces.Face, Pure](faces.of(p)), done, back = back))
   def mount[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true): Unit = {

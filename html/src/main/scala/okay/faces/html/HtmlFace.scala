@@ -72,7 +72,7 @@ class HtmlFace[F <: Effects with Singleton, Fs <: Faces[F]](val faces: Fs) {
    * `base/{id}`, titled by the level-1 heading shown, the look at `/okay.css` */
   def handle[A](p: Program[A, okay.faces.Face], base: String = "/s", look: Option[Look] = None, back: Boolean = true): Request => Response ! H =
     pages[A, H](() => faces.dialogue[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), back), "okay", base, look.getOrElse(Look.default)).service
-  /** the same served: `run(new HtmlFace().serve(Noughts.game, port, host))` */
+  /** the same served: `run(new HtmlFace().serve(Noughts.games, port, host))` */
   def serve[A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1", look: Option[Look] = None, base: String = "/s", back: Boolean = true): Unit ! Pure =
     okay.faces.rest.Web.serve(faces.fx, port, host)("/" -> handle[A](p, base, look, back))
   type H[X] = okay.effects.Sum[Pure, Http, X]

@@ -112,7 +112,7 @@ class McpFace[F <: Runner with Singleton, Fs <: Faces[F]](val faces: Fs) {
     val instructions = Some(opening.intro.map(Markdown.view(_, vocabulary)).filter(_.nonEmpty).mkString("\n\n")).filter(_.nonEmpty)
     servers.serve[L](server[A, L](opening.title.getOrElse("okay"), version, faces.steps[A, LF, L](local.into[LF]), instructions, elicitation, singleTool, vocabulary, back))
   }
-  /** the same over standard input and output, the transport an agent's client starts a server with: `run(new McpFace().stdio(Noughts.game))` */
+  /** the same over standard input and output, the transport an agent's client starts a server with: `run(new McpFace().stdio(Noughts.games))` */
   def stdio[A](p: Program[A, okay.faces.Face], vocabulary: Vocabulary = Vocabulary.empty, version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true): Unit ! Pure =
     servers.links.stdio[L, Pure, Unit](handle[A](p, vocabulary, version, elicitation, singleTool, back))
   type L[X] = okay.effects.Sum[Pure, Link, X]

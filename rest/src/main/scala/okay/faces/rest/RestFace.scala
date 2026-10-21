@@ -61,7 +61,7 @@ class RestFace[F <: Runner with Singleton, Fs <: Faces[F]](val faces: Fs) {
    * at `base/{id}` with its links, the marks at `base/marks` — for a server, or the remote face */
   def handle[A](p: Program[A, okay.faces.Face], base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true): Request => Response ! H =
     sessions[A, H](() => faces.dialogue[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), back), base, vocabulary).service
-  /** the same served: `run(new RestFace().serve(Noughts.game, port, host))`; with a `page`, the thin page at `/` that plays
+  /** the same served: `run(new RestFace().serve(Noughts.games, port, host))`; with a `page`, the thin page at `/` that plays
    * the sessions from the browser — the remote face's script (`okay.faces.laminar.RemotePage`, linked), knowing no program */
   def serve[A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1", page: Option[() => Either[String, String]] = None, look: Option[Look] = None,
                base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true): Unit ! Pure = {

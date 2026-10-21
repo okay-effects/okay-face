@@ -398,7 +398,7 @@ A program of a face names no implementation. `import okay.faces._` is all it nee
 
 ```scala
 import okay.faces._
-val game: Outcome ! Face = show[Face](rules).flatMap(_ => play(Board.empty))   // the one effect is the row
+val games: Outcome ! Face = { def loop: Outcome ! Face = play(Board.empty).flatMap(_ => loop); show[Face](rules).flatMap(_ => loop) }   // the one effect is the row
 ```
 
 `Tagless` (okay-simple's `okay.effects.tagless`) keeps a program as a function of the implementation: `A ! R` there is
@@ -511,7 +511,7 @@ After step 4 the model holds or it does not, before any web platform is paid for
 - AN EFFECT AND ITS HANDLER, nothing else — DONE 2026-10-21, after a `Scenario` that was tried and dropped. The effect
   is `Face`; a program of a face is `A ! Face` (one effect is its own row, by `splitOne`; the alias `Only` was dropped
   2026-10-21 for saying nothing the effect's name does not), written over the faces given, since the
-  words are theirs — and since 2026-10-21 the faces are the tagless ones, so a program is a value, `val game: Outcome ! Face`,
+  words are theirs — and since 2026-10-21 the faces are the tagless ones, so a program is a value, `val games: Outcome ! Face`,
   with `import okay.faces._` alone (see "Programs are tagless"). A handler is a face's
   method: `SwingFace().handle(Noughts.games, look)` (a window; `None` when closed), `Terminal().handle(p)` (Console left
   in the row) and `.console(p)` (the real one), `McpFace().handle(p, vocabulary)` (the loop over Link) and `.stdio(p)`,

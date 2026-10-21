@@ -96,7 +96,7 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
   /** THE HANDLER: a program of the face at a terminal, `Console` left in the row for a console handler — a scripted one in a
    * test, the real one by `console`; `None` when the person quits */
   def handle[A](p: Program[A, okay.faces.Face], back: Boolean = true): Option[A] ! C = terminal[A, C](faces.steps[A, CF, C](faces.of(p).into[CF]), back)
-  /** the same at the real console: `run(Terminal().console(Noughts.game))` */
+  /** the same at the real console: `run(Terminal().console(Noughts.games))` */
   def console[A](p: Program[A, okay.faces.Face], back: Boolean = true): Option[A] ! Pure = io.realConsole[C, Pure, Option[A]](handle[A](p, back))
   type C[X] = okay.effects.Sum[Pure, Console, X]
   type CF[X] = okay.effects.Sum[C, Face, X]

@@ -70,7 +70,7 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   /** THE HANDLER: a program of the face in a window — titled by the first level-1 heading it shows, dressed by `look`;
    * what the program tells before its first offer (`Step.opening`) is the window's HELP, behind the `?` at the top right,
    * not a line above the first step that the next step scrolls away; the result the dialogue's, or `None` when the
-   * window is closed first: `run(new SwingFace().handle(Noughts.game))` */
+   * window is closed first: `run(new SwingFace().handle(Noughts.games))` */
   def handle[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, back: Boolean = true): Option[A] ! Pure = {
     val steps = faces.steps[A, okay.faces.Face, Pure](faces.of(p))
     pure(()).flatMap { _ =>

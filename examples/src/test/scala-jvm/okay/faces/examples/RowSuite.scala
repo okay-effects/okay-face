@@ -11,7 +11,7 @@ class RowSuite extends munit.FunSuite {
   test("the game is a program over Face; into Pure + Face, named with + and *, applied by Row; on the machine, its first step tells the rules") {
     type F[X] = Row[*[Pure] + *[Face], X]
     val faces = okay.faces.Faces.of[Machine.type]
-    val p: Outcome ! F = Noughts.game.on(Machine).into[F]
+    val p: Outcome ! F = Noughts.games.on(Machine).into[F]
     run(faces.steps[Outcome, F, Pure](p)) match {
       case Step.Told(v, _) => assertEquals(v, rules)
       case other => fail(s"$other")
