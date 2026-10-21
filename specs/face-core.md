@@ -500,7 +500,7 @@ After step 4 the model holds or it does not, before any web platform is paid for
   (`"/sessions" -> RestFace.handle(game), "/s" -> HtmlFace.handle(game), "/" -> Shell.handle(…)`); and the server is a
   handler too, `Web.serve(game, port, host)(mounts…)` (the HTML face's JVM side, over the JDK's server) — the scenario the
   anchor every service and the server share — so the web main is `run(Web.serve(game, port)(mounts…))` and where the
-  linked scripts are. With the transport inside, a line: `run(McpFace.stdio(game))`, `run(Terminal.console(game))` — the `handle` words keep
+  linked scripts are, `Linked(dir, name)` (okay.face.html, the JVM side). With the transport inside, a line: `run(McpFace.stdio(game))`, `run(Terminal.console(game))` — the `handle` words keep
   the transport's effect in the row for a scripted one. Scala 3 wants a handled program bound to a value, and a handler
   (`new Links()`, `new JdkHttp()`) too, before the one is given to the other: the dependent types resolve on names, not
   inside an argument (Scala 2 takes the nesting); the words with the transport inside do that binding themselves.

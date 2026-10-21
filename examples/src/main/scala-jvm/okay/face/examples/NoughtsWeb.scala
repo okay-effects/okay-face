@@ -13,7 +13,9 @@ object NoughtsWeb {
   def main(args: Array[String]): Unit = run(Web.serve(game, port(args), host(args))(
     "/sessions" -> RestFace.handle(game),
     "/s" -> HtmlFace.handle(game),
-    "/" -> Shell.handle(game, "/" -> Linked("examples/remote/.js", "okay-faces-examples-remote"), "/local" -> Linked("examples/.js", "okay-faces-examples"))))
+    "/" -> Shell.handle(game,
+      "/" -> Linked("examples/remote/.js", "okay-faces-examples-remote"),
+      "/local" -> Linked("examples/.js", "okay-faces-examples"))))
   def port(args: Array[String]): Int = args.headOption.filter(_.forall(_.isDigit)).map(_.toInt).getOrElse(8090)
   def host(args: Array[String]): String = args.drop(1).headOption.getOrElse("127.0.0.1")
 }
