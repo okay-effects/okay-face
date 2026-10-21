@@ -11,6 +11,7 @@ import okay.face.html.{Html, HtmlFace}
 import okay.face.rest.RestFace
 import okay.face.swing.SwingFace
 import okay.face.term.{Render, Terminal}
+import okay.face.examples.Noughts._
 import okay.face.test.Plays
 import okay.http.{Http, Https, Request}
 

@@ -1,5 +1,7 @@
 package okay.face.examples
 
+import okay.face.examples.Noughts._
+
 import okay.effects.machine.Machine
 import okay.effects.machine.Machine._
 import okay.face.Face

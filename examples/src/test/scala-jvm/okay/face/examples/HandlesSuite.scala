@@ -6,6 +6,7 @@ import okay.effects.machine.Machine._
 import okay.face.html.HtmlFace
 import okay.face.mcp.McpFace
 import okay.face.rest.RestFace
+import okay.face.examples.Noughts._
 import okay.face.test.Plays
 import okay.http.{Http, Https, Request, Response}
 import okay.mcp.{Link, Links, Rpc}

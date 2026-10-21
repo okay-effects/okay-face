@@ -5,6 +5,7 @@ import okay.effects.json.Json.{Str, obj}
 import okay.effects.machine.Machine
 import okay.effects.shape.Problem
 import okay.face.{Chosen, Face, Faces, Rejected, View}
+import okay.face.examples.Noughts._
 import okay.face.test.Plays
 
 class NoughtsSuite extends munit.FunSuite {
