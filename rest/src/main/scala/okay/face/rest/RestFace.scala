@@ -67,6 +67,11 @@ object RestFace {
     val face = new RestFace[F, s.faces.type](s.faces)
     face.sessions[A, H](() => s.faces.dialogue[A, H](s.faces.steps[A, HF, H](s.program[HF]), back = s.back), base, s.vocabulary).service
   }
+  /** THE GAME ON THE SERVER, whole: `run(RestFace.serve(game, port, host))` — the sessions at `base`; with a `page`, the
+   * thin page at `/` that plays them from the browser: the remote face's script (`okay.face.laminar.RemotePage`, linked),
+   * knowing no game */
+  def serve[F <: Effects with Singleton, A](s: Scenario[F, A], port: Int = 8080, host: String = "127.0.0.1", page: Option[() => Either[String, String]] = None, base: String = "/sessions"): s.faces.fx.![Unit, s.faces.fx.Pure] =
+    Web.serve(s, port, host)((List(base -> handle(s, base)) ++ page.map(script => "/" -> Shell.handle(s, "/" -> script)).toList): _*)
   /** over these faces, their path kept: `RestFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
   def apply[F <: Effects with Singleton](faces: Faces[F]): RestFace[F, faces.type] = new RestFace[F, faces.type](faces)
   /** over the faces in scope — by default, the ones over the implicit implementation: `RestFace.default[Machine.type]` */

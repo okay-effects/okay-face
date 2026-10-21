@@ -1,4 +1,4 @@
-package okay.face.html
+package okay.face.rest
 
 import java.io.File
 

@@ -167,6 +167,9 @@ object HtmlFace {
     val face = new HtmlFace[F, s.faces.type](s.faces)
     face.pages[A, H](() => s.faces.dialogue[A, H](s.faces.steps[A, HF, H](s.program[HF]), back = s.back), s.title, base, s.look.getOrElse(Look.default)).service
   }
+  /** THE GAME AS PAGES, whole: `run(HtmlFace.serve(game, port, host))` — `/` opens a session, the pages at `base`, the look at `/okay.css` */
+  def serve[F <: Effects with Singleton, A](s: Scenario[F, A], port: Int = 8080, host: String = "127.0.0.1", base: String = "/s"): s.faces.fx.![Unit, s.faces.fx.Pure] =
+    okay.face.rest.Web.serve(s, port, host)("/" -> handle(s, base))
   /** over these faces, their path kept: `HtmlFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
   def apply[F <: Effects with Singleton](faces: Faces[F]): HtmlFace[F, faces.type] = new HtmlFace[F, faces.type](faces)
 }

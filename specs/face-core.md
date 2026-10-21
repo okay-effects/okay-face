@@ -495,12 +495,14 @@ After step 4 the model holds or it does not, before any web platform is paid for
   services); `McpFace.handle(game)` the server's loop over `Link` for `new Links().stdio(…)`, named, instructed and
   marked by the scenario's `title`, `instructions`, `vocabulary`; `LaminarFace.mount(game)` the dialogue in the page,
   `RemoteFace.mount(fetch)` the thin page; `Plays.handle(game)(script)` the test face. One scenario, seven mains of a line.
-  A browser cut's page is the HTML face's `Shell.handle(game, "/" -> script, "/local" -> script)`: each page at its
-  path, its script beside it, the look at `/okay.css`; and services share a port by okay-http's `Https.byPrefix`
-  (`"/sessions" -> RestFace.handle(game), "/s" -> HtmlFace.handle(game), "/" -> Shell.handle(…)`); and the server is a
-  handler too, `Web.serve(game, port, host)(mounts…)` (the HTML face's JVM side, over the JDK's server) — the scenario the
-  anchor every service and the server share — so the web main is `run(Web.serve(game, port)(mounts…))` and where the
-  linked scripts are, `Linked(dir, name)` (okay.face.html, the JVM side). With the transport inside, a line: `run(McpFace.stdio(game))`, `run(Terminal.console(game))` — the `handle` words keep
+  AN EFFECT AND ITS HANDLER, nothing else to know: on the web too, each face has `serve(game, port, host)` with the
+  server inside (`okay.face.rest.Web.serve`, the JDK's server on the scenario's implementation, mounts by path prefix):
+  `run(HtmlFace.serve(game, port, host))` the pages; `run(RestFace.serve(game, port, host, page = Some(Linked(…))))`
+  the sessions and, with a page, the thin page at `/` — the LIBRARY's script, `okay.face.laminar.RemotePage`, which a
+  Scala.js project links by naming it its main, no source of its own; `run(Shell.serve(game, port, host, Linked(…)))`
+  the game in the browser, the page and the application's own script. `Shell.handle` and `Web.serve` compose when one
+  port is to carry several. `Linked(dir, name)` is a script where sbt links it (any Scala version, full first), read
+  when asked; in the browser these words are told impossible. With the transport inside, a line: `run(McpFace.stdio(game))`, `run(Terminal.console(game))` — the `handle` words keep
   the transport's effect in the row for a scripted one. Scala 3 wants a handled program bound to a value, and a handler
   (`new Links()`, `new JdkHttp()`) too, before the one is given to the other: the dependent types resolve on names, not
   inside an argument (Scala 2 takes the nesting); the words with the transport inside do that binding themselves.

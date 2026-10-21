@@ -1,4 +1,4 @@
-package okay.face.html
+package okay.face.rest
 
 import okay.effects.Effects
 import okay.face.Scenario
