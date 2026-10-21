@@ -27,6 +27,10 @@ class Noughts[F <: Effects](val faces: Faces[F]) {
   sealed trait Move
   final case class Play(cell: Int) extends Move
   case object Restart extends Move
+  /** at the end: another game, or done with this one */
+  sealed trait After
+  case object Again extends After
+  case object Enough extends After
   /** THE GAME'S OWN MARKS, typed: the result line is marked `result`; a style may dress it, an agent is told what it is */
   sealed trait Mark
   case object Result extends Mark
@@ -45,7 +49,10 @@ class Noughts[F <: Effects](val faces: Faces[F]) {
   def ended(board: Board, o: Outcome): View = View.stack(picture(board), marks.mark(Result, View.text(o match { case Won(c) => s"$c won"; case Draw => "a draw" })))
 
   def game[R[_]](board: Board)(implicit in: In[Face, R]): Outcome ! R = board.outcome match {
-    case Some(o) => show[R](ended(board, o)).map(_ => o)
+    case Some(o) => offer[After, R](ended(board, o), List(Action.plain[After]("again", "Play again")(Again), Action.plain[After]("done", "Done")(Enough))).flatMap {
+      case Again => game[R](Board.empty)
+      case Enough => pure[Outcome, R](o)
+    }
     case None =>
       val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*).described("Cell", Some("1 to 9, left to right, top to bottom"))
       offer[Move, R](picture(board), List(

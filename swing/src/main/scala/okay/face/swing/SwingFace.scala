@@ -32,12 +32,24 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
     }
     var current: Option[Step[A, M]] = None
     var unlisten: () => Unit = () => ()
+    /** the window grows with its content, within the screen, and never shrinks: a step that adds a line adds no scrollbar */
+    def grow(): Unit = Option(SwingUtilities.getWindowAncestor(root)).foreach { w =>
+      val viewport = Option(SwingUtilities.getAncestorOfClass(classOf[JViewport], root)).map(_.asInstanceOf[JViewport])
+      viewport.foreach { v =>
+        val need = root.getPreferredSize
+        val screen = java.awt.Toolkit.getDefaultToolkit.getScreenSize
+        val h = math.min(w.getHeight - v.getHeight + need.height + 8, screen.height - 120)
+        val wd = math.min(w.getWidth - v.getWidth + need.width + 8, screen.width - 80)
+        if (h > w.getHeight || wd > w.getWidth) w.setSize(math.max(wd, w.getWidth), math.max(h, w.getHeight))
+      }
+    }
     def show(s: Shown[A]): Unit = {
       current = Some(s.step)
       root.removeAll()
       root.add(render(s, show, settle), BorderLayout.CENTER)
       look.foreach(l => Looks(l)(root))
       root.revalidate(); root.repaint()
+      grow()
       unlisten()
       s.step match {
         case Step.Done(a) => done(a)
@@ -60,7 +72,11 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
       pages.foreach { case (ps, name) => ps.asInstanceOf[okay.face.Pages[Any]].onChange(p => frame.setTitle(s"$title — ${name(p)}")) }
       frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
       frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, look)), ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER))
-      frame.setSize(640, 480); frame.setLocationRelativeTo(null); frame.setVisible(true)
+      // the window sized to its content, within the screen; it grows no further — a longer dialogue scrolls
+      frame.pack()
+      val screen = java.awt.Toolkit.getDefaultToolkit.getScreenSize
+      frame.setSize(math.max(480, math.min(frame.getWidth + 24, screen.width - 80)), math.max(360, math.min(frame.getHeight + 24, screen.height - 120)))
+      frame.setLocationRelativeTo(null); frame.setVisible(true)
     } })
 
   private def render[A](s: Shown[A], show: Shown[A] => Unit, settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A]): JComponent = {

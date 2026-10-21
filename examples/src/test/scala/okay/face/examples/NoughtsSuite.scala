@@ -18,9 +18,9 @@ class NoughtsSuite extends munit.FunSuite {
   def start = faces.steps[Outcome, F, Void](game.game[F](Board.empty))
 
   test("X wins down the left: the program answers centre, then the first free cell") {
-    val played = play(start, Script.of(cell(1), cell(4), cell(7)))
+    val played = play(start, Script.of(cell(1), cell(4), cell(7), Chosen.plain("done")))
     played match {
-      case Played.Finished(views, Won('X')) => assertEquals(views.size, 4)   // three boards offered, the last told
+      case Played.Finished(views, Won('X')) => assertEquals(views.size, 4)   // three boards offered, the end offered too: again, or done
       case other => fail(s"$other")
     }
   }
@@ -49,7 +49,7 @@ class NoughtsSuite extends munit.FunSuite {
   }
   test("a draw: every cell filled, nobody won") {
     // X: 1, O: 5; X: 9, O: 2; X: 8, O: 3; X: 4, O: 6; X: 7 → full. Check the outcome, whatever it is, ends the game
-    val played = play(start, Script.of(cell(1), cell(9), cell(8), cell(4), cell(7)))
+    val played = play(start, Script.of(cell(1), cell(9), cell(8), cell(4), cell(7), Chosen.plain("done")))
     played match {
       case Played.Finished(_, o) => assert(o == Draw || o.isInstanceOf[Won], s"$o")
       case other => fail(s"$other")
@@ -61,7 +61,7 @@ class NoughtsSuite extends munit.FunSuite {
 class NoughtsTerminalSuite extends munit.FunSuite {
   import NoughtsTerminal._
   test("X wins down the left at the terminal: the boards printed, the cell asked as a menu") {
-    val (printed, result) = Machine.run(term.io.console(List("1", "1", "play", "4", "1", "7"))(
+    val (printed, result) = Machine.run(term.io.console(List("1", "1", "play", "4", "1", "7", "done"))(
       term.terminal[game.Outcome, C](faces.steps[game.Outcome, CF, C](game.game[CF](game.Board.empty)))))
     assertEquals(result, Some(game.Won('X')))
     assert(printed.contains("NOUGHTS AND CROSSES"))
