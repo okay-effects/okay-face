@@ -12,7 +12,8 @@ final case class Linked(dir: String, name: String) extends (() => Either[String,
   def apply(): Either[String, String] = {
     val target = new File(dir, "target")
     val versions = Option(target.listFiles).toList.flatten.filter(d => d.isDirectory && d.getName.startsWith("scala-"))
-    val candidates = for { kind <- List("opt", "fastopt"); v <- versions.sortBy(_.getName).reverse } yield new File(v, s"$name-$kind/main.js")
+    val candidates = for { kind <- List("opt", "fastopt"); v <- versions.sortBy(_.getName).reverse } yield new File(v,
+      s"$name-$kind/main.js")
     candidates.find(_.isFile) match {
       case Some(f) => Right(new String(java.nio.file.Files.readAllBytes(f.toPath), "UTF-8"))
       case None => Left(s"no script $name under $dir/target: `sbt -Dplatforms=js <project>/fullLinkJS` links it")

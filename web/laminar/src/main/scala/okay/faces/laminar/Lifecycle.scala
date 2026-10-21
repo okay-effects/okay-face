@@ -20,7 +20,10 @@ class Lifecycle[F <: Runner with Singleton](implicit implementation: F, ec: Exec
       mount = _ => {
         val r = asynchrony.start(p)
         running = Some(r)
-        r.future.onComplete { case Success(a) => if (running.contains(r)) done(Right(a)); case Failure(e) => if (running.contains(r)) done(Left(e)) }
+        r.future.onComplete {
+          case Success(a) => if (running.contains(r)) done(Right(a));
+          case Failure(e) => if (running.contains(r)) done(Left(e))
+        }
       },
       unmount = _ => { running.foreach(_.cancel()); running = None })
   }

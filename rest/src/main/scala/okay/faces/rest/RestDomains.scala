@@ -9,7 +9,8 @@ import okay.http.{Fetch, Https, Query, Request, Response}
 import okay.http.rest.{Link, Resource, Rests, Trouble}
 
 /**
- * THE DOMAIN PROJECTION ON REST: a described effect served as resources, and performed from afar over `Fetch`. `GET base`
+ * THE DOMAIN PROJECTION ON REST: a described effect served as resources, and performed from afar over `Fetch`. `GET
+ * base`
  * is the description — the operations as links, each with its method, href and parameters' JSON Schema. An operation
  * that reads and whose parameters are flat (a record of leaves, optionals and lists of leaves) is a `GET` with the
  * arguments in the query; any other is a `POST` with the arguments as JSON. The result is JSON; parameters that do
@@ -28,9 +29,13 @@ class RestDomains[F <: Effects with Singleton](implicit implementation: F) {
 
   final class Served[E[_], R[_]](d: Describe[E], base: String)(implicit in: In[E, R]) {
     def description: Resource = Resource(
-      Json.obj("name" -> Json.Str(d.name), "operations" -> Json.Arr(d.operations.map(o => Json.Obj(Vector("name" -> Json.Str(o.name), "method" -> Json.Str(method(o)),
-        "params" -> Schema.shape.encode(o.params.erased), "result" -> Schema.shape.encode(o.result.erased)) ++ o.doc.map(x => "doc" -> Json.Str(x)))).toVector)),
-      Link("self", base) :: d.operations.map(o => Link(o.name, s"$base/${o.name}", method(o), o.doc, Some(JsonSchema.of(o.params.erased)))))
+      Json.obj("name" -> Json.Str(d.name),
+        "operations" -> Json.Arr(d.operations.map(o =>
+            Json.Obj(Vector("name" -> Json.Str(o.name), "method" -> Json.Str(method(o)),
+              "params" -> Schema.shape.encode(o.params.erased),
+              "result" -> Schema.shape.encode(o.result.erased)) ++ o.doc.map(x => "doc" -> Json.Str(x)))).toVector)),
+      Link("self", base) :: d.operations.map(o =>
+        Link(o.name, s"$base/${o.name}", method(o), o.doc, Some(JsonSchema.of(o.params.erased)))))
     def routes: List[Route[R]] =
       rests.get[R](base)((_, _) => pure[Response, R](description.response())) ::
         d.operations.map { o =>
@@ -42,9 +47,9 @@ class RestDomains[F <: Effects with Singleton](implicit implementation: F) {
             args match {
               case Left(r) => pure[Response, R](r)
               case Right(j) => domains.serve[E, R](d)(o.name, j).map {
-                case Right(result) => Response.json(result)
-                case Left(ps) => Trouble(400, "not taken", ps).response
-              }
+                  case Right(result) => Response.json(result)
+                  case Left(ps) => Trouble(400, "not taken", ps).response
+                }
             }
           }
         }
@@ -58,10 +63,13 @@ class RestDomains[F <: Effects with Singleton](implicit implementation: F) {
       domains.remote[E](d).apply[R, Rest, A]({ (o, args) =>
         val url = s"$origin$base/${o.name}"
         val response: Response ! Rest =
-          if (method(o) == "GET") { val q = Query.print(FormJson.print(o.params.erased, args)); https.get[Rest](if (q.isEmpty) url else s"$url?$q") }
-          else https.postJson[Rest](url, args)
+          if (method(o) == "GET") {
+            val q = Query.print(FormJson.print(o.params.erased, args));
+            https.get[Rest](if (q.isEmpty) url else s"$url?$q")
+          } else https.postJson[Rest](url, args)
         response.map { r =>
-          if (r.status == 200) Descent.parse(r.body).fold(e => throw RemoteFailure(o.name, List(Problem(Nil, e.message))), j => j)
+          if (r.status == 200)
+            Descent.parse(r.body).fold(e => throw RemoteFailure(o.name, List(Problem(Nil, e.message))), j => j)
           else throw RemoteFailure(o.name, RestDomains.problems(r))
         }
       })(p)
@@ -70,7 +78,9 @@ class RestDomains[F <: Effects with Singleton](implicit implementation: F) {
 }
 
 object RestDomains {
-  def apply()(implicit fx: Effects): RestDomains[fx.type] = { implicit val exact: fx.type = fx; new RestDomains[fx.type] }
+  def apply()(implicit fx: Effects): RestDomains[fx.type] = {
+    implicit val exact: fx.type = fx; new RestDomains[fx.type]
+  }
   /** a record of leaves, optionals and lists of leaves: what a query carries */
   def flat(s: Schema): Boolean = s match {
     case Schema.Record(fs) => fs.forall(f => leafish(f.schema))
@@ -87,10 +97,15 @@ object RestDomains {
   /** a `Trouble`'s problems, else its status and title */
   def problems(r: Response): List[Problem] = Descent.parse(r.body) match {
     case Right(o: Json.Obj) => o.get("problems") match {
-      case Some(Json.Arr(ps)) if ps.nonEmpty => ps.toList.collect { case p: Json.Obj =>
-        Problem(p.get("path").collect { case Json.Arr(xs) => xs.toList.collect { case Json.Str(s) => s } }.getOrElse(Nil), p.get("message").collect { case Json.Str(m) => m }.getOrElse("")) }
-      case _ => List(Problem(Nil, s"${r.status}: " + o.get("title").collect { case Json.Str(t) => t }.getOrElse(r.body)))
-    }
+        case Some(Json.Arr(ps)) if ps.nonEmpty =>
+          ps.toList.collect { case p: Json.Obj =>
+            Problem(p.get("path").collect { case Json.Arr(xs) =>
+                xs.toList.collect { case Json.Str(s) => s }
+              }.getOrElse(Nil), p.get("message").collect { case Json.Str(m) => m }.getOrElse(""))
+          }
+        case _ =>
+          List(Problem(Nil, s"${r.status}: " + o.get("title").collect { case Json.Str(t) => t }.getOrElse(r.body)))
+      }
     case _ => List(Problem(Nil, s"${r.status}: ${r.body}"))
   }
 }

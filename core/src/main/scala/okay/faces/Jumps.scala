@@ -16,9 +16,12 @@ class Jumps[F <: Effects with Singleton](implicit implementation: F) {
   type Jump[P, X] = Error[P, X]
 
   def jump[P, R[_], X](to: P)(implicit in: In[({ type L[x] = Error[P, x] })#L, R]): X ! R = raise[P, R, X](to)
-  /** the screens from `start`, each attempted; a jump begins the screen of the place jumped to; done when a screen ends without one */
-  def jumping[P, R[_], Rest[_]](start: P)(screen: P => Unit ! R)(implicit sp: Split[({ type L[x] = Error[P, x] })#L, R, Rest]): Unit ! Rest = {
-    def loop(p: P): Unit ! Rest = attempt[P](screen(p)).flatMap { case Left(next) => loop(next); case Right(()) => pure[Unit, Rest](()) }
+  /** the screens from `start`, each attempted; a jump begins the screen of the place jumped to; done when a screen ends
+   * without one */
+  def jumping[P, R[_], Rest[_]](start: P)(screen: P => Unit ! R)(
+    implicit sp: Split[({ type L[x] = Error[P, x] })#L, R, Rest]): Unit ! Rest = {
+    def loop(p: P): Unit ! Rest =
+      attempt[P](screen(p)).flatMap { case Left(next) => loop(next); case Right(()) => pure[Unit, Rest](()) }
     loop(start)
   }
 }

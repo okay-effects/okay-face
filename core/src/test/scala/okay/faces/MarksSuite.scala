@@ -24,11 +24,13 @@ class MarksSuite extends munit.FunSuite {
   }
   test("the vocabulary: every mark, its meaning when explained, as JSON and Markdown; decoded back") {
     val v = marks.vocabulary
-    assertEquals(v.entries, List(Vocabulary.Entry("price", Some("the amount due, in euro")), Vocabulary.Entry("due-date", None)))
+    assertEquals(v.entries,
+      List(Vocabulary.Entry("price", Some("the amount due, in euro")), Vocabulary.Entry("due-date", None)))
     assertEquals(v.markdown, "- price: the amount due, in euro\n- due-date")
     assertEquals(Vocabulary.decode(v.json), Right(v))
     assertEquals(Json.print(v.json), """[{"name":"price","doc":"the amount due, in euro"},{"name":"due-date"}]""")
-    assertEquals((v ++ Vocabulary("price" -> "again", "badge" -> "a badge")).entries.map(_.name), List("price", "due-date", "badge"))
+    assertEquals((v ++ Vocabulary("price" -> "again", "badge" -> "a badge")).entries.map(_.name),
+      List("price", "due-date", "badge"))
   }
   test("qualified: two vocabularies apart; the class keeps the dot, the stylesheet escapes it") {
     val shop = marks.qualified("shop")
@@ -43,6 +45,7 @@ class MarksSuite extends munit.FunSuite {
   }
   test("a Shape[String] is the untyped vocabulary: the string is the word") {
     val free = Marks.of(Shape.text)
-    assertEquals(free.name("badge"), "badge"); assertEquals(free.of("badge"), Some("badge")); assertEquals(free.vocabulary, Vocabulary.empty)
+    assertEquals(free.name("badge"), "badge"); assertEquals(free.of("badge"), Some("badge"));
+    assertEquals(free.vocabulary, Vocabulary.empty)
   }
 }

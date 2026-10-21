@@ -10,7 +10,10 @@ import okay.faces.{Family, Look, Role, Rule, Tone}
 final class Looks(look: Look) {
   private val base: Float = look.theme.size.toFloat
   private def family(mono: Boolean): String =
-    if (mono) Font.MONOSPACED else look.theme.font match { case Family.System => Font.SANS_SERIF; case Family.Serif => Font.SERIF; case Family.Mono => Font.MONOSPACED }
+    if (mono) Font.MONOSPACED
+    else look.theme.font match {
+      case Family.System => Font.SANS_SERIF; case Family.Serif => Font.SERIF; case Family.Mono => Font.MONOSPACED
+    }
   private def color(t: Tone): AwtColor = { val c = look.theme.palette(t); new AwtColor(c.r, c.g, c.b) }
 
   def roleOf(c: Component): Option[Role] = Option(c.getName).flatMap { n =>
@@ -36,7 +39,10 @@ final class Looks(look: Look) {
     (line, inner) match {
       case (Some(l), Some(i)) => c.setBorder(BorderFactory.createCompoundBorder(l, i))
       case (Some(l), None) => c.setBorder(l)
-      case (None, Some(i)) => c match { case _: JLabel | _: AbstractButton => c.setBorder(i); case _ if c.getBorder == null => c.setBorder(i); case _ => () }
+      case (None, Some(i)) => c match {
+          case _: JLabel | _: AbstractButton => c.setBorder(i); case _ if c.getBorder == null => c.setBorder(i);
+          case _ => ()
+        }
       case (None, None) => ()
     }
   }
@@ -47,9 +53,11 @@ final class Looks(look: Look) {
     def go(c: Component): Unit = {
       c match {
         case j: JComponent => roleOf(j) match {
-          case Some(role) => dress(j, look.style(role))
-          case None => j.setFont(new Font(family(mono = false), Font.PLAIN, base.round.toInt)); face.color.foreach(t => j.setForeground(color(t)))
-        }
+            case Some(role) => dress(j, look.style(role))
+            case None =>
+              j.setFont(new Font(family(mono = false), Font.PLAIN, base.round.toInt));
+              face.color.foreach(t => j.setForeground(color(t)))
+          }
         case _ => ()
       }
       c match { case p: Container => p.getComponents.foreach(go); case _ => () }

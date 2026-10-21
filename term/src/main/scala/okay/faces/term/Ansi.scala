@@ -3,7 +3,8 @@ package okay.faces.term
 import okay.faces.{Look, Paint, Role, Rule}
 
 /** THE TERMINAL'S INTERPRETER of a look: a role's rule as SGR — bold, the colour of its tone and of its background,
- * 24-bit — around the text, reset after. Off by default: a terminal face paints only when given `Ansi(look)`, so pipes stay plain */
+ * 24-bit — around the text, reset after. Off by default: a terminal face paints only when given `Ansi(look)`, so pipes
+ * stay plain */
 object Ansi {
   def apply(look: Look): Paint = new Paint {
     def apply(role: Role, s: String): String = {

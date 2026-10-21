@@ -6,7 +6,8 @@ import okay.faces.examples.Noughts._
 import okay.faces.swing.SwingFace
 import okay.faces.term.Terminal
 
-/** THE IMPLEMENTATION SAID ONCE, by the import: the faces find it and their faces, the program is written over them — on
+/** THE IMPLEMENTATION SAID ONCE, by the import: the faces find it and their faces, the program is written over them —
+ * on
  * both compilers, shared source, no `Machine.type` written */
 class InferredSuite extends munit.FunSuite {
   test("SwingFace() and Terminal() over the implicit implementation; the program handled by each") {

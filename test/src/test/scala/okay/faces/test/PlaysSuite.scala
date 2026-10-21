@@ -41,10 +41,14 @@ abstract class PlaysChecks(val fx0: Runner, name: String) extends munit.FunSuite
   test(s"$name: a scenario's steps — the views shown, the actions offered, the value at the end") {
     val ann = Chosen("submit", obj("name" -> Str("Ann"), "age" -> num(41)))
     val played = play(steps[String, F, Void](greeting), Script.of(ann, Chosen.plain("yes")))
-    assertEquals(played, Played.Finished(List(View.heading("Who are you?"), View.text("Greet Ann, 41?"), View.text("Hello, Ann!")), "greeted Ann"))
+    assertEquals(played,
+      Played.Finished(List(View.heading("Who are you?"), View.text("Greet Ann, 41?"), View.text("Hello, Ann!")),
+        "greeted Ann"))
     val left = play(steps[String, F, Void](greeting), Script.of(ann, Chosen.plain("no"), Chosen.plain("leave")))
-    assertEquals(left, Played.Finished(List(View.heading("Who are you?"), View.text("Greet Ann, 41?"), View.text("Then what?")), "left"))
-    val again = play(steps[String, F, Void](greeting), Script.of(ann, Chosen.plain("no"), Chosen.plain("try-again"), ann, Chosen.plain("yes")))
+    assertEquals(left,
+      Played.Finished(List(View.heading("Who are you?"), View.text("Greet Ann, 41?"), View.text("Then what?")), "left"))
+    val again = play(steps[String, F, Void](greeting),
+      Script.of(ann, Chosen.plain("no"), Chosen.plain("try-again"), ann, Chosen.plain("yes")))
     assertEquals(again.views.size, 6)
     assertEquals(again, Played.Finished(again.views, "greeted Ann"))
   }
@@ -58,7 +62,8 @@ abstract class PlaysChecks(val fx0: Runner, name: String) extends munit.FunSuite
       case other => fail(s"not stuck: $other")
     }
     play(steps[String, F, Void](greeting), Script.of(Chosen.plain("nope"))) match {
-      case Played.Stuck(_, _, Some(Rejected(problems))) => assertEquals(problems, List(Problem(List("action"), "one of submit")))
+      case Played.Stuck(_, _, Some(Rejected(problems))) =>
+        assertEquals(problems, List(Problem(List("action"), "one of submit")))
       case other => fail(s"not stuck: $other")
     }
   }
@@ -66,15 +71,20 @@ abstract class PlaysChecks(val fx0: Runner, name: String) extends munit.FunSuite
     type FS[X] = Sum[F, ({ type L[Y] = State[Int, Y] })#L, X]
     /** a counter the person increments; the count is a State handled inside Face */
     def counting: Int ! FS = get[Int, FS].flatMap { n =>
-      offer[Boolean, FS](View.text(s"count $n"), List(Action.plain[Boolean]("more", "More")(true), Action.plain[Boolean]("done", "Done")(false))).flatMap { more =>
-        if (more) put[Int, FS](n + 1).flatMap(_ => counting) else pure[Int, FS](n)
+      offer[Boolean, FS](View.text(s"count $n"),
+        List(Action.plain[Boolean]("more", "More")(true), Action.plain[Boolean]("done", "Done")(false))).flatMap {
+        more =>
+          if (more) put[Int, FS](n + 1).flatMap(_ => counting) else pure[Int, FS](n)
       }
     }
     val inside: Int ! F = state(0)(counting).map(_._2)
-    val forward = play(steps[Int, F, Void](inside), Script.of(Chosen.plain("more"), Chosen.plain("more"), Chosen.plain("done")))
+    val forward =
+      play(steps[Int, F, Void](inside), Script.of(Chosen.plain("more"), Chosen.plain("more"), Chosen.plain("done")))
     assertEquals(forward, Played.Finished(List(View.text("count 0"), View.text("count 1"), View.text("count 2")), 2))
-    val undone = play(steps[Int, F, Void](inside), Script(Pick(Chosen.plain("more")), Pick(Chosen.plain("more")), Back, Pick(Chosen.plain("done"))))
-    assertEquals(undone, Played.Finished(List(View.text("count 0"), View.text("count 1"), View.text("count 2"), View.text("count 1")), 1))
+    val undone = play(steps[Int, F, Void](inside),
+      Script(Pick(Chosen.plain("more")), Pick(Chosen.plain("more")), Back, Pick(Chosen.plain("done"))))
+    assertEquals(undone,
+      Played.Finished(List(View.text("count 0"), View.text("count 1"), View.text("count 2"), View.text("count 1")), 1))
     val tooFar = play(steps[Int, F, Void](inside), Script(Back, Pick(Chosen.plain("done"))))
     assertEquals(tooFar, Played.Finished(List(View.text("count 0"), View.text("count 0")), 0))
   }
@@ -94,7 +104,8 @@ class NavigationSuite extends munit.FunSuite {
   sealed trait Page; case object Home extends Page; final case class User(id: Int) extends Page
   type N[X] = Navigation[Page, X]
   type R[X] = Sum[Void, N, X]
-  def visit: Page ! R = push[Page, R](User(1)).flatMap(_ => push[Page, R](User(2))).flatMap(_ => replace[Page, R](User(3))).flatMap(_ => current[Page, R])
+  def visit: Page ! R = push[Page, R](User(1)).flatMap(_ => push[Page, R](User(2))).flatMap(_ =>
+    replace[Page, R](User(3))).flatMap(_ => current[Page, R])
 
   test("recording: the pages asked for; memory: the pages kept, the face told, back") {
     assertEquals(run(recording[Page](Home)(visit)), (List(Home, User(1), User(3)), User(3): Page))
@@ -116,7 +127,8 @@ class PlaysOnFree extends PlaysChecks(Free, "free")
 class SameViewsSuite extends munit.FunSuite {
   test("machine and Free show the same views for the same script") {
     val m = new PlaysOnMachine; val f = new PlaysOnFree
-    val script = List(Chosen("submit", obj("name" -> Str("Bo"), "age" -> num(7))), Chosen.plain("no"), Chosen.plain("leave"))
+    val script =
+      List(Chosen("submit", obj("name" -> Str("Bo"), "age" -> num(7))), Chosen.plain("no"), Chosen.plain("leave"))
     assertEquals(m.viewsFor(script), f.viewsFor(script))
     assertEquals(m.viewsFor(script).size, 3)
   }

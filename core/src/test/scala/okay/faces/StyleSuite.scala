@@ -13,7 +13,8 @@ class StyleSuite extends munit.FunSuite {
   }
   test("the default style says something for the roles a dialogue is read by") {
     val said = Role.all.filter(r => !Style.default(r).isEmpty)
-    assert(said.contains(Role.Heading(1)) && said.contains(Role.Notice(View.Notice.Problem)) && said.contains(Role.Action) && said.contains(Role.Masked))
+    assert(said.contains(Role.Heading(1)) && said.contains(Role.Notice(View.Notice.Problem)) && said.contains(
+      Role.Action) && said.contains(Role.Masked))
     assertEquals(Style.plain(Role.Heading(1)), Rule())
     assertEquals(Style.default.adjust(Role.Text)(_.copy(mono = true))(Role.Text).mono, true)
   }
@@ -27,20 +28,31 @@ class StyleSuite extends munit.FunSuite {
     Tone.all.foreach(t => assert(css.contains(s"--okay-${t.name}:${Theme.light.palette(t).hex}"), t.name))
     Role.all.filter(r => !Style.default(r).isEmpty).foreach(r => assert(css.contains(s".${r.cls}{"), r.cls))
     assert(css.contains(".okay-heading-1{font-weight:bold;font-size:1.6em}"), css)
-    assert(css.contains(".okay-notice-problem{color:var(--okay-problem);border:1px solid var(--okay-problem);padding:calc(1 * var(--okay-space))}"), css)
-    assert(css.contains(".okay-actions{display:flex;flex-wrap:wrap;align-items:center;gap:calc(2 * var(--okay-space))}"), css)
-    assert(css.contains(".okay-table th,.okay-table td{border:1px solid var(--okay-border);padding:calc(1 * var(--okay-space))}"), css)
+    assert(css.contains(
+        ".okay-notice-problem{color:var(--okay-problem);border:1px solid var(--okay-problem);" +
+          "padding:calc(1 * var(--okay-space))}"),
+      css)
+    assert(css.contains(
+        ".okay-actions{display:flex;flex-wrap:wrap;align-items:center;gap:calc(2 * var(--okay-space))}"), css)
+    assert(css.contains(
+        ".okay-table th,.okay-table td{border:1px solid var(--okay-border);padding:calc(1 * var(--okay-space))}"), css)
     assert(!css.contains(".okay-text{"), "a role with no rule has no block")
-    assert(!Css(Look.default).split("\n").drop(1).exists(_.contains("#")), "rules name tones, the palette alone has colours")
+    assert(!Css(Look.default).split("\n").drop(1).exists(_.contains("#")),
+      "rules name tones, the palette alone has colours")
     assert(Css(Look.dark).contains("--okay-bg:#0d1117"))
   }
   test("a centered rule: the content in the middle, in the block and in text") {
     val css = Css(Look(Theme.light, Style.plain.set(Role.Mark("cell"), Rule(flow = Flow.Row, centered = true))))
-    assert(css.contains(".okay-mark-cell{display:flex;flex-wrap:wrap;align-items:center;gap:calc(0 * var(--okay-space));justify-content:center;align-items:center;text-align:center}"), css)
+    assert(
+      css.contains(
+        ".okay-mark-cell{display:flex;flex-wrap:wrap;align-items:center;gap:calc(0 * var(--okay-space));" +
+          "justify-content:center;align-items:center;text-align:center}"),
+      css)
   }
   test("two themes in one stylesheet: the light tokens on :root, the dark ones under prefers-color-scheme") {
     val css = Css(Look.default, Look.dark)
-    assert(css.contains("--okay-bg:#ffffff") && css.contains("@media (prefers-color-scheme: dark){:root{") && css.contains("--okay-bg:#0d1117"), css)
+    assert(css.contains("--okay-bg:#ffffff") && css.contains(
+        "@media (prefers-color-scheme: dark){:root{") && css.contains("--okay-bg:#0d1117"), css)
     assertEquals(css.split("@media").length, 2)
   }
 }

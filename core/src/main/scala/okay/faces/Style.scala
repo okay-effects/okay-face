@@ -26,7 +26,8 @@ object Role {
   case object Told extends Role(List("told"))
   case object Text extends Role(List("text"))
   final case class Heading(level: Int) extends Role(List("heading", s"heading-${level min 3 max 1}"))
-  final case class Notice(level: okay.faces.View.Notice.Level) extends Role(List("notice", "notice-" + level.toString.toLowerCase))
+  final case class Notice(level: okay.faces.View.Notice.Level)
+    extends Role(List("notice", "notice-" + level.toString.toLowerCase))
   case object Fields extends Role(List("fields"))
   /** a label: a field's name beside its value, in a view or a form */
   case object Label extends Role(List("label"))
@@ -55,10 +56,12 @@ object Role {
 
   val all: List[Role] = List(Face, View, Told, Text) ++ (1 to 3).map(Heading(_)) ++
     List(okay.faces.View.Notice.Info, okay.faces.View.Notice.Warning, okay.faces.View.Notice.Problem).map(Notice(_)) ++
-    List(Fields, Label, Table, Items, Group, GroupTitle, Ref, Datum, Masked, Problems, Actions, Action, Form, Doc, Field, Back)
+    List(Fields, Label, Table, Items, Group, GroupTitle, Ref, Datum, Masked, Problems, Actions, Action, Form, Doc,
+      Field, Back)
   /** a role by its most specific class, "okay-heading-1"; a mark by its name, "okay-mark-price" */
   val byClass: Map[String, Role] = all.map(r => r.cls -> r).toMap
-  def ofClass(cls: String): Option[Role] = byClass.get(cls).orElse(if (cls.startsWith("okay-mark-")) Some(Mark(cls.drop("okay-mark-".length))) else None)
+  def ofClass(cls: String): Option[Role] =
+    byClass.get(cls).orElse(if (cls.startsWith("okay-mark-")) Some(Mark(cls.drop("okay-mark-".length))) else None)
 }
 
 /** a colour, as the tokens hold it */
@@ -66,7 +69,11 @@ final case class Color(r: Int, g: Int, b: Int) {
   def hex: String = f"#$r%02x$g%02x$b%02x"
 }
 object Color {
-  def apply(hex: String): Color = { val h = hex.stripPrefix("#"); Color(Integer.parseInt(h.substring(0, 2), 16), Integer.parseInt(h.substring(2, 4), 16), Integer.parseInt(h.substring(4, 6), 16)) }
+  def apply(hex: String): Color = {
+    val h = hex.stripPrefix("#");
+    Color(Integer.parseInt(h.substring(0, 2), 16), Integer.parseInt(h.substring(2, 4), 16),
+      Integer.parseInt(h.substring(4, 6), 16))
+  }
 }
 
 /** a colour's ROLE in the palette: what a rule names instead of a colour */
@@ -86,7 +93,8 @@ object Tone {
   val all: List[Tone] = List(Fg, Bg, Muted, Surface, Border, Accent, Warning, Problem)
 }
 
-final case class Palette(fg: Color, bg: Color, muted: Color, surface: Color, border: Color, accent: Color, warning: Color, problem: Color) {
+final case class Palette(fg: Color, bg: Color, muted: Color, surface: Color, border: Color, accent: Color,
+  warning: Color, problem: Color) {
   def apply(tone: Tone): Color = tone match {
     case Tone.Fg => fg; case Tone.Bg => bg; case Tone.Muted => muted; case Tone.Surface => surface
     case Tone.Border => border; case Tone.Accent => accent; case Tone.Warning => warning; case Tone.Problem => problem
@@ -99,12 +107,15 @@ object Family { case object System extends Family; case object Serif extends Fam
 
 /** THE TOKENS: a palette, a font and its base size (px, points), a unit of space (px), a measure (characters of text
  * across) */
-final case class Theme(palette: Palette, font: Family = Family.System, size: Int = 16, space: Int = 8, measure: Int = 72)
+final case class Theme(palette: Palette, font: Family = Family.System, size: Int = 16, space: Int = 8,
+  measure: Int = 72)
 object Theme {
-  val light: Theme = Theme(Palette(fg = Color("#1f2328"), bg = Color("#ffffff"), muted = Color("#636c76"), surface = Color("#f6f8fa"),
-    border = Color("#d0d7de"), accent = Color("#0969da"), warning = Color("#9a6700"), problem = Color("#cf222e")))
-  val dark: Theme = Theme(Palette(fg = Color("#e6edf3"), bg = Color("#0d1117"), muted = Color("#8d96a0"), surface = Color("#161b22"),
-    border = Color("#30363d"), accent = Color("#58a6ff"), warning = Color("#d29922"), problem = Color("#f85149")))
+  val light: Theme = Theme(Palette(fg = Color("#1f2328"), bg = Color("#ffffff"), muted = Color("#636c76"),
+      surface = Color("#f6f8fa"),
+      border = Color("#d0d7de"), accent = Color("#0969da"), warning = Color("#9a6700"), problem = Color("#cf222e")))
+  val dark: Theme = Theme(Palette(fg = Color("#e6edf3"), bg = Color("#0d1117"), muted = Color("#8d96a0"),
+      surface = Color("#161b22"),
+      border = Color("#30363d"), accent = Color("#58a6ff"), warning = Color("#d29922"), problem = Color("#f85149")))
 }
 
 /** children in a column or in a row that wraps */
@@ -114,8 +125,9 @@ object Flow { case object Column extends Flow; case object Row extends Flow }
 /** A RULE for a role, in tokens: tones, not colours; `size` times the base; `pad` and `gap` in units of space;
  * `centered`, the content in the middle of the part — a cell of a board */
 final case class Rule(color: Option[Tone] = None, background: Option[Tone] = None, border: Option[Tone] = None,
-                      bold: Boolean = false, size: Double = 1.0, mono: Boolean = false, pad: Int = 0, gap: Int = 0, flow: Flow = Flow.Column,
-                      centered: Boolean = false) {
+  bold: Boolean = false, size: Double = 1.0, mono: Boolean = false, pad: Int = 0, gap: Int = 0,
+  flow: Flow = Flow.Column,
+  centered: Boolean = false) {
   def isEmpty: Boolean = this == Rule()
 }
 
@@ -132,30 +144,30 @@ object Style {
   val plain: Style = Style(Map.empty)
   /** what a dialogue needs to be read: emphasis by role, surfaces for what is told and shown, tones for what warns */
   val default: Style = Style(Map(
-    Face -> Rule(color = Some(Fg), background = Some(Bg), pad = 2, gap = 2),
-    View -> Rule(gap = 1),
-    Told -> Rule(background = Some(Surface), pad = 1, gap = 1),
-    Heading(1) -> Rule(bold = true, size = 1.6),
-    Heading(2) -> Rule(bold = true, size = 1.3),
-    Heading(3) -> Rule(bold = true, size = 1.1),
-    Notice(okay.faces.View.Notice.Info) -> Rule(color = Some(Muted), background = Some(Surface), pad = 1),
-    Notice(okay.faces.View.Notice.Warning) -> Rule(color = Some(Warning), border = Some(Warning), pad = 1),
-    Notice(okay.faces.View.Notice.Problem) -> Rule(color = Some(Problem), border = Some(Problem), pad = 1),
-    Fields -> Rule(gap = 1),
-    Label -> Rule(bold = true),
-    Table -> Rule(border = Some(Border), pad = 1),
-    Group -> Rule(gap = 1),
-    GroupTitle -> Rule(bold = true, color = Some(Muted)),
-    Ref -> Rule(color = Some(Accent)),
-    Datum -> Rule(mono = true, background = Some(Surface), pad = 1),
-    Masked -> Rule(mono = true, color = Some(Muted)),
-    Problems -> Rule(color = Some(Problem)),
-    Actions -> Rule(flow = Flow.Row, gap = 2),
-    Action -> Rule(color = Some(Bg), background = Some(Accent), bold = true, pad = 1),
-    Form -> Rule(border = Some(Border), pad = 2, gap = 1),
-    Doc -> Rule(color = Some(Muted)),
-    Field -> Rule(gap = 0),
-    Back -> Rule(color = Some(Muted), background = Some(Surface), pad = 1)))
+      Face -> Rule(color = Some(Fg), background = Some(Bg), pad = 2, gap = 2),
+      View -> Rule(gap = 1),
+      Told -> Rule(background = Some(Surface), pad = 1, gap = 1),
+      Heading(1) -> Rule(bold = true, size = 1.6),
+      Heading(2) -> Rule(bold = true, size = 1.3),
+      Heading(3) -> Rule(bold = true, size = 1.1),
+      Notice(okay.faces.View.Notice.Info) -> Rule(color = Some(Muted), background = Some(Surface), pad = 1),
+      Notice(okay.faces.View.Notice.Warning) -> Rule(color = Some(Warning), border = Some(Warning), pad = 1),
+      Notice(okay.faces.View.Notice.Problem) -> Rule(color = Some(Problem), border = Some(Problem), pad = 1),
+      Fields -> Rule(gap = 1),
+      Label -> Rule(bold = true),
+      Table -> Rule(border = Some(Border), pad = 1),
+      Group -> Rule(gap = 1),
+      GroupTitle -> Rule(bold = true, color = Some(Muted)),
+      Ref -> Rule(color = Some(Accent)),
+      Datum -> Rule(mono = true, background = Some(Surface), pad = 1),
+      Masked -> Rule(mono = true, color = Some(Muted)),
+      Problems -> Rule(color = Some(Problem)),
+      Actions -> Rule(flow = Flow.Row, gap = 2),
+      Action -> Rule(color = Some(Bg), background = Some(Accent), bold = true, pad = 1),
+      Form -> Rule(border = Some(Border), pad = 2, gap = 1),
+      Doc -> Rule(color = Some(Muted)),
+      Field -> Rule(gap = 0),
+      Back -> Rule(color = Some(Muted), background = Some(Surface), pad = 1)))
 }
 
 /** a theme and a style: what a face is given */
@@ -171,9 +183,13 @@ object Look {
 object Css {
   /** the tokens of a theme, as custom properties */
   def tokens(t: Theme): String = {
-    val font = t.font match { case Family.System => "system-ui, sans-serif"; case Family.Serif => "Georgia, serif"; case Family.Mono => "ui-monospace, monospace" }
+    val font = t.font match {
+      case Family.System => "system-ui, sans-serif"; case Family.Serif => "Georgia, serif";
+      case Family.Mono => "ui-monospace, monospace"
+    }
     Tone.all.map(tone => s"--okay-${tone.name}:${t.palette(tone).hex}").mkString(";") +
-      s";--okay-font:$font;--okay-mono:ui-monospace, monospace;--okay-size:${t.size}px;--okay-space:${t.space}px;--okay-measure:${t.measure}ch"
+      s";--okay-font:$font;--okay-mono:ui-monospace, monospace;--okay-size:${t.size}px;--okay-space:${t.space}px;" +
+      s"--okay-measure:${t.measure}ch"
   }
   /** one stylesheet for two themes: the light one's tokens, the dark one's under `prefers-color-scheme: dark`; the
    * rules are the light look's — a style names tones, so they stand under both */
@@ -181,19 +197,28 @@ object Css {
     apply(light) + s"\n@media (prefers-color-scheme: dark){:root{${tokens(dark.theme)}}}"
   def apply(look: Look): String = {
     val t = look.theme
-    val font = t.font match { case Family.System => "system-ui, sans-serif"; case Family.Serif => "Georgia, serif"; case Family.Mono => "ui-monospace, monospace" }
+    val font = t.font match {
+      case Family.System => "system-ui, sans-serif"; case Family.Serif => "Georgia, serif";
+      case Family.Mono => "ui-monospace, monospace"
+    }
     val vars = Tone.all.map(tone => s"--okay-${tone.name}:${t.palette(tone).hex}").mkString(";") +
-      s";--okay-font:$font;--okay-mono:ui-monospace, monospace;--okay-size:${t.size}px;--okay-space:${t.space}px;--okay-measure:${t.measure}ch"
+      s";--okay-font:$font;--okay-mono:ui-monospace, monospace;--okay-size:${t.size}px;--okay-space:${t.space}px;" +
+      s"--okay-measure:${t.measure}ch"
     val base = s":root{$vars}" +
       "body{margin:0;background:var(--okay-bg)}" +
-      ".okay-face{font:var(--okay-size)/1.5 var(--okay-font);max-width:var(--okay-measure);margin:0 auto;box-sizing:border-box}" +
-      ".okay-face h1,.okay-face h2,.okay-face h3,.okay-face h4,.okay-face p,.okay-face dl,.okay-face ul,.okay-face pre{margin:0}" +
-      ".okay-table{border-collapse:collapse}.okay-form,.okay-field{display:flex;flex-direction:column}.okay-field{align-items:flex-start}" +
+      ".okay-face{font:var(--okay-size)/1.5 var(--okay-font);max-width:var(--okay-measure);margin:0 auto;" +
+      "box-sizing:border-box}" +
+      ".okay-face h1,.okay-face h2,.okay-face h3,.okay-face h4,.okay-face p,.okay-face dl,.okay-face ul," +
+      ".okay-face pre{margin:0}" +
+      ".okay-table{border-collapse:collapse}.okay-form,.okay-field{display:flex;flex-direction:column}" +
+      ".okay-field{align-items:flex-start}" +
       ".okay-action{border:0;font:inherit;cursor:pointer}.okay-back{border:0;font:inherit;cursor:pointer}"
     val marks = look.style.rules.keys.collect { case m: Role.Mark => m }.toList.sortBy(_.mark)
     val blocks = (Role.all ++ marks).flatMap { role =>
       val r = look.style(role)
-      val cells = if (role == Role.Table) Some(s".okay-table th,.okay-table td{${declarations(r.copy(background = None))}}") else None
+      val cells = if (role == Role.Table)
+        Some(s".okay-table th,.okay-table td{${declarations(r.copy(background = None))}}")
+      else None
       val own = declarations(if (role == Role.Table) r.copy(border = None, pad = 0) else r)
       (if (own.isEmpty) Nil else List(s".${selector(role)}{$own}")) ++ cells
     }
@@ -212,7 +237,10 @@ object Css {
       if (r.size != 1.0) Some(s"font-size:${r.size}em") else None,
       if (r.mono) Some("font-family:var(--okay-mono)") else None,
       if (r.pad > 0) Some(s"padding:calc(${r.pad} * var(--okay-space))") else None,
-      if (r.gap > 0 || r.flow == Flow.Row) Some((if (r.flow == Flow.Row) "display:flex;flex-wrap:wrap;align-items:center" else "display:flex;flex-direction:column") + s";gap:calc(${r.gap} * var(--okay-space))") else None,
+      if (r.gap > 0 || r.flow == Flow.Row)
+        Some((if (r.flow == Flow.Row) "display:flex;flex-wrap:wrap;align-items:center"
+              else "display:flex;flex-direction:column") + s";gap:calc(${r.gap} * var(--okay-space))")
+      else None,
       if (r.centered) Some("justify-content:center;align-items:center;text-align:center") else None
     ).flatten
     ds.mkString(";")

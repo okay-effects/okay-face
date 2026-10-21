@@ -46,7 +46,8 @@ class AirStreamsSuite extends munit.FunSuite {
       val n = seen.size
       assert(n >= 2, s"saw $n")
       assertEquals(seen.toList, (1 to n).toList)
-    }.flatMap(_ => bridge.asynchrony.toFuture(bridge.asynchrony.sleep[Async](15))).map(_ => assertEquals(seen.size, pulls))  // stopped: no more
+    }.flatMap(_ => bridge.asynchrony.toFuture(bridge.asynchrony.sleep[Async](15))).map(_ =>
+      assertEquals(seen.size, pulls)) // stopped: no more
   }
   test("fromProgram: one event, when the program is done; into: a stream drained into an observer") {
     val owner = new ManualOwner

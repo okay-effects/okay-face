@@ -10,16 +10,20 @@ object Noughts {
   case object X extends Player
   case object O extends Player
 
-  /** THE RULES, no effect in them: a board of nine cells, each free or a player's, the lines that win, the program's reply */
+  /** THE RULES, no effect in them: a board of nine cells, each free or a player's, the lines that win, the program's
+   * reply */
   final case class Board(cells: Vector[Option[Player]]) {
     def free: List[Int] = cells.zipWithIndex.collect { case (None, i) => i }.toList
     def played(i: Int, p: Player): Board = Board(cells.updated(i, Some(p)))
-    def winner: Option[Player] = Board.lines.collectFirst { case l if cells(l.head).isDefined &&
-      l.forall(i => cells(i) == cells(l.head)) => cells(l.head).get
+    def winner: Option[Player] = Board.lines.collectFirst {
+      case l
+          if cells(l.head).isDefined &&
+            l.forall(i => cells(i) == cells(l.head)) => cells(l.head).get
     }
     def outcome: Option[Outcome] = winner.map(Won(_)).orElse(if (free.isEmpty) Some(Draw) else None)
     /** the program's reply: the first free cell, centre first — not clever, and not the point */
-    def replied: Board = if (outcome.isDefined) this else {
+    def replied: Board = if (outcome.isDefined) this
+    else {
       val i = if (cells(4).isEmpty) 4 else free.head;
       played(i, O)
     }
@@ -43,41 +47,51 @@ object Noughts {
   val marks: Marks[Mark] = Marks.of(Shape.derived[Mark]).explained(
     Result -> "how the game ended: who won, or a draw", Cell -> "a cell of the board: X, O, or free to play")
   /** the look: a cell big enough to tap, bordered; the result bold; the board in the middle */
-  val style: Style = Style.default.set(marks.role(Cell), Rule(size = 1.6, pad = 1,
+  val style: Style = Style.default.set(marks.role(Cell),
+    Rule(size = 1.6, pad = 1,
       border = Some(Tone.Border), flow = okay.faces.Flow.Row, centered = true))
     .set(marks.role(Result), Rule(bold = true, color = Some(Tone.Accent), centered = true))
     .adjust(Role.Heading(1), Role.Table, Role.Actions)(_.copy(centered = true))
   val look: Look = Look.default.copy(style = style) // the default look, the game's own style
 
-  /** the rules: shown first, so a face has them to tell — the terminal prints them, an agent gets them as instructions */
-  val rules: View = View.text("You are X, the program is O. A free cell is a [number]: choose one and X goes there, then O answers. " +
-    "Three in a row — across, down or diagonally — wins; a full board with no row is a draw.")
+  /** the rules: shown first, so a face has them to tell — the terminal prints them, an agent gets them as instructions
+   */
+  val rules: View =
+    View.text("You are X, the program is O. A free cell is a [number]: choose one and X goes there, then O answers. " +
+      "Three in a row — across, down or diagonally — wins; a full board with no row is a draw.")
   /** the board: a taken cell its mark, a free one a `Ref` by its number — live, since `ref` is offered: a face that can
    * click plays by a click; the terminal and an agent give the number */
   def picture(board: Board): View = View.stack(View.heading("Noughts and crosses"),
-    View.Table(Vector("", "", ""), board.cells.zipWithIndex.map {
-      case (c, i) => marks.mark(Cell, c.fold[View](View.Ref((i + 1).toString, "·"))(p => View.Text(p.toString)))
-    }.grouped(3).toVector))
-  def ended(board: Board, o: Outcome): View = View.stack(picture(board), marks.mark(Result,
-    View.text(o match { case Won(p) => s"$p won"; case Draw => "a draw" })))
+    View.Table(Vector("", "", ""),
+      board.cells.zipWithIndex.map {
+        case (c, i) => marks.mark(Cell, c.fold[View](View.Ref((i + 1).toString, "·"))(p => View.Text(p.toString)))
+      }.grouped(3).toVector))
+  def ended(board: Board, o: Outcome): View = View.stack(picture(board),
+    marks.mark(Result,
+      View.text(o match { case Won(p) => s"$p won"; case Draw => "a draw" })))
 
   /** THE PROGRAM: a value, written with `okay.faces`'s words alone — the faces' over tagless, so it is of no
    * implementation, and every face instantiates it on its own; `A ! Face`, the one effect its own row. The rules are
    * told first, so a face has them to tell; then games without end */
   import okay.faces._
-  val games: Outcome ! Face = { def loop: Outcome ! Face = play(Board.empty).flatMap(_ => loop); show[Face](rules).flatMap(_ => loop) }
-  /** one game from the board given: a loop of offers — the board shown, the free cells the one move, a cell by its number —
+  val games: Outcome ! Face = {
+    def loop: Outcome ! Face = play(Board.empty).flatMap(_ => loop); show[Face](rules).flatMap(_ => loop)
+  }
+  /** one game from the board given: a loop of offers — the board shown, the free cells the one move, a cell by its
+   * number —
    * branching on the outcome, "Play again" at the end; no step goes back, a game is its own rules */
   def play(board: Board): Outcome ! Face = board.outcome match {
-    case Some(o) => offer[Unit, Face](ended(board, o), List(Action.plain[Unit]("again", "Play again",
-      Some("a new game, the board clear; you are X and begin"))(())), back = false).map(_ => o)
+    case Some(o) => offer[Unit, Face](ended(board, o),
+        List(Action.plain[Unit]("again", "Play again",
+            Some("a new game, the board clear; you are X and begin"))(())), back = false).map(_ => o)
     case None =>
       // the one move is `ref`: a free cell clicked where a face clicks, its number given where one types or calls
       val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*)
         .described("Cell", Some("1 to 9, left to right, top to bottom"))
-      offer[Int, Face](picture(board), List(Action[Int, Int]("ref", "Play",
-        Shape.record(Shape.field("key", cells))(c => c)(c => c),
-        Some("a free cell: X goes there, then O answers"))(c => c)), back = false)
+      offer[Int, Face](picture(board),
+        List(Action[Int, Int]("ref", "Play",
+            Shape.record(Shape.field("key", cells))(c => c)(c => c),
+            Some("a free cell: X goes there, then O answers"))(c => c)), back = false)
         .flatMap(i => play(board.played(i, X).replied))
   }
 }

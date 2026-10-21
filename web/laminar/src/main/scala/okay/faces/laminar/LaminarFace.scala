@@ -26,41 +26,52 @@ class LaminarFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   trait Lower[M[_]] { def apply[X](m: M[X])(k: X => Unit): Unit }
 
   /** the row done: the rest run at once */
-  def element[A](first: Step[A, ({ type L[X] = X ! okay.effects.Void })#L] ! okay.effects.Void, done: A => Unit = (_: A) => (),
-                 browserHistory: Boolean = false, back: Boolean = true): HtmlElement = {
+  def element[A](first: Step[A, ({ type L[X] = X ! okay.effects.Void })#L] ! okay.effects.Void,
+    done: A => Unit = (_: A) => (),
+    browserHistory: Boolean = false, back: Boolean = true): HtmlElement = {
     type M[X] = X ! okay.effects.Void
-    new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = k(run(m)) }, done, browserHistory, back).element(first)
+    new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = k(run(m)) }, done, browserHistory,
+      back).element(first)
   }
 
-  /** THE HANDLER: a program of the face as an element — the dialogue run here, in the browser, with its look as a `<style>`
+  /** THE HANDLER: a program of the face as an element — the dialogue run here, in the browser, with its look as a
+   * `<style>`
    * when one is given; `mount` puts it into `#app` or the body: `new LaminarFace().mount(Noughts.games)` */
-  def handle[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true): HtmlElement =
-    div(look.map(LaminarFace.stylesheet).toList, element[A](faces.steps[A, okay.faces.Face, Pure](faces.of(p)), done, back = back))
-  def mount[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true): Unit = {
+  def handle[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (),
+    back: Boolean = true): HtmlElement =
+    div(look.map(LaminarFace.stylesheet).toList,
+      element[A](faces.steps[A, okay.faces.Face, Pure](faces.of(p)), done, back = back))
+  def mount[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (),
+    back: Boolean = true): Unit = {
     val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
     renderOnDomContentLoaded(root, handle[A](p, look, done, back))
   }
 
   /** `Async` remaining: the rest run to a `Future` — a program that waits (a fetch, a timer) between steps */
   def elementAsync[A](first: Step[A, ({ type L[X] = X ! Async })#L] ! Async, done: A => Unit = (_: A) => (),
-                      browserHistory: Boolean = false, back: Boolean = true)(implicit ec: ExecutionContext): HtmlElement = {
+    browserHistory: Boolean = false, back: Boolean = true)(implicit ec: ExecutionContext): HtmlElement = {
     type M[X] = X ! Async
     val asynchrony = new Asynchrony[faces.fx.type]()(faces.fx, ec)
-    new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = asynchrony.toFuture(m).foreach(k) }, done, browserHistory, back).element(first)
+    new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = asynchrony.toFuture(m).foreach(k) },
+      done, browserHistory, back).element(first)
   }
 
-  final case class Shown[A, M[_]](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]], problems: Problems, busy: Boolean)
+  final case class Shown[A, M[_]](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]],
+    problems: Problems, busy: Boolean)
 
   /** one machine per element: its state, how it runs a rest, what it does at the end */
   final class Machine[A, M[_]](lower: Lower[M], done: A => Unit, browserHistory: Boolean, allowsBack: Boolean = true) {
-    val state: Var[Shown[A, M]] = Var(Shown(Vector.empty, Step.Told(View.Empty, null.asInstanceOf[M[Step[A, M]]]), Nil, Nil, busy = true))
+    val state: Var[Shown[A, M]] =
+      Var(Shown(Vector.empty, Step.Told(View.Empty, null.asInstanceOf[M[Step[A, M]]]), Nil, Nil, busy = true))
 
     def element(first: M[Step[A, M]]): HtmlElement = {
       lower(first)(settle(_, Vector.empty, Nil))
       val popstate: dom.PopStateEvent => Unit = _ => back()
       div(cls := "okay-face",
         onMountCallback(_ => if (browserHistory) dom.window.addEventListener("popstate", popstate)),
-        onUnmountCallback(_ => { unlisten(); if (browserHistory) dom.window.removeEventListener("popstate", popstate) }),
+        onUnmountCallback(_ => {
+          unlisten(); if (browserHistory) dom.window.removeEventListener("popstate", popstate)
+        }),
         child <-- state.signal.map(render))
     }
 
@@ -74,17 +85,34 @@ class LaminarFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
         state.set(Shown(told, w, history, Nil, busy = false))
         if (browserHistory && history.nonEmpty) dom.window.history.pushState(null, "")
         // the step's event: when it fires and this is still the step, the rest runs as a choice's would
-        unlisten(); unlisten = w.listen { next => val s = state.now(); if ((s.step eq w) && !s.busy) { state.set(s.copy(busy = true)); lower(next)(settle(_, Vector.empty, if (w.back) w :: s.history else s.history)) } }
+        unlisten();
+        unlisten = w.listen { next =>
+          val s = state.now();
+          if ((s.step eq w) && !s.busy) {
+            state.set(s.copy(busy = true));
+            lower(next)(settle(_, Vector.empty, if (w.back) w :: s.history else s.history))
+          }
+        }
       case Step.Done(a) =>
         state.set(Shown(told, step, history, Nil, busy = false)); done(a)
     }
     private var unlisten: () => Unit = () => ()
-    def back(): Unit = { val s = state.now(); if (s.history.nonEmpty && !s.busy) { unlisten(); state.set(Shown(Vector.empty, s.history.head, s.history.tail, Nil, busy = false)) } }
+    def back(): Unit = {
+      val s = state.now();
+      if (s.history.nonEmpty && !s.busy) {
+        unlisten(); state.set(Shown(Vector.empty, s.history.head, s.history.tail, Nil, busy = false))
+      }
+    }
     /** a choice: rejected, the same step with the problems; taken, the rest run */
-    def choose(w: Step.Waiting[A, M], chosen: Chosen): Unit = { val s = state.now(); if (!s.busy) w.resume(chosen) match {
-      case Left(Rejected(ps)) => state.set(s.copy(problems = ps))
-      case Right(next) => unlisten(); state.set(s.copy(busy = true)); lower(next)(settle(_, Vector.empty, if (w.back) w :: s.history else s.history))
-    } }
+    def choose(w: Step.Waiting[A, M], chosen: Chosen): Unit = {
+      val s = state.now();
+      if (!s.busy) w.resume(chosen) match {
+        case Left(Rejected(ps)) => state.set(s.copy(problems = ps))
+        case Right(next) =>
+          unlisten(); state.set(s.copy(busy = true));
+          lower(next)(settle(_, Vector.empty, if (w.back) w :: s.history else s.history))
+      }
+    }
 
     def render(s: Shown[A, M]): HtmlElement = {
       val notices = s.told.map(v => sectionTag(cls := Role.Told.classes, Views.element(v)))
@@ -92,11 +120,17 @@ class LaminarFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
         case Step.Done(a) => div(notices, div(cls := "okay-done", s"done: $a"))
         case Step.Told(_, _) => div(notices, div(cls := "okay-busy", "…"))
         case w: Step.Waiting[A, M] @unchecked =>
-          val problems = if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
-          val backButton = if (!allowsBack || s.history.isEmpty) emptyNode else button(typ := "button", cls := Role.Back.classes, "Back", onClick --> Observer[dom.MouseEvent](_ => back()))
-          val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref")) Some(key => choose(w, Chosen("ref", Json.obj("key" -> Json.Str(key))))) else None
+          val problems =
+            if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
+          val backButton = if (!allowsBack || s.history.isEmpty) emptyNode
+          else
+            button(typ := "button", cls := Role.Back.classes, "Back", onClick --> Observer[dom.MouseEvent](_ => back()))
+          val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref"))
+            Some(key => choose(w, Chosen("ref", Json.obj("key" -> Json.Str(key)))))
+          else None
           div(notices, sectionTag(cls := Role.View.classes, Views.element(w.view, ref)), problems,
-            navTag(cls := Role.Actions.classes, w.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(w, _), s.busy)), backButton))
+            navTag(cls := Role.Actions.classes,
+              w.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(w, _), s.busy)), backButton))
       }
     }
   }
@@ -113,13 +147,16 @@ object Views {
     case View.Heading(2, s) => h2(cls := Role.Heading(2).classes, s)
     case View.Heading(l, s) => h3(cls := Role.Heading(l).classes, s)
     case View.Notice(level, s) => p(cls := Role.Notice(level).classes, s)
-    case View.Fields(rows) => dl(cls := Role.Fields.classes, rows.flatMap { case (k, x) => List(dt(cls := Role.Label.classes, k), dd(element(x, ref))) })
+    case View.Fields(rows) => dl(cls := Role.Fields.classes,
+        rows.flatMap { case (k, x) => List(dt(cls := Role.Label.classes, k), dd(element(x, ref))) })
     case View.Table(columns, rows) => table(cls := Role.Table.classes,
-      if (columns.forall(_.isEmpty)) emptyNode else thead(tr(columns.map(c => th(c)))),
-      tbody(rows.map(r => tr(r.map(c => td(element(c, ref)))))))
+        if (columns.forall(_.isEmpty)) emptyNode else thead(tr(columns.map(c => th(c)))),
+        tbody(rows.map(r => tr(r.map(c => td(element(c, ref)))))))
     case View.Items(items) => ul(cls := Role.Items.classes, items.map(i => li(element(i, ref))))
-    case View.Group(title, children) => sectionTag(cls := Role.Group.classes, title.map(t => h4(cls := Role.GroupTitle.classes, t)), children.map(element(_, ref)))
-    case View.Ref(key, label) => a(cls := Role.Ref.classes, href := s"#$key", label, ref.map(r => onClick.preventDefault --> Observer[dom.MouseEvent](_ => r(key))))
+    case View.Group(title, children) => sectionTag(cls := Role.Group.classes,
+        title.map(t => h4(cls := Role.GroupTitle.classes, t)), children.map(element(_, ref)))
+    case View.Ref(key, label) => a(cls := Role.Ref.classes, href := s"#$key", label,
+        ref.map(r => onClick.preventDefault --> Observer[dom.MouseEvent](_ => r(key))))
     case View.Datum(json, _) => pre(cls := Role.Datum.classes, Json.pretty(json))
     case View.Masked(hint) => span(cls := Role.Masked.classes, hint)
     case View.Marked(mark, x) => span(cls := Role.Mark(mark).classes, element(x, ref))
@@ -153,9 +190,11 @@ object Forms {
 
     def of(path: List[String], schema: Schema, field: Option[Schema.Field] = None): HtmlElement = schema match {
       case Schema.Record(fs) => fieldSet(field.flatMap(_.label).orElse(field.map(_.name)).map(l => legend(l)),
-        fs.map(f => of(path :+ f.name, f.schema, Some(f))))
+          fs.map(f => of(path :+ f.name, f.schema, Some(f))))
       case Schema.Described(of0, label0, doc) =>
-        of(path, of0, Some(field.getOrElse(Schema.Field(path.lastOption.getOrElse(""), of0, None, None, false, None)).copy(label = Some(label0), doc = doc)))
+        of(path, of0,
+          Some(field.getOrElse(Schema.Field(path.lastOption.getOrElse(""), of0, None, None, false, None)).copy(
+              label = Some(label0), doc = doc)))
       case Schema.Optional(of0) => of(path, of0, field)
       case Schema.Choice(options) =>
         val sel = select(idAttr := id(path), options.map(o => option(value := o, o)))
@@ -164,11 +203,14 @@ object Forms {
       case Schema.OneOf(cases) =>
         // the case chosen by a select; every case's fields drawn, only the chosen one's shown
         val which = Var(cases.headOption.map(_._1).getOrElse(""))
-        val sel = select(idAttr := id(path), cases.map { case (n, _) => option(value := n, n) }, onChange.mapToValue --> which)
+        val sel =
+          select(idAttr := id(path), cases.map { case (n, _) => option(value := n, n) }, onChange.mapToValue --> which)
         selects(path) = sel
-        div(cls := "okay-sum", labelled(path, field, sel), cases.map { case (n, cs) =>
-          div(cls := "okay-case", dataAttr("case") := n, display <-- which.signal.map(w => if (w == n) "" else "none"), of(path :+ n, cs))
-        })
+        div(cls := "okay-sum", labelled(path, field, sel),
+          cases.map { case (n, cs) =>
+            div(cls := "okay-case", dataAttr("case") := n,
+              display <-- which.signal.map(w => if (w == n) "" else "none"), of(path :+ n, cs))
+          })
       case Schema.Many(of0, min, max) if !okay.faces.FormJson.leafish(of0) =>
         // a list of records: an item added by a button, removed by one; each item's fields by index
         var next = 0
@@ -180,47 +222,60 @@ object Forms {
         fieldSet(cls := Role.Field.classes, legend(cls := Role.Label.classes, words),
           children <-- ids.signal.split(identity) { (i, _, _) =>
             div(cls := "okay-item", dataAttr("item") := i.toString, of(path :+ i.toString, of0),
-              button(typ := "button", cls := Role.Back.classes, dataAttr("remove") := i.toString, "Remove", onClick --> Observer[dom.MouseEvent](_ => ids.update(_.filterNot(_ == i))))) },
-          button(typ := "button", cls := Role.Action.classes, dataAttr("add") := id(path), disabled <-- ids.signal.map(xs => max.exists(xs.size >= _)), "Add", onClick --> Observer[dom.MouseEvent](_ => add())))
+              button(typ := "button", cls := Role.Back.classes, dataAttr("remove") := i.toString, "Remove",
+                onClick --> Observer[dom.MouseEvent](_ => ids.update(_.filterNot(_ == i)))))
+          },
+          button(typ := "button", cls := Role.Action.classes, dataAttr("add") := id(path),
+            disabled <-- ids.signal.map(xs => max.exists(xs.size >= _)), "Add",
+            onClick --> Observer[dom.MouseEvent](_ => add())))
       case Schema.Many(_, _, _) =>
         val area = textArea(idAttr := id(path), placeholder := "one per line")
         areas(path) = area
         labelled(path, field, area)
       case leaf =>
-        val in = input(idAttr := id(path), typ := (leaf match {
-          case Schema.Integer(_) | Schema.Number(_) => "number"
-          case Schema.Bool => "checkbox"
-          case Schema.Date => "date"
-          case _ => if (field.exists(_.secret)) "password" else "text"
-        }), field.flatMap(_.default).map(d => value := (d match { case Json.Str(s) => s; case other => Json.print(other) })))
+        val in = input(idAttr := id(path),
+          typ := (leaf match {
+            case Schema.Integer(_) | Schema.Number(_) => "number"
+            case Schema.Bool => "checkbox"
+            case Schema.Date => "date"
+            case _ => if (field.exists(_.secret)) "password" else "text"
+          }),
+          field.flatMap(_.default).map(d =>
+            value := (d match { case Json.Str(s) => s; case other => Json.print(other) })))
         inputs(path) = in
         labelled(path, field, in)
     }
     private def labelled(path: List[String], field: Option[Schema.Field], control: HtmlElement): HtmlElement = {
       val words: String = field.flatMap(_.label).orElse(field.map(_.name)).orElse(path.lastOption).getOrElse("value")
-      div(cls := Role.Field.classes, label(cls := Role.Label.classes, forId := id(path), words), control, field.flatMap(_.doc).map(d => small(cls := Role.Doc.classes, d)))
+      div(cls := Role.Field.classes, label(cls := Role.Label.classes, forId := id(path), words), control,
+        field.flatMap(_.doc).map(d => small(cls := Role.Doc.classes, d)))
     }
 
     /** what was typed, as JSON along the schema; blank is absent */
     def collect(path: List[String], schema: Schema): Json = schema match {
-      case Schema.Record(fs) => Json.Obj(fs.flatMap(f => collect(path :+ f.name, f.schema) match { case Json.Null => None; case v => Some(f.name -> v) }))
+      case Schema.Record(fs) => Json.Obj(fs.flatMap(f =>
+            collect(path :+ f.name, f.schema) match { case Json.Null => None; case v => Some(f.name -> v) }))
       case Schema.Described(of0, _, _) => collect(path, of0)
       case Schema.Optional(of0) => collect(path, of0)
       case Schema.Choice(_) => selects.get(path).map(s => Json.Str(s.ref.value)).getOrElse(Json.Null)
       case Schema.OneOf(cases) => selects.get(path).map(_.ref.value).flatMap(n => cases.find(_._1 == n)) match {
-        case Some((n, cs)) => collect(path :+ n, cs) match {
-          case o: Json.Obj if Schema.isRecord(cs) => ("type" -> Json.Str(n)) +: o
-          case v => Json.Obj.of("type" -> Json.Str(n), "value" -> v)
+          case Some((n, cs)) => collect(path :+ n, cs) match {
+              case o: Json.Obj if Schema.isRecord(cs) => ("type" -> Json.Str(n)) +: o
+              case v => Json.Obj.of("type" -> Json.Str(n), "value" -> v)
+            }
+          case None => Json.Null
         }
-        case None => Json.Null
-      }
-      case Schema.Many(of0, _, _) if items.contains(path) => Json.Arr(items(path)().map(i => collect(path :+ i.toString, of0)))
-      case Schema.Many(of0, _, _) => areas.get(path).map(a => Json.Arr(a.ref.value.split("\n").toVector.map(_.trim).filter(_.nonEmpty).map(l => typed(of0, l)))).getOrElse(Json.Null)
+      case Schema.Many(of0, _, _) if items.contains(path) =>
+        Json.Arr(items(path)().map(i => collect(path :+ i.toString, of0)))
+      case Schema.Many(of0, _, _) => areas.get(path).map(a =>
+          Json.Arr(a.ref.value.split("\n").toVector.map(_.trim).filter(_.nonEmpty).map(l => typed(of0, l)))).getOrElse(
+          Json.Null)
       case Schema.Bool => inputs.get(path).map(i => Json.Bool(i.ref.checked)).getOrElse(Json.Null)
       case leaf => inputs.get(path).map(_.ref.value).filter(_.nonEmpty).map(typed(leaf, _)).getOrElse(Json.Null)
     }
     private def typed(schema: Schema, s: String): Json = schema match {
-      case Schema.Integer(_) | Schema.Number(_) => scala.util.Try(BigDecimal(s.trim)).toOption.fold[Json](Json.Str(s))(Json.Num(_))
+      case Schema.Integer(_) | Schema.Number(_) =>
+        scala.util.Try(BigDecimal(s.trim)).toOption.fold[Json](Json.Str(s))(Json.Num(_))
       case Schema.Bool => Json.Bool(Set("true", "yes", "y", "on").contains(s.trim.toLowerCase))
       case Schema.Described(of0, _, _) => typed(of0, s)
       case _ => Json.Str(s)
@@ -232,7 +287,8 @@ object LaminarFace {
   /** over the faces in scope */
   def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): LaminarFace[F] = new LaminarFace[F]()(faces)
   /** THE HANDLER, whole, in the page: `LaminarFace.mount(Noughts.games)` */
-  def mount[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true)(implicit faces: Faces[F]): Unit =
+  def mount[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], look: Option[Look] = None,
+    done: A => Unit = (_: A) => (), back: Boolean = true)(implicit faces: Faces[F]): Unit =
     new LaminarFace[F]()(faces).mount[A](p, look, done, back)
   /** the look as a `<style>` for the document: the same stylesheet the HTML face serves */
   def stylesheet(look: Look = Look.default): HtmlElement = styleTag(Css(look))

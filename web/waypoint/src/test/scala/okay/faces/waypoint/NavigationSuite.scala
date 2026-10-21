@@ -26,13 +26,14 @@ class NavigationSuite extends munit.FunSuite {
   type N[X] = Navigation[Page, X]
   type R[X] = Sum[Void, N, X]
 
-  def visit: Page ! R = push[Page, R](User(1)).flatMap(_ => push[Page, R](User(2))).flatMap(_ => replace[Page, R](User(3))).flatMap(_ => current[Page, R])
+  def visit: Page ! R = push[Page, R](User(1)).flatMap(_ => push[Page, R](User(2))).flatMap(_ =>
+    replace[Page, R](User(3))).flatMap(_ => current[Page, R])
 
   test("recording: the pages asked for, replace replacing the last, current the last") {
     assertEquals(run(recording[Page](Home)(visit)), (List(Home, User(1), User(3)), User(3): Page))
   }
   test("Waypoint's router: pushState changes the current page and the URL") {
-    val origin = dom.window.location.origin   // jsdom's document is http://localhost/
+    val origin = dom.window.location.origin // jsdom's document is http://localhost/
     val table = List(
       Route.static(Home, root / endOfSegments),
       Route[User, Int](encode = _.id, decode = User(_), pattern = root / "user" / segment[Int] / endOfSegments))

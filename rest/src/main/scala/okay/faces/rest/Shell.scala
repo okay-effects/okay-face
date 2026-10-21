@@ -16,29 +16,40 @@ class Shell[F <: Effects with Singleton](implicit implementation: F) {
   import fx._
   type H[X] = okay.effects.Sum[Pure, Http, X]
 
-  def handle(title: String, look: Option[Look], pages: (String, () => Either[String, String])*): Request => Response ! H = {
+  def handle(title: String, look: Option[Look], pages: (String, () => Either[String, String])*)
+    : Request => Response ! H = {
     val stylesheet = Css(look.getOrElse(Look.default))
     val scripts = pages.map { case (p, read) => Shell.scriptPath(p) -> read }.toMap
     val shown = pages.map { case (p, _) => p -> Shell.page(title, Shell.scriptPath(p)) }.toMap
-    req => pure[Response, H]((req.method, req.path) match {
-      case ("GET", Shell.stylesheetPath) => Response.ok(stylesheet, "text/css; charset=utf-8")
-      case ("GET", p) if shown.contains(p) => Response.html(shown(p))
-      case ("GET", p) if scripts.contains(p) => scripts(p)().fold(e => Response.text(e, 503), js => Response.ok(js, "application/javascript; charset=utf-8"))
-      case _ => Response.notFound(req.path)
-    })
+    req =>
+      pure[Response, H]((req.method, req.path) match {
+        case ("GET", Shell.stylesheetPath) => Response.ok(stylesheet, "text/css; charset=utf-8")
+        case ("GET", p) if shown.contains(p) => Response.html(shown(p))
+        case ("GET", p) if scripts.contains(p) =>
+          scripts(p)().fold(e => Response.text(e, 503), js => Response.ok(js, "application/javascript; charset=utf-8"))
+        case _ => Response.notFound(req.path)
+      })
   }
-  /** THE PROGRAM IN THE BROWSER, whole: `run(new Shell().serve("Noughts", port, host, Linked(dir, name)))` — the page at `/`, its script, the look */
-  def serve(title: String, port: Int, host: String, script: () => Either[String, String], look: Option[Look] = None): Unit ! Pure =
+  /** THE PROGRAM IN THE BROWSER, whole: `run(new Shell().serve("Noughts", port, host, Linked(dir, name)))` — the page
+   * at `/`, its script, the look */
+  def serve(title: String, port: Int, host: String, script: () => Either[String, String], look: Option[Look] = None)
+    : Unit ! Pure =
     Web.serve(fx, port, host)("/" -> handle(title, look, "/" -> script))
 }
 object Shell {
   /** over the implementation in scope */
   def apply[F <: Effects with Singleton]()(implicit fx: F): Shell[F] = new Shell[F]()(fx)
   /** THE PAGE OF A SCRIPT, served: `run(Shell.serve(title, port, host, Linked(dir, name)))` */
-  def serve[F <: okay.effects.Runner with Singleton](title: String, port: Int, host: String, script: () => Either[String, String], look: Option[Look] = None)(implicit fx: F): okay.effects.tagless.Program[Unit, okay.effects.tagless.Tagless.Pure] =
-    okay.effects.tagless.Tagless.delay[Unit, okay.effects.tagless.Tagless.Pure](okay.effects.tagless.Tagless.pure[Unit, okay.effects.tagless.Tagless.Pure](fx.run[Unit](new Shell[F]()(fx).serve(title, port, host, script, look).asInstanceOf[fx.![Unit, fx.Pure]])))
+  def serve[F <: okay.effects.Runner with Singleton](title: String, port: Int, host: String,
+    script: () => Either[String, String], look: Option[Look] = None)(
+    implicit fx: F): okay.effects.tagless.Program[Unit, okay.effects.tagless.Tagless.Pure] =
+    okay.effects.tagless.Tagless.delay[Unit, okay.effects.tagless.Tagless.Pure](okay.effects.tagless.Tagless.pure[Unit,
+        okay.effects.tagless.Tagless.Pure](fx.run[Unit](new Shell[F]()(fx).serve(title, port, host, script,
+            look).asInstanceOf[fx.![Unit, fx.Pure]])))
   val stylesheetPath = "/okay.css"
-  def esc(s: String): String = s.flatMap { case '<' => "&lt;"; case '>' => "&gt;"; case '&' => "&amp;"; case '"' => "&quot;"; case c => c.toString }
+  def esc(s: String): String = s.flatMap {
+    case '<' => "&lt;"; case '>' => "&gt;"; case '&' => "&amp;"; case '"' => "&quot;"; case c => c.toString
+  }
   def page(title: String, script: String): String =
     s"""<!DOCTYPE html>
        |<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>

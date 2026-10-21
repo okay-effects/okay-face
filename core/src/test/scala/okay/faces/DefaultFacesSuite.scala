@@ -17,7 +17,9 @@ class DefaultFacesSuite extends munit.FunSuite {
     val a = Faces.of[Machine.type]; val b = Faces.of[Machine.type]
     val step = run(a.steps[Int, F, okay.effects.Void](b.show[F](View.text("hi")).map(_ => 7)))
     step match {
-      case Step.Told(v, next) => assertEquals(v, View.text("hi")); assertEquals(run(next), Step.Done[Int, ({ type L[X] = X ! okay.effects.Void })#L](7))
+      case Step.Told(v, next) =>
+        assertEquals(v, View.text("hi"));
+        assertEquals(run(next), Step.Done[Int, ({ type L[X] = X ! okay.effects.Void })#L](7))
       case other => fail(s"$other")
     }
   }

@@ -74,17 +74,19 @@ class AirStreams[I <: Runner with Singleton, S <: Streams[I]](val streams: S)(im
   private def drain[O](s: Stream[O, Async], fire: O => Unit): Unit ! Async =
     s.pull().flatMap(_.fold(pure[Unit, Async](()))((o, rest) => { fire(o); drain(rest, fire) }))
 
-  /** a `Var[S]` as the handler of `State[S]`, in place: `get` is `now()`, `put` is `set` — the page sees every change */
+  /** a `Var[S]` as the handler of `State[S]`, in place: `get` is `now()`, `put` is `set` — the page sees every change
+   */
   def varState[St](v: Var[St]): VarState[St] = new VarState[St](v)
   final class VarState[St](v: Var[St]) {
     def apply[R[_], Rest[_], A](p: A ! R)(implicit sp: Split[({ type L[x] = State[St, x] })#L, R, Rest]): A ! Rest =
-      handle[({ type L[x] = State[St, x] })#L, R, Rest, A, A](p, new TailHandler[({ type L[x] = State[St, x] })#L, Rest, A, A] {
-        def ret(a: A) = pure(a)
-        def answer[X](op: State[St, X]): X = op match {
-          case okay.effects.Std.State.Get(answer) => answer(v.now())
-          case okay.effects.Std.State.Put(s, answer) => v.set(s); answer(())
-        }
-      })
+      handle[({ type L[x] = State[St, x] })#L, R, Rest, A, A](p,
+        new TailHandler[({ type L[x] = State[St, x] })#L, Rest, A, A] {
+          def ret(a: A) = pure(a)
+          def answer[X](op: State[St, X]): X = op match {
+            case okay.effects.Std.State.Get(answer) => answer(v.now())
+            case okay.effects.Std.State.Put(s, answer) => v.set(s); answer(())
+          }
+        })
   }
 
   private def emitted[O](o: O, rest: => Stream[O, Async]): streams.Pull[O, Async] = new streams.Emit[O, Async](o, rest)

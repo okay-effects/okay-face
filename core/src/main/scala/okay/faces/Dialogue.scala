@@ -22,7 +22,8 @@ class Dialogues[F <: Effects with Singleton](implicit implementation: F) {
     @volatile private var fired: Option[(Step.Waiting[A, M], M[Step[A, M]])] = None
     private def settle(s: Step[A, M]): Step[A, M] ! R = s match {
       case Step.Told(view, next) => told = told :+ view; next.flatMap(settle)
-      case w: Step.Waiting[A, M] @unchecked => w.listen(next => if (step.contains(w) || step.isEmpty) fired = Some((w, next))); pure[Step[A, M], R](w)
+      case w: Step.Waiting[A, M] @unchecked =>
+        w.listen(next => if (step.contains(w) || step.isEmpty) fired = Some((w, next))); pure[Step[A, M], R](w)
       case other => pure[Step[A, M], R](other)
     }
     /** the step, the first one run when first asked; an event that fired meanwhile moved it on */
@@ -31,12 +32,13 @@ class Dialogues[F <: Effects with Singleton](implicit implementation: F) {
         fired = None; told = Vector.empty
         next.flatMap(settle).map { s => history = if (w.back) w :: history else history; step = Some(s); s }
       case _ => step match {
-        case Some(s) => pure[Step[A, M], R](s)
-        case None => first.flatMap(settle).map { s => step = Some(s); s }
-      }
+          case Some(s) => pure[Step[A, M], R](s)
+          case None => first.flatMap(settle).map { s => step = Some(s); s }
+        }
     }
     /** whether the step waits on an event too: a client may ask again later */
-    def listening: Boolean ! R = current.map { case w: Step.Waiting[A, M] @unchecked => w.meanwhile.isDefined; case _ => false }
+    def listening: Boolean ! R =
+      current.map { case w: Step.Waiting[A, M] @unchecked => w.meanwhile.isDefined; case _ => false }
     /** what was told since the last step, and the step's own view */
     def view: View ! R = current.map {
       case w: Step.Waiting[A, M] @unchecked => View.Group(None, told :+ w.view)
@@ -49,15 +51,22 @@ class Dialogues[F <: Effects with Singleton](implicit implementation: F) {
     /** the choice taken: the view after, or the problems, the step unchanged */
     def choose(chosen: Chosen): Either[Rejected, View] ! R = current.flatMap {
       case w: Step.Waiting[A, M] @unchecked => w.resume(chosen) match {
-        case Left(r) => pure[Either[Rejected, View], R](Left(r))
-        case Right(next) => { told = Vector.empty; next.flatMap(settle).flatMap { s => history = if (w.back) w :: history else history; step = Some(s); view.map(Right(_)) } }
-      }
-      case _ => pure[Either[Rejected, View], R](Left(Rejected(List(okay.effects.shape.Problem(Nil, "the dialogue is over")))))
+          case Left(r) => pure[Either[Rejected, View], R](Left(r))
+          case Right(next) => {
+            told = Vector.empty;
+            next.flatMap(settle).flatMap { s =>
+              history = if (w.back) w :: history else history; step = Some(s); view.map(Right(_))
+            }
+          }
+        }
+      case _ =>
+        pure[Either[Rejected, View], R](Left(Rejected(List(okay.effects.shape.Problem(Nil, "the dialogue is over")))))
     }
     def back(): Boolean = history match {
       case previous :: older if canGoBack => told = Vector.empty; step = Some(previous); history = older; true
       case _ => false
     }
   }
-  def dialogue[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true): Dialogue[A, R] = new Dialogue[A, R](first, back)
+  def dialogue[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true): Dialogue[A, R] =
+    new Dialogue[A, R](first, back)
 }

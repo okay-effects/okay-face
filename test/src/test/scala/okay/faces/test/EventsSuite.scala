@@ -16,7 +16,8 @@ class EventsSuite extends munit.FunSuite {
   sealed trait What; case object Skipped extends What; final case class Arrived(n: Int) extends What
 
   def waiting(bus: Meanwhile.Manual[What]): String ! F =
-    offer[What, F](View.text("waiting for the mail"), List(Action.plain[What]("skip", "Skip")(Skipped)), bus.meanwhile).flatMap {
+    offer[What, F](View.text("waiting for the mail"), List(Action.plain[What]("skip", "Skip")(Skipped)),
+      bus.meanwhile).flatMap {
       case Skipped => show[F](View.text("skipped")).map(_ => "skipped")
       case Arrived(n) => show[F](View.text(s"$n letters")).map(_ => s"got $n")
     }
@@ -36,10 +37,12 @@ class EventsSuite extends munit.FunSuite {
   test("await: no actions, the event alone; a fire with nothing listening leaves the step") {
     val bus = Meanwhile.manual[Int]
     val program: Int ! F = await[Int, F](View.text("loading"), bus.meanwhile)
-    assertEquals(play(steps[Int, F, Void](program), Script(Fire(() => bus.fire(7)))), Played.Finished(List(View.text("loading")), 7))
+    assertEquals(play(steps[Int, F, Void](program), Script(Fire(() => bus.fire(7)))),
+      Played.Finished(List(View.text("loading")), 7))
     val none = Meanwhile.manual[Int]
     play(steps[Int, F, Void](program), Script(Fire(() => none.fire(1)))) match {
-      case Played.Stuck(views, at, None) => assertEquals(views, List(View.text("loading"))); assertEquals(at.actions, Nil)
+      case Played.Stuck(views, at, None) =>
+        assertEquals(views, List(View.text("loading"))); assertEquals(at.actions, Nil)
       case other => fail(other.toString)
     }
   }
@@ -60,11 +63,16 @@ class EventsSuite extends munit.FunSuite {
     sealed trait Place; case object Home extends Place; case object Deep extends Place
     type J[X] = Sum[F, ({ type L[x] = Jump[Place, x] })#L, X]
     def screen(p: Place): Unit ! J = p match {
-      case Home => offer[Boolean, J](View.text("home"), List(Action.plain[Boolean]("deeper", "Deeper")(true), Action.plain[Boolean]("quit", "Quit")(false))).flatMap(deeper =>
-        if (deeper) screen(Deep) else show[J](View.text("bye")))
-      case Deep => offer[Unit, J](View.text("deep"), List(Action.plain[Unit]("home", "Home")(()))).flatMap(_ => jump[Place, J, Unit](Home))
+      case Home => offer[Boolean, J](View.text("home"),
+          List(Action.plain[Boolean]("deeper", "Deeper")(true), Action.plain[Boolean]("quit", "Quit")(false))).flatMap(
+          deeper =>
+            if (deeper) screen(Deep) else show[J](View.text("bye")))
+      case Deep => offer[Unit, J](View.text("deep"), List(Action.plain[Unit]("home", "Home")(()))).flatMap(_ =>
+          jump[Place, J, Unit](Home))
     }
-    val played = play(steps[Unit, F, Void](jumping[Place, J, F](Home)(screen)), Script.of(okay.faces.Chosen.plain("deeper"), okay.faces.Chosen.plain("home"), okay.faces.Chosen.plain("quit")))
-    assertEquals(played, Played.Finished(List(View.text("home"), View.text("deep"), View.text("home"), View.text("bye")), ()))
+    val played = play(steps[Unit, F, Void](jumping[Place, J, F](Home)(screen)),
+      Script.of(okay.faces.Chosen.plain("deeper"), okay.faces.Chosen.plain("home"), okay.faces.Chosen.plain("quit")))
+    assertEquals(played,
+      Played.Finished(List(View.text("home"), View.text("deep"), View.text("home"), View.text("bye")), ()))
   }
 }

@@ -11,7 +11,8 @@ import org.scalajs.dom
 import scala.concurrent.{Future, Promise}
 import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
 
-/** THE LAMINAR FACE under jsdom: the view drawn, a form filled and submitted, a problem shown, a button pressed, back */
+/** THE LAMINAR FACE under jsdom: the view drawn, a form filled and submitted, a problem shown, a button pressed, back
+ */
 class LaminarFaceSuite extends munit.FunSuite {
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
   val face = new LaminarFace[Machine.type]()(faces)
@@ -20,7 +21,9 @@ class LaminarFaceSuite extends munit.FunSuite {
   type F[X] = Sum[Void, Face, X]
 
   final case class Who(name: String, age: Int)
-  val who: Shape[Who] = record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w => (w.name, w.age))
+  val who: Shape[Who] =
+    record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w =>
+      (w.name, w.age))
   def greeting: String ! F =
     fill[Who, F](View.heading("Who are you?"), who).flatMap { w =>
       confirm[F](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
@@ -41,7 +44,8 @@ class LaminarFaceSuite extends munit.FunSuite {
     assert(e != null, s"no $selector in: ${root.innerHTML}")
     e.asInstanceOf[dom.html.Element]
   }
-  def typeInto(root: dom.Element, id: String, value: String): Unit = q(root, s"#$id").asInstanceOf[dom.html.Input].value = value
+  def typeInto(root: dom.Element, id: String, value: String): Unit =
+    q(root, s"#$id").asInstanceOf[dom.html.Input].value = value
   def submit(root: dom.Element, action: String): Unit = {
     val form = q(root, s"form[data-action=$action]").asInstanceOf[dom.html.Form]
     form.dispatchEvent(new dom.Event("submit", new dom.EventInit { bubbles = true; cancelable = true }))
@@ -56,8 +60,8 @@ class LaminarFaceSuite extends munit.FunSuite {
     assertEquals(q(root, "#f-age").getAttribute("type"), "number")
     typeInto(root, "f-name", "Ann"); typeInto(root, "f-age", "3")
     submit(root, "submit")
-    assert(root.innerHTML.contains("age: of age"), root.innerHTML)        // the problem, from the shape
-    assertEquals(q(root, "h1").textContent, "Who are you?")              // the same step
+    assert(root.innerHTML.contains("age: of age"), root.innerHTML) // the problem, from the shape
+    assertEquals(q(root, "h1").textContent, "Who are you?") // the same step
     typeInto(root, "f-name", "Ann"); typeInto(root, "f-age", "41")
     submit(root, "submit")
     assertEquals(q(root, "p").textContent, "Greet Ann, 41?")
@@ -75,7 +79,8 @@ class LaminarFaceSuite extends munit.FunSuite {
     assert(root.querySelector("button.okay-back") == null)
   }
   test("views drawn: table, fields, items, masked") {
-    val v = View.stack(View.table("a", "b")(Vector(View.text("1"), View.Masked("••"))), View.fields("k" -> View.text("v")), View.items(View.text("x")))
+    val v = View.stack(View.table("a", "b")(Vector(View.text("1"), View.Masked("••"))),
+      View.fields("k" -> View.text("v")), View.items(View.text("x")))
     val root = mounted(face.element(steps[Unit, F, Void](show[F](v))))
     assertEquals(root.querySelectorAll("th").length, 2)
     assertEquals(q(root, "span.okay-masked").textContent, "••")
@@ -88,9 +93,12 @@ class LaminarFaceSuite extends munit.FunSuite {
     final case class Fish(litres: Int) extends Pet
     val pet: Shape[Pet] = sum(
       sub[Pet, Dog]("dog", record(field("name", text))(Dog(_))(_.name)) { case d: Dog => Some(d); case _ => None },
-      sub[Pet, Fish]("fish", record(field("litres", int))(Fish(_))(_.litres)) { case f: Fish => Some(f); case _ => None })
+      sub[Pet, Fish]("fish", record(field("litres", int))(Fish(_))(_.litres)) {
+        case f: Fish => Some(f); case _ => None
+      })
     var got = Option.empty[Pet]
-    val root = mounted(face.element(steps[Pet, F, Void](fill[Pet, F](View.text("A pet"), pet)), (p: Pet) => got = Some(p)))
+    val root =
+      mounted(face.element(steps[Pet, F, Void](fill[Pet, F](View.text("A pet"), pet)), (p: Pet) => got = Some(p)))
     val sel = q(root, "#f").asInstanceOf[dom.html.Select]
     sel.value = "fish"; sel.dispatchEvent(new dom.Event("change", new dom.EventInit { bubbles = true }))
     typeInto(root, "f-fish-litres", "20")
@@ -100,8 +108,9 @@ class LaminarFaceSuite extends munit.FunSuite {
   test("Async in the rest: a step that waits, the next view when it is done") {
     type AF[X] = Sum[Async, Face, X]
     val asynchrony = new okay.effects.async.Asynchrony[Machine.type]()(Machine, queue)
-    def waiting: String ! AF = offer[Unit, AF](View.text("Press"), List(Action.plain[Unit]("go", "Go")(()))).flatMap(_ =>
-      asynchrony.sleep[AF](5)).flatMap(_ => show[AF](View.text("Waited")).map(_ => "done"))
+    def waiting: String ! AF =
+      offer[Unit, AF](View.text("Press"), List(Action.plain[Unit]("go", "Go")(()))).flatMap(_ =>
+        asynchrony.sleep[AF](5)).flatMap(_ => show[AF](View.text("Waited")).map(_ => "done"))
     val ended = Promise[String]()
     val root = mounted(face.elementAsync(steps[String, AF, Async](waiting), (a: String) => ended.success(a)))
     // the first step arrives when its future completes: a tick later
@@ -119,7 +128,8 @@ class LaminarFaceSuite extends munit.FunSuite {
   test("an event while the step waits: a future completes, the step moves on; a choice first cancels the listening") {
     type AF[X] = Sum[Async, Face, X]
     val p = Promise[Int]()
-    def program: String ! AF = offer[Int, AF](View.text("waiting"), List(Action.plain[Int]("skip", "Skip")(0)), okay.faces.Meanwhile.fromFuture(p.future)).flatMap(n => show[AF](View.text(s"got $n")).map(_ => s"$n"))
+    def program: String ! AF = offer[Int, AF](View.text("waiting"), List(Action.plain[Int]("skip", "Skip")(0)),
+      okay.faces.Meanwhile.fromFuture(p.future)).flatMap(n => show[AF](View.text(s"got $n")).map(_ => s"$n"))
     val ended = Promise[String]()
     val root = mounted(face.elementAsync(steps[String, AF, Async](program), (a: String) => ended.success(a)))
     Future(()).flatMap { _ =>
@@ -132,9 +142,11 @@ class LaminarFaceSuite extends munit.FunSuite {
     final case class Line(what: String, qty: Int)
     final case class Order(who: String, lines: List[Line])
     val line = record(field("what", text), field("qty", int))(Line(_, _))(l => (l.what, l.qty))
-    val order: Shape[Order] = record(field("who", text), field("lines", line.many()))(Order(_, _))(o => (o.who, o.lines))
+    val order: Shape[Order] =
+      record(field("who", text), field("lines", line.many()))(Order(_, _))(o => (o.who, o.lines))
     var got = Option.empty[Order]
-    val root = mounted(face.element(steps[Order, F, Void](fill[Order, F](View.heading("Order"), order)), (o: Order) => got = Some(o)))
+    val root = mounted(face.element(steps[Order, F, Void](fill[Order, F](View.heading("Order"), order)),
+        (o: Order) => got = Some(o)))
     typeInto(root, "f-who", "ann")
     val add = q(root, "button[data-add=f-lines]")
     add.click(); add.click(); add.click()
@@ -148,7 +160,8 @@ class LaminarFaceSuite extends munit.FunSuite {
   }
   test("a Ref is live when the step offers ref: a click chooses it with the key") {
     def listing: String ! F = offer[String, F](View.stack(View.text("records"), View.Ref("r1", "Ann")),
-      List(Action[String, String]("ref", "Open", record(field("key", text))(k => k)(k => k))(k => k))).flatMap(k => show[F](View.text(s"opened $k")).map(_ => k))
+      List(Action[String, String]("ref", "Open", record(field("key", text))(k => k)(k => k))(k => k))).flatMap(k =>
+      show[F](View.text(s"opened $k")).map(_ => k))
     val root = mounted(face.element(steps[String, F, Void](listing)))
     q(root, "a.okay-ref").click()
     assert(root.innerHTML.contains("opened r1"), root.innerHTML)
@@ -168,10 +181,14 @@ class LifecycleSuite extends munit.FunSuite {
   import okay.effects.async.Async
   import scala.concurrent.Promise
   import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
-  import Machine._   // the words: `map` on a program by name — Scala 3 would otherwise find it twice, by `Machine` and by `Machine.self`
+  // the words: `map` on a program by name — Scala 3 would otherwise find it twice, by `Machine` and by `Machine.self`
+  import Machine._
   val life = new Lifecycle[Machine.type]()(Machine, queue)
   import life.asynchrony.sleep
-  def mount(el: HtmlElement): RootNode = { val c = dom.document.createElement("div").asInstanceOf[dom.html.Element]; dom.document.body.appendChild(c); render(c, el) }
+  def mount(el: HtmlElement): RootNode = {
+    val c = dom.document.createElement("div").asInstanceOf[dom.html.Element]; dom.document.body.appendChild(c);
+    render(c, el)
+  }
 
   test("a program runs when the element mounts, and its result arrives") {
     val got = Promise[Int]()
@@ -181,7 +198,7 @@ class LifecycleSuite extends munit.FunSuite {
   test("unmounted before it is done: cancelled, nothing arrives") {
     var arrived = false
     val root = mount(div(life.runOnMount(sleep[Async](30).map(_ => 1))(_ => arrived = true)))
-    root.unmount()   // Laminar's own unmount: the callbacks fire (a removal by innerHTML would not tell Laminar)
+    root.unmount() // Laminar's own unmount: the callbacks fire (a removal by innerHTML would not tell Laminar)
     life.asynchrony.toFuture(sleep[Async](50)).map(_ => assert(!arrived))
   }
   test("the stylesheet element from the look, the roles' classes on the elements") {

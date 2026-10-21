@@ -17,15 +17,17 @@ class Routes[I <: Runner with Singleton, S <: Streams[I]](val bridge: AirStreams
   def router[P](r: Router[P]): RouterHandler[P] = new RouterHandler[P](r)
   final class RouterHandler[P](r: Router[P]) {
     def apply[R[_], Rest[_], A](p: A ! R)(implicit sp: Split[({ type L[x] = Navigation[P, x] })#L, R, Rest]): A ! Rest =
-      handle[({ type L[x] = Navigation[P, x] })#L, R, Rest, A, A](p, new TailHandler[({ type L[x] = Navigation[P, x] })#L, Rest, A, A] {
-        def ret(a: A) = pure(a)
-        def answer[X](op: Navigation[P, X]): X = op match {
-          case Navigation.Push(page, answer) => r.pushState(page); answer(())
-          case Navigation.Replace(page, answer) => r.replaceState(page); answer(())
-          case Navigation.Current(answer) => answer(r.currentPageSignal.now())
-        }
-      })
+      handle[({ type L[x] = Navigation[P, x] })#L, R, Rest, A, A](p,
+        new TailHandler[({ type L[x] = Navigation[P, x] })#L, Rest, A, A] {
+          def ret(a: A) = pure(a)
+          def answer[X](op: Navigation[P, X]): X = op match {
+            case Navigation.Push(page, answer) => r.pushState(page); answer(())
+            case Navigation.Replace(page, answer) => r.replaceState(page); answer(())
+            case Navigation.Current(answer) => answer(r.currentPageSignal.now())
+          }
+        })
   }
   /** the current page as a stream: now, and each change */
-  def pages[P](r: Router[P])(implicit owner: Owner): bridge.streams.Stream[P, Async] = bridge.fromSignal(r.currentPageSignal)
+  def pages[P](r: Router[P])(implicit owner: Owner): bridge.streams.Stream[P, Async] =
+    bridge.fromSignal(r.currentPageSignal)
 }

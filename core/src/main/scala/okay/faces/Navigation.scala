@@ -15,7 +15,8 @@ object Navigation {
   final case class Current[P, X](answer: P => X) extends Navigation[P, X]
 }
 
-/** the pages in memory: where the program is, where it was; a face reads `current`, is told of changes, may go `back` */
+/** the pages in memory: where the program is, where it was; a face reads `current`, is told of changes, may go `back`
+ */
 final class Pages[P](first: P) {
   private var stack: List[P] = List(first)
   private var listeners: List[P => Unit] = Nil
@@ -44,19 +45,21 @@ class Navigations[F <: Effects with Singleton](implicit implementation: F) {
   def memory[P](pages: Pages[P]): Memory[P] = new Memory[P](pages)
   final class Memory[P](pages: Pages[P]) {
     def apply[R[_], Rest[_], A](p: A ! R)(implicit sp: Split[({ type L[x] = Navigation[P, x] })#L, R, Rest]): A ! Rest =
-      handle[({ type L[x] = Navigation[P, x] })#L, R, Rest, A, A](p, new TailHandler[({ type L[x] = Navigation[P, x] })#L, Rest, A, A] {
-        def ret(a: A) = pure(a)
-        def answer[X](op: Navigation[P, X]): X = op match {
-          case Navigation.Push(page, answer) => pages.push(page); answer(())
-          case Navigation.Replace(page, answer) => pages.replace(page); answer(())
-          case Navigation.Current(answer) => answer(pages.current)
-        }
-      })
+      handle[({ type L[x] = Navigation[P, x] })#L, R, Rest, A, A](p,
+        new TailHandler[({ type L[x] = Navigation[P, x] })#L, Rest, A, A] {
+          def ret(a: A) = pure(a)
+          def answer[X](op: Navigation[P, X]): X = op match {
+            case Navigation.Push(page, answer) => pages.push(page); answer(())
+            case Navigation.Replace(page, answer) => pages.replace(page); answer(())
+            case Navigation.Current(answer) => answer(pages.current)
+          }
+        })
   }
   /** the pages asked for, in order, and the value — a test's; `Replace` replaces the last */
   def recording[P](first: P): Recording[P] = new Recording[P](first)
   final class Recording[P](first: P) {
-    def apply[R[_], Rest[_], A](p: A ! R)(implicit sp: Split[({ type L[x] = Navigation[P, x] })#L, R, Rest]): (List[P], A) ! Rest =
+    def apply[R[_], Rest[_], A](p: A ! R)(
+      implicit sp: Split[({ type L[x] = Navigation[P, x] })#L, R, Rest]): (List[P], A) ! Rest =
       handle[({ type L[x] = Navigation[P, x] })#L, List[P], R, Rest, A, (List[P], A)](p, List(first),
         new StatefulTailHandler[({ type L[x] = Navigation[P, x] })#L, List[P], Rest, A, (List[P], A)] {
           def ret(s: List[P], a: A) = pure((s.reverse, a))

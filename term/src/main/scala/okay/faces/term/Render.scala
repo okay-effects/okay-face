@@ -16,18 +16,24 @@ object Render {
     case View.Heading(2, s) => List(s, "-" * s.length).map(paint(Role.Heading(2), _))
     case View.Heading(l, s) => List(paint(Role.Heading(l), "## " + s))
     case View.Notice(level, s) =>
-      val prefix = level match { case View.Notice.Info => "info: "; case View.Notice.Warning => "warning: "; case View.Notice.Problem => "problem: " }
+      val prefix = level match {
+        case View.Notice.Info => "info: "; case View.Notice.Warning => "warning: ";
+        case View.Notice.Problem => "problem: "
+      }
       wrap(prefix + s).map(paint(Role.Notice(level), _))
     case View.Fields(rows) =>
       val w = if (rows.isEmpty) 0 else rows.map(_._1.length).max
       rows.toList.map { case (label, value) => paint(Role.Label, label.padTo(w, ' ')) + ": " + oneLine(value, paint) }
     case View.Table(columns, rows) =>
       val cells = rows.map(_.map(oneLine(_, paint)))
-      val widths = columns.indices.map(i => (columns(i).length +: cells.map(r => if (i < r.size) r(i).length else 0)).max)
-      def line(cs: Vector[String]) = cs.zipWithIndex.map { case (c, i) => c.padTo(widths(i), ' ') }.mkString("  ").replaceAll("\\s+$", "")
+      val widths =
+        columns.indices.map(i => (columns(i).length +: cells.map(r => if (i < r.size) r(i).length else 0)).max)
+      def line(cs: Vector[String]) =
+        cs.zipWithIndex.map { case (c, i) => c.padTo(widths(i), ' ') }.mkString("  ").replaceAll("\\s+$", "")
       val header = if (columns.forall(_.isEmpty)) Nil else List(line(columns), widths.map("-" * _).mkString("  "))
       header ++ cells.toList.map(line)
-    case View.Items(items) => items.toList.flatMap(i => view(i, paint) match { case Nil => Nil; case first :: rest => ("- " + first) :: rest.map("  " + _) })
+    case View.Items(items) => items.toList.flatMap(i =>
+        view(i, paint) match { case Nil => Nil; case first :: rest => ("- " + first) :: rest.map("  " + _) })
     case View.Group(title, children) =>
       val body = children.toList.flatMap(view(_, paint))
       title.fold(body)(t => paint(Role.GroupTitle, "## " + t) :: body.map("  " + _))
@@ -58,7 +64,8 @@ object Render {
     if (para.length <= w) List(para)
     else para.split(" ").foldLeft(List.empty[String]) {
       case (Nil, word) => List(word)
-      case (line :: rest, word) => if (line.length + 1 + word.length <= w) (line + " " + word) :: rest else word :: line :: rest
+      case (line :: rest, word) =>
+        if (line.length + 1 + word.length <= w) (line + " " + word) :: rest else word :: line :: rest
     }.reverse
   }
 }

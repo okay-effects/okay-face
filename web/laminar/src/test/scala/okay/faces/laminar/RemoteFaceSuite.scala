@@ -20,7 +20,9 @@ class RemoteFaceSuite extends munit.FunSuite {
   type F[X] = Sum[Void, Face, X]
 
   final case class Who(name: String, age: Int)
-  val who: Shape[Who] = record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w => (w.name, w.age))
+  val who: Shape[Who] =
+    record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w =>
+      (w.name, w.age))
   def greeting: String ! F =
     fill[Who, F](View.heading("Who are you?"), who).flatMap { w =>
       confirm[F](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
@@ -28,9 +30,11 @@ class RemoteFaceSuite extends munit.FunSuite {
       }
     }
   /** the server: the REST face's sessions, each request answered on the machine; the transport, a future of it */
-  val service: Request => Response ! Void = RestFace.over(faces).sessions[String, Void](() => faces.dialogue[String, Void](steps[String, F, Void](greeting))).service
+  val service: Request => Response ! Void = RestFace.over(faces).sessions[String, Void](() =>
+    faces.dialogue[String, Void](steps[String, F, Void](greeting))).service
   var calls: List[Request] = Nil
-  val transport: Request => Future[Response] = req => { calls = req :: calls; Future.successful(Machine.run(service(req))) }
+  val transport: Request => Future[Response] =
+    req => { calls = req :: calls; Future.successful(Machine.run(service(req))) }
   val face = RemoteFace(transport)
 
   def mounted(el: HtmlElement): dom.html.Element = {
@@ -45,9 +49,11 @@ class RemoteFaceSuite extends munit.FunSuite {
     assert(e != null, s"no $selector in: ${root.innerHTML}")
     e.asInstanceOf[dom.html.Element]
   }
-  def typeInto(root: dom.Element, id: String, value: String): Unit = q(root, s"#$id").asInstanceOf[dom.html.Input].value = value
+  def typeInto(root: dom.Element, id: String, value: String): Unit =
+    q(root, s"#$id").asInstanceOf[dom.html.Input].value = value
   def submit(root: dom.Element, action: String): Unit =
-    q(root, s"form[data-action=$action]").dispatchEvent(new dom.Event("submit", new dom.EventInit { bubbles = true; cancelable = true }))
+    q(root, s"form[data-action=$action]").dispatchEvent(new dom.Event("submit",
+        new dom.EventInit { bubbles = true; cancelable = true }))
   /** the futures of a call settle a few ticks later */
   def settled: Future[Unit] = (1 to 8).foldLeft(Future.unit)((f, _) => f.flatMap(_ => Future(())))
 
@@ -61,8 +67,8 @@ class RemoteFaceSuite extends munit.FunSuite {
       submit(root, "submit")
       settled
     }.flatMap { _ =>
-      assert(root.innerHTML.contains("age: of age"), root.innerHTML)         // the server's 400: the shape's check is there
-      assertEquals(q(root, "h1").textContent, "Who are you?")               // the same step
+      assert(root.innerHTML.contains("age: of age"), root.innerHTML) // the server's 400: the shape's check is there
+      assertEquals(q(root, "h1").textContent, "Who are you?") // the same step
       assertEquals(calls.head.path, "/sessions/s1/act/submit")
       typeInto(root, "f-name", "Ann"); typeInto(root, "f-age", "41")
       submit(root, "submit")

@@ -14,18 +14,24 @@ class LooksSuite extends munit.FunSuite {
   import Machine._
   import faces._
   type F[X] = Sum[Void, Face, X]
-  def all(c: Component): List[Component] = c match { case p: Container => c :: p.getComponents.toList.flatMap(all); case _ => List(c) }
-  def byName[C <: Component](root: Component, name: String): C = all(root).find(_.getName == name).getOrElse(fail(s"no $name among ${all(root).flatMap(x => Option(x.getName))}")).asInstanceOf[C]
+  def all(c: Component): List[Component] =
+    c match { case p: Container => c :: p.getComponents.toList.flatMap(all); case _ => List(c) }
+  def byName[C <: Component](root: Component, name: String): C = all(root).find(_.getName == name).getOrElse(
+    fail(s"no $name among ${all(root).flatMap(x => Option(x.getName))}")).asInstanceOf[C]
   def awt(t: okay.faces.Tone): AwtColor = { val c = Look.default.theme.palette(t); new AwtColor(c.r, c.g, c.b) }
 
-  val program: Unit ! F = confirm[F](View.stack(View.heading("Title"), View.problem("Wrong"), View.Masked("•• 12"))).map(_ => ())
+  val program: Unit ! F =
+    confirm[F](View.stack(View.heading("Title"), View.problem("Wrong"), View.Masked("•• 12"))).map(_ => ())
 
-  test("with a look: the heading bold and larger, the problem in its tone, the face on its background, the button an accent") {
+  test(
+    "with a look: the heading bold and larger, the problem in its tone, the face on its background, " +
+      "the button an accent") {
     val root = face.panel(steps[Unit, F, Void](program), (_: Unit) => (), Some(Look.default))
     val h = byName[JLabel](root, Role.Heading(1).cls)
     assert(h.getFont.isBold); assertEquals(h.getFont.getSize, 26)
     assertEquals(byName[JLabel](root, Role.Notice(View.Notice.Problem).cls).getForeground, awt(okay.faces.Tone.Problem))
-    assertEquals(byName[JLabel](root, Role.Masked.cls).getFont.getFamily, new Font(Font.MONOSPACED, Font.PLAIN, 1).getFamily)
+    assertEquals(byName[JLabel](root, Role.Masked.cls).getFont.getFamily,
+      new Font(Font.MONOSPACED, Font.PLAIN, 1).getFamily)
     assertEquals(root.getBackground, awt(okay.faces.Tone.Bg)); assert(root.isOpaque)
     assertEquals(byName[JButton](root, "action:yes").getBackground, awt(okay.faces.Tone.Accent))
   }

@@ -11,7 +11,8 @@ import okay.faces.{Face, Action, Chosen, Faces, Look, Rejected, Role, Step, View
 import scala.collection.mutable
 
 /**
- * THE SWING FACE: a step machine as a Swing panel. The view drawn as components, a plain action a button, an action with
+ * THE SWING FACE: a step machine as a Swing panel. The view drawn as components, a plain action a button, an action
+ * with
  * parameters a form drawn from its erased schema; a click is `resume`, the rest run, the panel rebuilt. Back
  * re-resumes the previous `Waiting`. `panel` is the face; `window` puts it in a frame on the event dispatch thread.
  * The rest of a step runs by the `Runner`: the row is done before the face. With a `Look`, the components are dressed
@@ -27,7 +28,8 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   final case class Shown[A](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]], problems: Problems)
 
   /** the face as a panel, rebuilt at each step; `done` with the value at the end */
-  def panel[A](first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (), look: Option[Look] = None, back: Boolean = true): JPanel = {
+  def panel[A](first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (), look: Option[Look] = None,
+    back: Boolean = true): JPanel = {
     val root = new JPanel(new BorderLayout)
     root.setName(Role.Face.cls)
     def settle(step: Step[A, M], told: Vector[View], history: List[Step.Waiting[A, M]]): Shown[A] = step match {
@@ -36,7 +38,8 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
     }
     var current: Option[Step[A, M]] = None
     var unlisten: () => Unit = () => ()
-    /** the window grows with its content, within the screen, and never shrinks: a step that adds a line adds no scrollbar */
+    /** the window grows with its content, within the screen, and never shrinks: a step that adds a line adds no
+     * scrollbar */
     def grow(): Unit = Option(SwingUtilities.getWindowAncestor(root)).foreach { w =>
       val viewport = Option(SwingUtilities.getAncestorOfClass(classOf[JViewport], root)).map(_.asInstanceOf[JViewport])
       viewport.foreach { v =>
@@ -58,8 +61,13 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
       s.step match {
         case Step.Done(a) => done(a)
         case w: Step.Waiting[A, M] @unchecked =>
-          // the step's event: when it fires and this is still the step, the rest runs on the event dispatch thread as a click's would
-          unlisten = w.listen(next => SwingUtilities.invokeLater(new Runnable { def run(): Unit = if (current.exists(_ eq w)) show(settle(faces.fx.run(next), Vector.empty, w :: s.history)) }))
+          // the step's event: when it fires and this is still the step, the rest runs on the event dispatch thread as a
+          // click's would
+          unlisten = w.listen(next =>
+            SwingUtilities.invokeLater(new Runnable {
+              def run(): Unit =
+                if (current.exists(_ eq w)) show(settle(faces.fx.run(next), Vector.empty, w :: s.history))
+            }))
         case _ => ()
       }
     }
@@ -68,7 +76,8 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   }
 
   /** THE HANDLER: a program of the face in a window — titled by the first level-1 heading it shows, dressed by `look`;
-   * what the program tells before its first offer (`Step.opening`) is the window's HELP, behind the `?` at the top right,
+   * what the program tells before its first offer (`Step.opening`) is the window's HELP, behind the `?` at the top
+   * right,
    * not a line above the first step that the next step scrolls away; the result the dialogue's, or `None` when the
    * window is closed first: `run(new SwingFace().handle(Noughts.games))` */
   def handle[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, back: Boolean = true): Option[A] ! Pure = {
@@ -76,39 +85,52 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
     pure(()).flatMap { _ =>
       val opening = Step.opening[A, M](steps, run)
       val outcome = new java.util.concurrent.LinkedBlockingQueue[Option[A]](1)
-      window(opening.title.getOrElse("okay"), pure[Step[A, M], okay.effects.Void](opening.first), (a: A) => outcome.offer(Some(a)),
+      window(opening.title.getOrElse("okay"), pure[Step[A, M], okay.effects.Void](opening.first),
+        (a: A) => outcome.offer(Some(a)),
         look = look, back = back, closed = () => outcome.offer(None), help = opening.intro)
       pure[Option[A], Pure](outcome.take())
     }
   }
 
-  /** the face in a window, on the event dispatch thread; with `pages` (core's `Navigation` in memory) the window's title
+  /** the face in a window, on the event dispatch thread; with `pages` (core's `Navigation` in memory) the window's
+   * title
    * follows the program's current page */
   def window[A](title: String, first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (),
-                pages: Option[(okay.faces.Pages[_], Any => String)] = None, look: Option[Look] = None, back: Boolean = true,
-                closed: () => Unit = () => sys.exit(0), help: Vector[View] = Vector.empty): Unit =
-    SwingUtilities.invokeLater(new Runnable { def run(): Unit = {
-      val frame = new JFrame(title)
-      pages.foreach { case (ps, name) => ps.asInstanceOf[okay.faces.Pages[Any]].onChange(p => frame.setTitle(s"$title — ${name(p)}")) }
-      frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
-      frame.addWindowListener(new java.awt.event.WindowAdapter { override def windowClosed(e: java.awt.event.WindowEvent): Unit = closed() })
-      frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, look, back)), ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER))
-      // the help, when there is one: a `?` at the top right, the views told before the first step in a dialog
-      if (help.nonEmpty) {
-        val bar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 2))
-        val button = new JButton("?"); button.setName(SwingFace.helpName); button.setToolTipText("Help")
-        button.setMargin(new java.awt.Insets(0, 0, 0, 0)); button.setPreferredSize(new java.awt.Dimension(28, 28)); button.setFocusable(false)
-        button.addActionListener((_: java.awt.event.ActionEvent) => JOptionPane.showMessageDialog(frame, SwingFace.help(help, look), title, JOptionPane.PLAIN_MESSAGE))
-        bar.add(button); frame.getContentPane.add(bar, BorderLayout.NORTH)
+    pages: Option[(okay.faces.Pages[_], Any => String)] = None, look: Option[Look] = None, back: Boolean = true,
+    closed: () => Unit = () => sys.exit(0), help: Vector[View] = Vector.empty): Unit =
+    SwingUtilities.invokeLater(new Runnable {
+      def run(): Unit = {
+        val frame = new JFrame(title)
+        pages.foreach { case (ps, name) =>
+          ps.asInstanceOf[okay.faces.Pages[Any]].onChange(p => frame.setTitle(s"$title — ${name(p)}"))
+        }
+        frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+        frame.addWindowListener(new java.awt.event.WindowAdapter {
+          override def windowClosed(e: java.awt.event.WindowEvent): Unit = closed()
+        })
+        frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, look, back)),
+            ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER))
+        // the help, when there is one: a `?` at the top right, the views told before the first step in a dialog
+        if (help.nonEmpty) {
+          val bar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 2))
+          val button = new JButton("?"); button.setName(SwingFace.helpName); button.setToolTipText("Help")
+          button.setMargin(new java.awt.Insets(0, 0, 0, 0)); button.setPreferredSize(new java.awt.Dimension(28, 28));
+          button.setFocusable(false)
+          button.addActionListener((_: java.awt.event.ActionEvent) =>
+            JOptionPane.showMessageDialog(frame, SwingFace.help(help, look), title, JOptionPane.PLAIN_MESSAGE))
+          bar.add(button); frame.getContentPane.add(bar, BorderLayout.NORTH)
+        }
+        // the window sized to its content, within the screen; it grows no further — a longer dialogue scrolls
+        frame.pack()
+        val screen = java.awt.Toolkit.getDefaultToolkit.getScreenSize
+        frame.setSize(math.max(480, math.min(frame.getWidth + 24, screen.width - 80)),
+          math.max(360, math.min(frame.getHeight + 24, screen.height - 120)))
+        frame.setLocationRelativeTo(null); frame.setVisible(true)
       }
-      // the window sized to its content, within the screen; it grows no further — a longer dialogue scrolls
-      frame.pack()
-      val screen = java.awt.Toolkit.getDefaultToolkit.getScreenSize
-      frame.setSize(math.max(480, math.min(frame.getWidth + 24, screen.width - 80)), math.max(360, math.min(frame.getHeight + 24, screen.height - 120)))
-      frame.setLocationRelativeTo(null); frame.setVisible(true)
-    } })
+    })
 
-  private def render[A](s: Shown[A], show: Shown[A] => Unit, settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A], back: Boolean): JComponent = {
+  private def render[A](s: Shown[A], show: Shown[A] => Unit,
+    settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A], back: Boolean): JComponent = {
     val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS))
     s.told.foreach(v => box.add(named(Views.component(v), Role.Told.cls)))
     s.step match {
@@ -119,10 +141,16 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
           case Left(Rejected(ps)) => show(s.copy(problems = ps))
           case Right(next) => show(settle(run(next), Vector.empty, if (w.back) w :: s.history else s.history))
         }
-        val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref")) Some(key => choose(Chosen("ref", Json.obj("key" -> Json.Str(key))))) else None
+        val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref"))
+          Some(key => choose(Chosen("ref", Json.obj("key" -> Json.Str(key)))))
+        else None
         box.add(Views.component(w.view, ref))
-        if (s.problems.nonEmpty) { val p = new JPanel(new GridLayout(0, 1)); p.setName(Role.Problems.cls); s.problems.foreach(pr => p.add(label(pr.render, Role.Problems.cls))); box.add(p) }
-        val actions = new JPanel; actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS)); actions.setName(Role.Actions.cls)
+        if (s.problems.nonEmpty) {
+          val p = new JPanel(new GridLayout(0, 1)); p.setName(Role.Problems.cls);
+          s.problems.foreach(pr => p.add(label(pr.render, Role.Problems.cls))); box.add(p)
+        }
+        val actions = new JPanel; actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
+        actions.setName(Role.Actions.cls)
         w.actions.filterNot(_.name == "ref").foreach(a => actions.add(Forms.action(a, choose)))
         if (back && s.history.nonEmpty) {
           val b = new JButton("Back"); b.setName(Role.Back.cls)
@@ -148,22 +176,30 @@ object SwingFace {
     views.foreach(v => box.add(Views.component(v)))
     look.foreach(l => Looks(l)(box))
     val fit = Views.fitting(box)
-    val sp = new JScrollPane(fit, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER)
+    val sp = new JScrollPane(fit, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+      ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER)
     sp.setBorder(BorderFactory.createEmptyBorder()); sp.setName(Role.Told.cls)
     // the width fixed, so the text wraps there; the height what the wrapped text then needs, up to a readable page —
     // a wrapped text area knows its height only once laid out at a width, so lay the box out at that width first
-    def layout(c: Component): Unit = c match { case p: java.awt.Container => p.doLayout(); p.getComponents.foreach(layout); case _ => () }
-    def invalidate(c: Component): Unit = { c.invalidate(); c match { case p: java.awt.Container => p.getComponents.foreach(invalidate); case _ => () } }
-    fit.setSize(440, 4000); layout(fit); invalidate(fit)   // the layouts' cached sizes dropped, so the box asks its wrapped texts again
+    def layout(c: Component): Unit =
+      c match { case p: java.awt.Container => p.doLayout(); p.getComponents.foreach(layout); case _ => () }
+    def invalidate(c: Component): Unit = {
+      c.invalidate(); c match { case p: java.awt.Container => p.getComponents.foreach(invalidate); case _ => () }
+    }
+    fit.setSize(440, 4000); layout(fit);
+    invalidate(fit) // the layouts' cached sizes dropped, so the box asks its wrapped texts again
     val h = box.getPreferredSize.height
     sp.setPreferredSize(new java.awt.Dimension(460, math.min(h + 16, 360).max(60)))
     sp
   }
   /** over the faces in scope */
   def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): SwingFace[F] = new SwingFace[F]()(faces)
-  /** THE HANDLER, whole: `run(SwingFace.handle(Noughts.games))` — a program of nothing, run on the implementation in scope */
-  def handle[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], look: Option[Look] = None, back: Boolean = true)(implicit faces: Faces[F]): Program[Option[A], Tagless.Pure] =
-    Faces.running[F, Option[A]](faces)(new SwingFace[F]()(faces).handle[A](p, look, back).asInstanceOf[faces.fx.![Option[A], faces.fx.Pure]])
+  /** THE HANDLER, whole: `run(SwingFace.handle(Noughts.games))` — a program of nothing, run on the implementation in
+   * scope */
+  def handle[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], look: Option[Look] = None,
+    back: Boolean = true)(implicit faces: Faces[F]): Program[Option[A], Tagless.Pure] =
+    Faces.running[F, Option[A]](faces)(new SwingFace[F]()(faces).handle[A](p, look, back).asInstanceOf[faces.fx.![
+        Option[A], faces.fx.Pure]])
 }
 
 object Views {
@@ -184,13 +220,17 @@ object Views {
     case View.Empty => new JPanel
     case View.Text(s) => named(wrapped(s), Role.Text.cls)
     case View.Heading(level, s) =>
-      val l = new JLabel(s); l.setFont(l.getFont.deriveFont(Font.BOLD, l.getFont.getSize2D * (level match { case 1 => 1.6f; case 2 => 1.3f; case _ => 1.1f }))); named(l, Role.Heading(level).cls)
+      val l = new JLabel(s);
+      l.setFont(l.getFont.deriveFont(Font.BOLD,
+          l.getFont.getSize2D * (level match { case 1 => 1.6f; case 2 => 1.3f; case _ => 1.1f })));
+      named(l, Role.Heading(level).cls)
     case View.Notice(level, s) => named(new JLabel(s"${level.toString.toLowerCase}: $s"), Role.Notice(level).cls)
     case View.Fields(rows) =>
       val p = new JPanel(new GridLayout(0, 2, 8, 2))
       rows.foreach { case (k, x) => p.add(named(new JLabel(k + ":"), Role.Label.cls)); p.add(component(x, ref)) }
       named(p, Role.Fields.cls)
-    // a table with no column names is a GRID of cells — a board — in the middle, its cells square: as wide as the window
+    // a table with no column names is a GRID of cells — a board — in the middle, its cells square: as wide as the
+    // window
     // allows, up to one and a half times a cell's own height; so is one of live refs
     case View.Table(columns, rows) if columns.forall(_.isEmpty) || (ref.isDefined && rows.exists(_.exists(hasRef))) =>
       val cols = rows.headOption.fold(1)(_.size) max 1
@@ -204,15 +244,19 @@ object Views {
           new java.awt.Dimension(side * cols, side * rows.size)
         }
       }
-      holder.addComponentListener(new java.awt.event.ComponentAdapter { override def componentResized(e: java.awt.event.ComponentEvent): Unit = grid.revalidate() })
+      holder.addComponentListener(new java.awt.event.ComponentAdapter {
+        override def componentResized(e: java.awt.event.ComponentEvent): Unit = grid.revalidate()
+      })
       rows.foreach(_.foreach(c => grid.add(cell(c, ref)))); named(grid, Role.Table.cls)
       holder.add(grid); holder
     case View.Table(columns, rows) =>
-      val model = new DefaultTableModel(rows.map(_.map(c => text(c): AnyRef).toArray).toArray, columns.map(c => c: AnyRef).toArray) {
+      val model = new DefaultTableModel(
+        rows.map(_.map(c => text(c): AnyRef).toArray).toArray, columns.map(c => c: AnyRef).toArray) {
         override def isCellEditable(r: Int, c: Int): Boolean = false
       }
       val t = new JTable(model); t.setName(Role.Table.cls)
-      val sp = new JScrollPane(t); sp.setPreferredSize(new java.awt.Dimension(400, math.min(300, 24 * (rows.size + 2)))); sp
+      val sp = new JScrollPane(t);
+      sp.setPreferredSize(new java.awt.Dimension(400, math.min(300, 24 * (rows.size + 2)))); sp
     case View.Items(items) =>
       val list = new JList[String](items.map(text).toArray); named(list, Role.Items.cls)
     case View.Group(title, children) =>
@@ -220,21 +264,28 @@ object Views {
       title.foreach(t => p.setBorder(BorderFactory.createTitledBorder(t)))
       children.foreach(c => p.add(component(c, ref))); named(p, Role.Group.cls)
     case View.Ref(key, l) => ref match {
-      case Some(r) => val b = new JButton(l); b.setName(Role.Ref.cls); b.setToolTipText(key); b.addActionListener((_: java.awt.event.ActionEvent) => r(key)); b
-      case None => named(new JLabel(s"$l [$key]"), Role.Ref.cls)
-    }
-    case View.Datum(json, _) => val a = new JTextArea(Json.pretty(json)); a.setEditable(false); a.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12)); named(a, Role.Datum.cls)
+        case Some(r) =>
+          val b = new JButton(l); b.setName(Role.Ref.cls); b.setToolTipText(key);
+          b.addActionListener((_: java.awt.event.ActionEvent) => r(key)); b
+        case None => named(new JLabel(s"$l [$key]"), Role.Ref.cls)
+      }
+    case View.Datum(json, _) =>
+      val a = new JTextArea(Json.pretty(json)); a.setEditable(false);
+      a.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12)); named(a, Role.Datum.cls)
     case View.Masked(hint) => named(new JLabel(hint), Role.Masked.cls)
-    case View.Marked(mark, x) => val c = component(x, ref); c.setName(Role.Mark(mark).cls); c   // the mark's rule dresses it, not its own
+    case View.Marked(mark, x) =>
+      val c = component(x, ref); c.setName(Role.Mark(mark).cls); c // the mark's rule dresses it, not its own
   }
-  private def hasRef(v: View): Boolean = v match { case View.Ref(_, _) => true; case View.Marked(_, x) => hasRef(x); case _ => false }
+  private def hasRef(v: View): Boolean =
+    v match { case View.Ref(_, _) => true; case View.Marked(_, x) => hasRef(x); case _ => false }
   /** a cell of a grid: a live Ref its button, a Ref not live its label, anything else a label — in the middle, square;
    * the mark's name kept for the look */
   private def cell(v: View, ref: Option[String => Unit]): JComponent = v match {
     case View.Marked(mark, x) => val c = cell(x, ref); c.setName(Role.Mark(mark).cls); c
     case View.Ref(key, l) if ref.isDefined =>
       val b = new JButton(l)
-      b.setName(Role.Ref.cls); b.setToolTipText(key); b.setHorizontalAlignment(SwingConstants.CENTER); b.addActionListener((_: java.awt.event.ActionEvent) => ref.get(key)); b
+      b.setName(Role.Ref.cls); b.setToolTipText(key); b.setHorizontalAlignment(SwingConstants.CENTER);
+      b.addActionListener((_: java.awt.event.ActionEvent) => ref.get(key)); b
     case other =>
       val l = new JLabel(other match { case View.Ref(_, lbl) => lbl; case _ => text(other) }, SwingConstants.CENTER)
       named(l, other match { case View.Ref(_, _) => Role.Ref.cls; case _ => Role.Text.cls })
@@ -254,7 +305,9 @@ object Views {
     case View.Masked(hint) => hint
     case View.Marked(_, x) => text(x)
   }
-  private def wrapped(s: String): JTextArea = { val a = new JTextArea(s); a.setEditable(false); a.setLineWrap(true); a.setWrapStyleWord(true); a.setOpaque(false); a }
+  private def wrapped(s: String): JTextArea = {
+    val a = new JTextArea(s); a.setEditable(false); a.setLineWrap(true); a.setWrapStyleWord(true); a.setOpaque(false); a
+  }
   private def named[C <: JComponent](c: C, name: String): C = { c.setName(name); c }
 }
 
@@ -288,10 +341,15 @@ object Forms {
       case Schema.Record(fs) =>
         val p = new JPanel(new GridLayout(0, 2, 8, 4))
         field.flatMap(_.label).orElse(field.map(_.name)).foreach(l => p.setBorder(BorderFactory.createTitledBorder(l)))
-        fs.foreach { f => val l = new JLabel(f.label.getOrElse(f.name) + ":"); l.setName(Role.Label.cls); p.add(l); p.add(of(path :+ f.name, f.schema, Some(f))) }
+        fs.foreach { f =>
+          val l = new JLabel(f.label.getOrElse(f.name) + ":"); l.setName(Role.Label.cls); p.add(l);
+          p.add(of(path :+ f.name, f.schema, Some(f)))
+        }
         p
       case Schema.Described(of0, label0, doc) =>
-        of(path, of0, Some(field.getOrElse(Schema.Field(path.lastOption.getOrElse(""), of0, None, None, false, None)).copy(label = Some(label0), doc = doc)))
+        of(path, of0,
+          Some(field.getOrElse(Schema.Field(path.lastOption.getOrElse(""), of0, None, None, false, None)).copy(
+              label = Some(label0), doc = doc)))
       case Schema.Optional(of0) => of(path, of0, field)
       case Schema.Choice(options) =>
         val c = new JComboBox[String](options.toArray); c.setName(name(path)); combos(path) = c; c
@@ -299,7 +357,8 @@ object Forms {
         val c = new JComboBox[String](cases.map(_._1).toArray); c.setName(name(path)); combos(path) = c
         val cards = new JPanel(new java.awt.CardLayout)
         cases.foreach { case (n, cs) => cards.add(of(path :+ n, cs), n) }
-        c.addActionListener(_ => cards.getLayout.asInstanceOf[java.awt.CardLayout].show(cards, c.getSelectedItem.asInstanceOf[String]))
+        c.addActionListener(_ =>
+          cards.getLayout.asInstanceOf[java.awt.CardLayout].show(cards, c.getSelectedItem.asInstanceOf[String]))
         val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.add(c); p.add(cards); p
       case Schema.Many(of0, min, max) if !okay.faces.FormJson.leafish(of0) =>
         // a list of records: an item added by a button, removed by one; each item's fields by index
@@ -308,48 +367,61 @@ object Forms {
         items(path) = () => ids
         def add(): Unit = if (!max.exists(ids.size >= _)) {
           val i = next; next += 1; ids = ids :+ i
-          val item = new JPanel; item.setLayout(new BoxLayout(item, BoxLayout.Y_AXIS)); item.setName(name(path :+ i.toString))
+          val item = new JPanel; item.setLayout(new BoxLayout(item, BoxLayout.Y_AXIS));
+          item.setName(name(path :+ i.toString))
           item.add(of(path :+ i.toString, of0))
           val remove = new JButton("Remove"); remove.setName("remove:" + name(path :+ i.toString))
-          remove.addActionListener(_ => { ids = ids.filterNot(_ == i); list.remove(item); list.revalidate(); list.repaint() })
+          remove.addActionListener(_ => {
+            ids = ids.filterNot(_ == i); list.remove(item); list.revalidate(); list.repaint()
+          })
           item.add(remove); list.add(item); list.revalidate(); list.repaint()
         }
         (0 until (min max 0)).foreach(_ => add())
-        val addButton = new JButton("Add"); addButton.setName("add:" + name(path)); addButton.addActionListener(_ => add())
+        val addButton = new JButton("Add"); addButton.setName("add:" + name(path));
+        addButton.addActionListener(_ => add())
         val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS))
         field.flatMap(_.label).orElse(field.map(_.name)).foreach(l => p.setBorder(BorderFactory.createTitledBorder(l)))
         p.add(list); p.add(addButton); p
       case Schema.Many(_, _, _) =>
-        val a = new JTextArea(3, 20); a.setName(name(path)); a.setToolTipText("one per line"); areas(path) = a; new JScrollPane(a)
+        val a = new JTextArea(3, 20); a.setName(name(path)); a.setToolTipText("one per line"); areas(path) = a;
+        new JScrollPane(a)
       case Schema.Bool =>
         val c = new JCheckBox(); c.setName(name(path)); checks(path) = c
         field.flatMap(_.default).foreach { case Json.Bool(b) => c.setSelected(b); case _ => () }; c
       case leaf =>
         val t = if (field.exists(_.secret)) new JPasswordField(16) else new JTextField(16)
         t.setName(name(path)); texts(path) = t
-        field.flatMap(_.default).foreach(d => t.setText(d match { case Json.Str(s) => s; case other => Json.print(other) }))
+        field.flatMap(_.default).foreach(d =>
+          t.setText(d match { case Json.Str(s) => s; case other => Json.print(other) }))
         field.flatMap(_.doc).foreach(t.setToolTipText); t
     }
 
     def collect(path: List[String], schema: Schema): Json = schema match {
-      case Schema.Record(fs) => Json.Obj(fs.flatMap(f => collect(path :+ f.name, f.schema) match { case Json.Null => None; case v => Some(f.name -> v) }))
+      case Schema.Record(fs) => Json.Obj(fs.flatMap(f =>
+            collect(path :+ f.name, f.schema) match { case Json.Null => None; case v => Some(f.name -> v) }))
       case Schema.Described(of0, _, _) => collect(path, of0)
       case Schema.Optional(of0) => collect(path, of0)
-      case Schema.Choice(_) => combos.get(path).map(c => Json.Str(c.getSelectedItem.asInstanceOf[String])).getOrElse(Json.Null)
-      case Schema.OneOf(cases) => combos.get(path).map(_.getSelectedItem.asInstanceOf[String]).flatMap(n => cases.find(_._1 == n)) match {
-        case Some((n, cs)) => collect(path :+ n, cs) match {
-          case o: Json.Obj if Schema.isRecord(cs) => ("type" -> Json.Str(n)) +: o
-          case v => Json.Obj.of("type" -> Json.Str(n), "value" -> v)
+      case Schema.Choice(_) =>
+        combos.get(path).map(c => Json.Str(c.getSelectedItem.asInstanceOf[String])).getOrElse(Json.Null)
+      case Schema.OneOf(cases) =>
+        combos.get(path).map(_.getSelectedItem.asInstanceOf[String]).flatMap(n => cases.find(_._1 == n)) match {
+          case Some((n, cs)) => collect(path :+ n, cs) match {
+              case o: Json.Obj if Schema.isRecord(cs) => ("type" -> Json.Str(n)) +: o
+              case v => Json.Obj.of("type" -> Json.Str(n), "value" -> v)
+            }
+          case None => Json.Null
         }
-        case None => Json.Null
-      }
-      case Schema.Many(of0, _, _) if items.contains(path) => Json.Arr(items(path)().map(i => collect(path :+ i.toString, of0)))
-      case Schema.Many(of0, _, _) => areas.get(path).map(a => Json.Arr(a.getText.split("\n").toVector.map(_.trim).filter(_.nonEmpty).map(typed(of0, _)))).getOrElse(Json.Null)
+      case Schema.Many(of0, _, _) if items.contains(path) =>
+        Json.Arr(items(path)().map(i => collect(path :+ i.toString, of0)))
+      case Schema.Many(of0, _, _) => areas.get(path).map(a =>
+          Json.Arr(a.getText.split("\n").toVector.map(_.trim).filter(_.nonEmpty).map(typed(of0, _)))).getOrElse(
+          Json.Null)
       case Schema.Bool => checks.get(path).map(c => Json.Bool(c.isSelected)).getOrElse(Json.Null)
       case leaf => texts.get(path).map(_.getText).filter(_.nonEmpty).map(typed(leaf, _)).getOrElse(Json.Null)
     }
     private def typed(schema: Schema, s: String): Json = schema match {
-      case Schema.Integer(_) | Schema.Number(_) => scala.util.Try(BigDecimal(s.trim)).toOption.fold[Json](Json.Str(s))(Json.Num(_))
+      case Schema.Integer(_) | Schema.Number(_) =>
+        scala.util.Try(BigDecimal(s.trim)).toOption.fold[Json](Json.Str(s))(Json.Num(_))
       case Schema.Bool => Json.Bool(Set("true", "yes", "y", "on").contains(s.trim.toLowerCase))
       case Schema.Described(of0, _, _) => typed(of0, s)
       case _ => Json.Str(s)

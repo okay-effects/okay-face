@@ -25,7 +25,9 @@ object Meanwhile {
   def manual[A]: Manual[A] = new Manual[A]
   final class Manual[A] {
     private var listeners: List[A => Unit] = Nil
-    val meanwhile: Meanwhile[A] = Meanwhile { k => synchronized { listeners = k :: listeners }; () => synchronized { listeners = listeners.filterNot(_ eq k) } }
+    val meanwhile: Meanwhile[A] = Meanwhile { k =>
+      synchronized { listeners = k :: listeners }; () => synchronized { listeners = listeners.filterNot(_ eq k) }
+    }
     def fire(a: A): Unit = synchronized(listeners).foreach(_(a))
     def listening: Int = synchronized(listeners.size)
   }

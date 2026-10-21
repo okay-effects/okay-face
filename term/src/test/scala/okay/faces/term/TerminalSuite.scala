@@ -19,7 +19,9 @@ abstract class TerminalChecks(val fx0: Runner, name: String) extends munit.FunSu
   type C[X] = Sum[Void, Console, X]
   type CF[X] = Sum[C, Face, X]
   final case class Who(name: String, age: Int)
-  val who: Shape[Who] = record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)).documented("in years"))(Who(_, _))(w => (w.name, w.age))
+  val who: Shape[Who] =
+    record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)).documented("in years"))(
+      Who(_, _))(w => (w.name, w.age))
 
   def greeting: String ! CF =
     fill[Who, CF](View.heading("Who are you?"), who).flatMap { w =>
@@ -27,18 +29,21 @@ abstract class TerminalChecks(val fx0: Runner, name: String) extends munit.FunSu
         if (yes) show[CF](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, CF]("left")
       }
     }
-  def talk(inputs: String*): (List[String], Option[String]) = fx0.run(term.io.console(inputs.toList)(term.terminal[String, C](steps[String, CF, C](greeting))))
+  def talk(inputs: String*): (List[String], Option[String]) =
+    fx0.run(term.io.console(inputs.toList)(term.terminal[String, C](steps[String, CF, C](greeting))))
 
-  test(s"$name: the dialogue — a view, a menu, the fields asked with their labels, a confirmation, the word at the end") {
+  test(
+    s"$name: the dialogue — a view, a menu, the fields asked with their labels, a confirmation, the word at the end") {
     val (printed, result) = talk("1", "Ann", "41", "yes")
     assertEquals(result, Some("greeted Ann"))
-    assertEquals(printed, List(
-      "WHO ARE YOU?", "============", "",
-      "1) Submit   (? help, q quit)", "> ",
-      "Name: ", "age (a whole number, in years): ",
-      "Greet Ann, 41?", "",
-      "1) Yes  2) No   (< back, ? help, q quit)", "> ",
-      "Hello, Ann!", ""))
+    assertEquals(printed,
+      List(
+        "WHO ARE YOU?", "============", "",
+        "1) Submit   (? help, q quit)", "> ",
+        "Name: ", "age (a whole number, in years): ",
+        "Greet Ann, 41?", "",
+        "1) Yes  2) No   (< back, ? help, q quit)", "> ",
+        "Hello, Ann!", ""))
   }
   test(s"$name: a problem shown and the field asked again; the action by name; quitting") {
     val (printed, result) = talk("submit", "Bo", "3", "20", "no")
@@ -58,17 +63,21 @@ abstract class TerminalChecks(val fx0: Runner, name: String) extends munit.FunSu
   }
   test(s"$name: a secret field is asked without echo, and says so") {
     final case class Login(user: String, pin: String)
-    val login: Shape[Login] = record(field("user", text), field("pin", text).asSecret)(Login(_, _))(l => (l.user, l.pin))
+    val login: Shape[Login] =
+      record(field("user", text), field("pin", text).asSecret)(Login(_, _))(l => (l.user, l.pin))
     type LF[X] = Sum[C, Face, X]
     val p: Login ! LF = fill[Login, LF](View.text("Log in"), login)
-    val (printed, result) = fx0.run(term.io.console(List("1", "ann", "1234"))(term.terminal[Login, C](steps[Login, LF, C](p))))
+    val (printed, result) =
+      fx0.run(term.io.console(List("1", "ann", "1234"))(term.terminal[Login, C](steps[Login, LF, C](p))))
     assertEquals(result, Some(Login("ann", "1234")))
     assert(printed.contains("pin (hidden): "), printed.mkString("\n"))
   }
   test(s"$name: rendering — headings, fields, tables, items, groups, wrapping") {
     assertEquals(Render.view(View.heading("Hi", 2)), List("Hi", "--"))
-    assertEquals(Render.view(View.fields("name" -> View.text("Ann"), "born" -> View.text("1985"))), List("name: Ann", "born: 1985"))
-    assertEquals(Render.view(View.table("a", "bb")(Vector(View.text("1"), View.text("2")), Vector(View.text("333"), View.text("4")))),
+    assertEquals(Render.view(View.fields("name" -> View.text("Ann"), "born" -> View.text("1985"))),
+      List("name: Ann", "born: 1985"))
+    assertEquals(Render.view(View.table("a", "bb")(Vector(View.text("1"), View.text("2")),
+          Vector(View.text("333"), View.text("4")))),
       List("a    bb", "---  --", "1    2", "333  4"))
     assertEquals(Render.view(View.items(View.text("x"), View.text("y"))), List("- x", "- y"))
     assertEquals(Render.view(View.group("G")(View.text("x"))), List("## G", "  x"))

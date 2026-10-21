@@ -21,7 +21,8 @@ sealed abstract class Action[A] {
 }
 
 object Action {
-  def apply[P0, A](name0: String, label0: String, params0: Shape[P0], doc0: Option[String] = None)(make0: P0 => A): Action[A] = {
+  def apply[P0, A](name0: String, label0: String, params0: Shape[P0], doc0: Option[String] = None)(
+    make0: P0 => A): Action[A] = {
     require(name0.matches("[a-z][a-z0-9_-]*"), s"an action's name is [a-z][a-z0-9_-]*, not '$name0'")
     new Action[A] {
       type P = P0

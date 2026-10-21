@@ -19,7 +19,9 @@ class RestFaceSuite extends munit.FunSuite {
   type HF[X] = Sum[H, Face, X]
 
   final case class Who(name: String, age: Int)
-  val who: Shape[Who] = record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w => (w.name, w.age))
+  val who: Shape[Who] =
+    record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w =>
+      (w.name, w.age))
   def greeting: String ! HF =
     fill[Who, HF](View.heading("Who are you?"), who).flatMap { w =>
       confirm[HF](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
@@ -31,41 +33,54 @@ class RestFaceSuite extends munit.FunSuite {
     Machine.run(https.scripted(requests.toList)(https.serve[H](sessions.service)))._1
   }
 
-  test("a session opened, its resource with links and schemas; an action taken; a bad one a 400 with the step unchanged; back") {
+  test(
+    "a session opened, its resource with links and schemas; an action taken; a bad one a 400 with the step unchanged; " +
+      "back") {
     val rs = talk(Request("POST", "/sessions"), Request.get("/sessions/s1"),
       Request.json("POST", "/sessions/s1/act/submit", obj("name" -> Str("Ann"), "age" -> num(3))),
       Request.json("POST", "/sessions/s1/act/submit", obj("name" -> Str("Ann"), "age" -> num(41))),
       Request("POST", "/sessions/s1/back"), Request("POST", "/sessions/s1/act/yes"), Request.get("/sessions/nope"))
-    assertEquals(rs.map(_.status), List(201, 200, 400, 200, 200, 400, 404))   // after back, `yes` is not an action of the form step
+    assertEquals(rs.map(_.status),
+      List(201, 200, 400, 200, 200, 400, 404)) // after back, `yes` is not an action of the form step
     assertEquals(rs.head.headers("Location"), "/sessions/s1")
-    assert(rs.head.body.contains("\"rel\":\"submit\"") && rs.head.body.contains("\"schema\":{\"type\":\"object\""), rs.head.body)
+    assert(rs.head.body.contains("\"rel\":\"submit\"") && rs.head.body.contains("\"schema\":{\"type\":\"object\""),
+      rs.head.body)
     assert(rs(2).body.contains("age: of age") || rs(2).body.contains("\"message\":\"of age\""), rs(2).body)
-    assert(rs(3).body.contains("Greet Ann, 41?") && rs(3).body.contains("\"rel\":\"yes\"") && rs(3).body.contains("\"rel\":\"back\""), rs(3).body)
+    assert(rs(3).body.contains("Greet Ann, 41?") && rs(3).body.contains("\"rel\":\"yes\"") && rs(3).body.contains(
+        "\"rel\":\"back\""), rs(3).body)
     assert(rs(4).body.contains("Who are you?"))
     assertEquals(rs(5).headers("Content-Type"), "application/problem+json")
   }
   test("the marks: a link in the resource and GET /sessions/marks when the sessions have a vocabulary; a 404 without") {
     val vocab = Vocabulary("price" -> "the amount due")
-    val sessions = face.sessions[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), vocabulary = vocab)
-    val rs = Machine.run(https.scripted(List(Request("POST", "/sessions"), Request.get("/sessions/marks")))(https.serve[H](sessions.service)))._1
+    val sessions =
+      face.sessions[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), vocabulary = vocab)
+    val rs = Machine.run(https.scripted(List(Request("POST", "/sessions"), Request.get("/sessions/marks")))(
+        https.serve[H](sessions.service)))._1
     assert(rs.head.body.contains("\"rel\":\"marks\"") && rs.head.body.contains("/sessions/marks"), rs.head.body)
     assertEquals(rs(1).status, 200); assertEquals(rs(1).body, """[{"name":"price","doc":"the amount due"}]""")
     assertEquals(talk(Request("POST", "/sessions"), Request.get("/sessions/marks")).map(_.status), List(201, 404))
     assert(!talk(Request("POST", "/sessions")).head.body.contains("\"rel\":\"marks\""))
   }
   test("to the end: done, no actions but the links to self") {
-    val rs = talk(Request("POST", "/sessions"), Request.json("POST", "/sessions/s1/act/submit", obj("name" -> Str("Bo"), "age" -> num(30))), Request("POST", "/sessions/s1/act/yes"))
+    val rs = talk(Request("POST", "/sessions"),
+      Request.json("POST", "/sessions/s1/act/submit", obj("name" -> Str("Bo"), "age" -> num(30))),
+      Request("POST", "/sessions/s1/act/yes"))
     assert(rs(2).body.contains("Hello, Bo!") && rs(2).body.contains("\"done\":true"), rs(2).body)
     assert(!rs(2).body.contains("\"rel\":\"yes\""))
   }
   test("an event while the step waits: the resource says it listens; fired, the next request shows the step moved on") {
     val bus = okay.faces.Meanwhile.manual[Int]
-    def program: String ! HF = offer[Int, HF](View.text("waiting"), List(okay.faces.Action.plain[Int]("skip", "Skip")(0)), bus.meanwhile).flatMap(n => show[HF](View.text(s"got $n")).map(_ => s"$n"))
+    def program: String ! HF =
+      offer[Int, HF](View.text("waiting"), List(okay.faces.Action.plain[Int]("skip", "Skip")(0)),
+        bus.meanwhile).flatMap(n => show[HF](View.text(s"got $n")).map(_ => s"$n"))
     val sessions = face.sessions[String, H](() => faces.dialogue[String, H](steps[String, HF, H](program)))
-    val opened = Machine.run(https.scripted(List(Request.post("/sessions", "", "application/json")))(https.serve[H](sessions.service)))._1.head
+    val opened = Machine.run(https.scripted(List(Request.post("/sessions", "", "application/json")))(
+        https.serve[H](sessions.service)))._1.head
     assert(opened.body.contains("\"listening\":true"), opened.body)
     bus.fire(5)
     val after = Machine.run(https.scripted(List(Request.get("/sessions/s1")))(https.serve[H](sessions.service)))._1.head
-    assert(after.body.contains("got 5") && after.body.contains("\"done\":true") && after.body.contains("\"listening\":false"), after.body)
+    assert(after.body.contains("got 5") && after.body.contains("\"done\":true") && after.body.contains(
+        "\"listening\":false"), after.body)
   }
 }

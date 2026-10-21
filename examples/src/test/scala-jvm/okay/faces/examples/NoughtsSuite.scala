@@ -21,7 +21,9 @@ class NoughtsSuite extends munit.FunSuite {
   }
   test("games: the rules told first, then a game; Play again begins another, the board clear") {
     plays.handle(Noughts.games)(Script.of(cell(1), cell(4), cell(7), Chosen.plain("again"))) match {
-      case Played.Stuck(views, at, None) => assertEquals(views.size, 6); assertEquals(views.head, rules); assertEquals(views.last, views(1)); assertEquals(at.actions.map(_.name), List("ref"))
+      case Played.Stuck(views, at, None) =>
+        assertEquals(views.size, 6); assertEquals(views.head, rules); assertEquals(views.last, views(1));
+        assertEquals(at.actions.map(_.name), List("ref"))
       case other => fail(s"$other")
     }
   }
@@ -41,7 +43,8 @@ class NoughtsSuite extends munit.FunSuite {
     }
   }
   test("a draw: every cell filled, nobody won") {
-    plays.handle(Noughts.play(Board.empty))(Script.of(cell(1), cell(9), cell(8), cell(4), cell(7), Chosen.plain("again"))) match {
+    plays.handle(Noughts.play(Board.empty))(Script.of(cell(1), cell(9), cell(8), cell(4), cell(7),
+        Chosen.plain("again"))) match {
       case Played.Finished(_, o) => assert(o == Draw || o.isInstanceOf[Won], s"$o")
       case other => fail(s"$other")
     }
