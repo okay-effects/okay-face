@@ -51,7 +51,7 @@ class AgreementSuite extends munit.FunSuite {
   test("the terminal shows every view as the test face's, rendered, in order, and ends the same") {
     type C[X] = Sum[Void, Console, X]
     type CF[X] = Sum[C, Face, X]
-    val term = new Terminal[Machine.type](faces)
+    val term = new Terminal[Machine.type]()(faces)
     val inputs = moves.flatMap(n => List("ref", n.toString)) :+ "again"
     val (printed, ended) = Machine.run(term.io.console(inputs)(term.terminal[Outcome, C](faces.steps[Outcome, CF, C](game.game[CF](Board.empty)))))
     assertEquals(ended, Some(outcome))

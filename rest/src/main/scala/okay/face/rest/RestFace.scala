@@ -60,4 +60,6 @@ class RestFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
 object RestFace {
   /** over these faces, their path kept: `RestFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
   def apply[F <: Effects](faces: Faces[F]): RestFace[F, faces.type] = new RestFace[F, faces.type](faces)
+  /** over the faces in scope — by default, the ones over the implicit implementation: `RestFace.default[Machine.type]` */
+  def default[F <: Effects with Singleton](implicit faces: Faces[F]): RestFace[F, faces.type] = new RestFace[F, faces.type](faces)
 }

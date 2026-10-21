@@ -13,5 +13,6 @@ object NoughtsSwing {
   val face = new SwingFace[Machine.type]()
   type F[X] = Row[*[Pure] + *[Face], X]   // the row by its name, the one spelling both compilers read
   def main(args: Array[String]): Unit =
-    face.window("Noughts and crosses", face.faces.steps[game.Outcome, F, Pure](game.games[F]), (_: game.Outcome) => (), look = Some(game.look), back = false)
+    face.window("Noughts and crosses", face.faces.steps[game.Outcome, F, Pure](game.games[F]),
+      (_: game.Outcome) => (), look = Some(game.look), back = false)
 }

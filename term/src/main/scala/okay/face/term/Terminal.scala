@@ -13,7 +13,7 @@ import okay.face.{Action, Chosen, Faces, Paint, Rejected, Role, Step, View}
  * actions' docs, `q` quits. Plain text unless a `Paint` is given: `Ansi(look)` colours by role for a terminal, and a
  * pipe gets none.
  */
-class Terminal[F <: okay.effects.Effects](val faces: Faces[F], paint: Paint = Paint.none) {
+class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none)(implicit val faces: Faces[F]) {
   import faces.fx._
   val io: Io[faces.fx.type] = new Io[faces.fx.type]()(faces.fx)
   val reading: Reading[faces.fx.type] = new Reading[faces.fx.type]()(faces.fx)
@@ -138,5 +138,5 @@ class Terminal[F <: okay.effects.Effects](val faces: Faces[F], paint: Paint = Pa
 }
 
 object Terminal {
-  def apply[F <: okay.effects.Effects](faces: Faces[F], paint: Paint = Paint.none): Terminal[F] = new Terminal[F](faces, paint)
+  def apply[F <: okay.effects.Effects with Singleton](faces: Faces[F], paint: Paint = Paint.none): Terminal[F] = new Terminal[F](paint)(faces)
 }

@@ -14,7 +14,7 @@ class AnsiSuite extends munit.FunSuite {
   type CF[X] = Sum[C, Face, X]
   val program: Unit ! CF = confirm[CF](View.stack(View.heading("Who"), View.problem("No"), View.fields("pin" -> View.Masked("••")))).map(_ => ())
   def talk(paint: Paint): List[String] = {
-    val term = new Terminal[Machine.type](faces, paint)
+    val term = new Terminal[Machine.type](paint)(faces)
     Machine.run(term.io.console(List("1"))(term.terminal[Unit, C](steps[Unit, CF, C](program))))._1
   }
   test("painted: bold and the tone's colour, reset after; the heading's rule, the problem's, the label's") {
