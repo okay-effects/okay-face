@@ -1,0 +1,97 @@
+package okay.faces.examples
+
+import okay.effects.shape.{Day, Shape}
+import okay.faces.{Action, Face, Look, Marks, Role, Rule, Style, Tone, View}
+
+/** TO DO: the second example, with nothing of a game in it — a list kept from step to step, an item added by a FORM
+ * (an action with parameters), an item done or to do again by a click on it (`ref`), one removed by a CHOICE and a
+ * CONFIRMATION, the done ones cleared after a yes, and BACK, which here undoes: every step is kept in history, so
+ * going back is the list as it was. The same faces handle it as handle the game; the program knows none of them */
+object Todo {
+  /** an item: what, by when if ever, a note if any */
+  final case class Item(title: String, due: Option[Day] = None, note: Option[String] = None)
+  object Item {
+    /** THE FORM, from the type: a face asks the fields — a dialog, prompts, a tool's arguments — and checks them */
+    val shape: Shape[Item] = Shape.derived[Item]
+      .labelled("title", "Title", Some("what to do"))
+      .labelled("due", "Due", Some("a day, yyyy-mm-dd"))
+      .labelled("note", "Note", Some("anything more"))
+  }
+
+  /** THE LIST, no effect in it: items by number, which are done, the next number */
+  final case class Todos(items: Vector[(Int, Item)], done: Set[Int], next: Int = 1) {
+    def added(i: Item): Todos = copy(items = items :+ (next -> i), next = next + 1)
+    def toggled(id: Int): Todos = copy(done = if (done(id)) done - id else done + id)
+    def removed(id: Int): Todos = copy(items = items.filterNot(_._1 == id), done = done - id)
+    def cleared: Todos = copy(items = items.filterNot(i => done(i._1)), done = Set.empty)
+    def titled(id: Int): String = items.collectFirst { case (`id`, i) => i.title }.getOrElse("?")
+  }
+  object Todos {
+    val empty: Todos = Todos(Vector.empty, Set.empty)
+  }
+
+  /** what one does at the list */
+  sealed trait Move
+  final case class Add(item: Item) extends Move
+  final case class Toggle(id: Int) extends Move
+  case object RemoveOne extends Move
+  case object Clear extends Move
+  case object Leave extends Move
+
+  /** THE LIST'S OWN MARKS, typed: an item still to do, one done, when one is due */
+  sealed trait Mark
+  case object Pending extends Mark
+  case object Done extends Mark
+  case object Due extends Mark
+  val marks: Marks[Mark] = Marks.of(Shape.derived[Mark]).explained(
+    Pending -> "an item still to do", Done -> "an item done", Due -> "when an item is due")
+  /** the look: a done item muted, a due day small and muted, the list on a surface */
+  val style: Style = Style.default
+    .set(marks.role(Done), Rule(color = Some(Tone.Muted)))
+    .set(marks.role(Due), Rule(color = Some(Tone.Muted), size = 0.9))
+    .adjust(Role.Items)(_.copy(background = Some(Tone.Surface), pad = 1, gap = 1))
+  val look: Look = Look.default.copy(style = style)
+
+  /** what is told first: a face has it to tell, an agent gets it as instructions */
+  val about: View = View.text("Your list, kept while you are here. An item is a [number]: choose one and it is done, " +
+    "or to do again. Add one by the form; remove one, or clear the done ones, after a yes. Back undoes the last step.")
+  /** the list: each item a `Ref` by its number — live, since `ref` is offered — marked done or pending, its due day
+   * beside it; then how many are done */
+  def listing(t: Todos): View = View.stack(View.heading("To do"),
+    if (t.items.isEmpty) View.text("Nothing to do.")
+    else View.Items(t.items.map { case (id, i) =>
+      val line: View = View.Ref(id.toString, i.title)
+      marks.mark(if (t.done(id)) Done else Pending,
+        i.due.fold(line)(d => View.stack(line, marks.mark(Due, View.text(s"due $d")))))
+    }),
+    View.text(s"${t.done.size} of ${t.items.size} done"))
+
+  /** THE PROGRAM: a value over the faces' words alone, `A ! Face`; it ends with the list, when one leaves */
+  import okay.faces._
+  val keeping: Todos ! Face = show[Face](about).flatMap(_ => keep(Todos.empty))
+  /** the list offered with what one can do to it; every step may be returned to, so back is undo */
+  def keep(t: Todos): Todos ! Face = {
+    val ids = Shape.choice[Int](t.items.map { case (id, i) => id.toString -> id }: _*)
+      .described("Item", Some("an item by its number"))
+    val toggle = Action[Int, Move]("ref", "Done / to do", Shape.record(Shape.field("key", ids))(c => c)(c => c),
+      Some("an item: done when it was to do, to do again when it was done"))(Toggle(_))
+    val add = Action[Item, Move]("add", "Add", Item.shape, Some("a new item: its title, a due day and a note if any"))(
+      Add(_))
+    val remove = Action.plain[Move]("remove", "Remove one", Some("choose an item, then say yes"))(RemoveOne)
+    val clear = Action.plain[Move]("clear", "Clear the done", Some("every done item removed, after a yes"))(Clear)
+    val leave = Action.plain[Move]("leave", "Leave", Some("done here: the list as it is"))(Leave)
+    val actions = List(add) ++ (if (t.items.nonEmpty) List(toggle, remove) else Nil) ++
+      (if (t.done.nonEmpty) List(clear) else Nil) ++ List(leave)
+    offer[Move, Face](listing(t), actions).flatMap {
+      case Add(item) => show[Face](View.info(s"added: ${item.title}")).flatMap(_ => keep(t.added(item)))
+      case Toggle(id) => keep(t.toggled(id))
+      case RemoveOne =>
+        choose[Int, Face](View.text("Remove which?"), t.items.toList.map { case (id, i) => i.title -> id }).flatMap(
+          id =>
+            confirm[Face](View.text(s"Remove '${t.titled(id)}'?")).flatMap(yes => keep(if (yes) t.removed(id) else t)))
+      case Clear =>
+        confirm[Face](View.text(s"Clear the ${t.done.size} done?")).flatMap(yes => keep(if (yes) t.cleared else t))
+      case Leave => pure[Todos, Face](t)
+    }
+  }
+}

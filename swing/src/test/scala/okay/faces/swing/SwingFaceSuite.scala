@@ -67,7 +67,7 @@ class SwingFaceSuite extends munit.FunSuite {
     assertEquals(byName[JTable](root, "okay-table").getColumnCount, 2)
     assertEquals(byName[JTable](root, "okay-table").getValueAt(0, 1), "••")
     assert(texts(root).contains("k:"))
-    assertEquals(byName[JList[String]](root, "okay-items").getModel.getElementAt(0), "x")
+    assertEquals(byName[JPanel](root, "okay-items").getComponent(0).asInstanceOf[JTextArea].getText, "x")
   }
   test("an event while the step waits: fired, the panel shows the rest, on the event dispatch thread") {
     val bus = okay.faces.Meanwhile.manual[Int]

@@ -100,6 +100,7 @@ lazy val examples = crossBoth("examples", "examples", can = Set("js"))
       Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-jvm",
       Test / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "test" / "scala-jvm"))
   .onJS(_.dependsOn(core.js, laminar.js).settings(scalaJSUseMainModuleInitializer := true,
+      Compile / mainClass := Some("okay.faces.examples.Pages"), // one script, the program by the page's title
       Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-js",
       libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1",
         "io.github.okay-effects" %%% "okay-http" % okayHttp)))

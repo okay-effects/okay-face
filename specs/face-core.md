@@ -464,6 +464,22 @@ def game[R[_]: Has[Face]](board: Board): Outcome ! R =
 
 The docs' two-field greeting form (`name`, `language`) shows `Shape` and `ask`.
 
+### The second example: to do — 2026-10-21
+
+A list of items (`examples/.../Todo.scala`), so that the faces are checked against a program they were not written
+for, with nothing of a game in it: an item added by a FORM (an action with parameters, `Shape.derived[Item]`, a
+`Day` and two optional fields), an item done or to do again by a click on it (`ref` again, in a `View.Items`), one
+removed by a `choose` and a `confirm`, the done ones cleared after a yes, a `show` mid-dialogue ("added: …"), and
+BACK, which here undoes, since every step is kept. It ends with the list, when one leaves. The same one-line mains
+(`TodoSwing`, `TodoTerminal`, `TodoMcp`, `TodoHtml`, `TodoWebLocal`, `TodoWebRemote`, in `TodoMains.scala`; the game's
+in `NoughtsMains.scala`); in the browser one script, `Pages`, mounts the program the shell page is titled by. `TodoSuite` plays it by script on the test face; `TodoFacesSuite`
+has the terminal, Swing, HTML, REST and MCP handle it whole — the form asked by prompts, by a dialog's fields, by a
+page's inputs, by a tool's arguments. What it found, and fixed: the Swing face showed a `View.Items` as a list of text, so
+a `Ref` in an item was not a button; the HTML face took any untitled group of several views for "what was told, then
+the step" and rendered a program's own stack as told, with its refs dead, and dropped the live address inside item
+lists. Now a `Dialogue` gives what was told and the step's view APART (`shown`), and the HTML page sets each told view
+in its own `told` section before the step's.
+
 ## Tests
 
 - `Shape`: decode/encode round trips for every node; problems carry paths; `Loose` agrees with the typed decoder on

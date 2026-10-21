@@ -156,4 +156,6 @@ DONE 2026-10-20 as `html`, on okay-http: `HtmlFace(faces).pages(open, title, bas
 and redirects, `GET base/{id}` the page (structural HTML5 that is well-formed XML, a class per `Role`, no style
 inline, no script), a plain action a button, an action with parameters a form from its erased schema, back a button,
 `POST base/{id}/act/{name}` is `resume` then a redirect (post, redirect, get), the problems shown on the same page;
-the look at `GET /okay.css`, compiled from the `Look`. The HTML suite checks every page for well-formedness.
+the look at `GET /okay.css`, compiled from the `Look`. The HTML suite checks every page for well-formedness. What was
+told since the last step comes from the dialogue apart from the step's view (`Dialogue.shown`, 2026-10-21) and is set
+in `told` sections above it; the step's own view is rendered as it is, its refs live wherever they are in it.

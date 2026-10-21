@@ -23,12 +23,12 @@ import scala.collection.mutable
  */
 class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   import faces.fx._
-  type M[X] = X ! okay.effects.Void
+  type M[X] = X ! Pure
 
   final case class Shown[A](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]], problems: Problems)
 
   /** the face as a panel, rebuilt at each step; `done` with the value at the end */
-  def panel[A](first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (), look: Option[Look] = None,
+  def panel[A](first: Step[A, M] ! Pure, done: A => Unit = (_: A) => (), look: Option[Look] = None,
     back: Boolean = true): JPanel = {
     val root = new JPanel(new BorderLayout)
     root.setName(Role.Face.cls)
@@ -85,7 +85,7 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
     pure(()).flatMap { _ =>
       val opening = Step.opening[A, M](steps, run)
       val outcome = new java.util.concurrent.LinkedBlockingQueue[Option[A]](1)
-      window(opening.title.getOrElse("okay"), pure[Step[A, M], okay.effects.Void](opening.first),
+      window(opening.title.getOrElse("okay"), pure[Step[A, M], Pure](opening.first),
         (a: A) => outcome.offer(Some(a)),
         look = look, back = back, closed = () => outcome.offer(None), help = opening.intro)
       pure[Option[A], Pure](outcome.take())
@@ -95,7 +95,7 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   /** the face in a window, on the event dispatch thread; with `pages` (core's `Navigation` in memory) the window's
    * title
    * follows the program's current page */
-  def window[A](title: String, first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (),
+  def window[A](title: String, first: Step[A, M] ! Pure, done: A => Unit = (_: A) => (),
     pages: Option[(okay.faces.Pages[_], Any => String)] = None, look: Option[Look] = None, back: Boolean = true,
     closed: () => Unit = () => sys.exit(0), help: Vector[View] = Vector.empty): Unit =
     SwingUtilities.invokeLater(new Runnable {
@@ -258,7 +258,9 @@ object Views {
       val sp = new JScrollPane(t);
       sp.setPreferredSize(new java.awt.Dimension(400, math.min(300, 24 * (rows.size + 2)))); sp
     case View.Items(items) =>
-      val list = new JList[String](items.map(text).toArray); named(list, Role.Items.cls)
+      // each item its own component, so a `Ref` in one is a button where refs are live, not a line of text
+      val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS))
+      items.foreach(i => p.add(component(i, ref))); named(p, Role.Items.cls)
     case View.Group(title, children) =>
       val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS))
       title.foreach(t => p.setBorder(BorderFactory.createTitledBorder(t)))

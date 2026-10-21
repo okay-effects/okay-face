@@ -8,8 +8,7 @@ import okay.effects.shape.{Schema, Shape}
  * name, label and doc with its parameters' erased `Schema` instead of the `Shape`. The REST face sends these; a client
  * that knows no application (the remote Laminar face) draws the view, draws a form from the schema, and sends back a
  * `Chosen`. `Affordance.action` is the client's `Action`: structural over the schema, so a choice is checked where it
- * is
- * made before it travels.
+ * is made before it travels.
  */
 final case class Affordance(name: String, label: String, doc: Option[String], params: Schema) {
   def json: Json = Json.Obj(Vector("name" -> Json.Str(name), "label" -> Json.Str(label)) ++ doc.map(d =>

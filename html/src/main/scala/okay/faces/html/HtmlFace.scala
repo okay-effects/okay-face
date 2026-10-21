@@ -32,8 +32,10 @@ class HtmlFace[F <: Effects with Singleton, Fs <: Faces[F]](val faces: Fs) {
     val stylesheet: String = Css(look)
 
     def page(id: String, d: faces.Dialogue[A, R], problems: List[okay.effects.shape.Problem]): String ! R =
-      d.view.flatMap(v =>
-        d.actions.map(as => Html.page(View.title(v).getOrElse(title), v, as, problems, s"$base/$id", d.canGoBack)))
+      d.shown.flatMap { case (told, v) =>
+        d.actions.map(as =>
+          Html.page(View.title(told :+ v).getOrElse(title), told, v, as, problems, s"$base/$id", d.canGoBack))
+      }
 
     def routes: List[Route[R]] = List(
       get[R]("/") { (_, _) =>
@@ -116,10 +118,16 @@ object Html {
   private def cls(role: Role): String = s"""class="${role.classes}""""
 
   def page(title: String, v: View, actions: List[Action[_]], problems: List[okay.effects.shape.Problem], here: String,
-    back: Boolean): String =
+    back: Boolean): String = page(title, Vector.empty, v, actions, problems, here, back)
+  /** the page: what was told since the last step, each in its own `told` section, then the step's view; the refs live
+   * when the step offers `ref` */
+  def page(title: String, told: Vector[View], v: View, actions: List[Action[_]],
+    problems: List[okay.effects.shape.Problem], here: String, back: Boolean): String =
     document(title,
       s"""<main ${cls(Role.Face)}>
-         |<section ${cls(Role.View)}>${view(v, if (actions.exists(_.name == "ref")) Some(here) else None)}</section>
+         |<section ${cls(Role.View)}>${told.map(t =>
+          s"<section ${cls(Role.Told)}>${view(t)}</section>").mkString}${view(
+          v, if (actions.exists(_.name == "ref")) Some(here) else None)}</section>
          |${if (problems.isEmpty) ""
         else s"<ul ${cls(Role.Problems)}>" + problems.map(p => s"<li>${esc(p.render)}</li>").mkString + "</ul>"}
          |<nav ${cls(Role.Actions)}>${actions.filterNot(_.name == "ref").map(a => Forms.action(a, here)).mkString("\n")}
@@ -152,14 +160,11 @@ object Html {
       else "<thead><tr>" + columns.map(c => s"<th>${esc(c)}</th>").mkString + "</tr></thead>"
       s"<table ${cls(Role.Table)}>$head<tbody>" + rows.map(r =>
         "<tr>" + r.map(c => s"<td>${view(c, here)}</td>").mkString + "</tr>").mkString + "</tbody></table>"
-    case View.Items(items) => s"<ul ${cls(Role.Items)}>" + items.map(i => s"<li>${view(i)}</li>").mkString + "</ul>"
+    case View.Items(items) =>
+      s"<ul ${cls(Role.Items)}>" + items.map(i => s"<li>${view(i, here)}</li>").mkString + "</ul>"
     case View.Group(title, children) =>
-      // a dialogue's stack: what was told above the current view, the last child
-      val told = title.isEmpty && children.size > 1
       s"<section ${cls(Role.Group)}>" + title.map(t => s"<h4 ${cls(Role.GroupTitle)}>${esc(t)}</h4>").getOrElse("") +
-        children.map(c =>
-          if (told && c != children.last) s"<section ${cls(Role.Told)}>${view(c, here)}</section>"
-          else view(c, here)).mkString + "</section>"
+        children.map(c => view(c, here)).mkString + "</section>"
     case View.Ref(key, label) => s"""<a ${cls(Role.Ref)} href="${here.fold("#" + esc(key))(h =>
           s"$h/ref/${Query.encode(key)}")}">${esc(label)}</a>"""
     case View.Datum(json, _) => s"<pre ${cls(Role.Datum)}>${esc(Json.pretty(json))}</pre>"

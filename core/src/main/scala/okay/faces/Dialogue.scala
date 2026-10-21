@@ -39,11 +39,13 @@ class Dialogues[F <: Effects with Singleton](implicit implementation: F) {
     /** whether the step waits on an event too: a client may ask again later */
     def listening: Boolean ! R =
       current.map { case w: Step.Waiting[A, M] @unchecked => w.meanwhile.isDefined; case _ => false }
-    /** what was told since the last step, and the step's own view */
-    def view: View ! R = current.map {
-      case w: Step.Waiting[A, M] @unchecked => View.Group(None, told :+ w.view)
-      case Step.Done(a) => View.Group(None, told :+ View.text(s"done: $a"))
-      case Step.Told(v, _) => v
+    /** what was told since the last step, and the step's own view, as one stack */
+    def view: View ! R = shown.map { case (ts, v) => View.Group(None, ts :+ v) }
+    /** the same apart: what was told, and the step's own view — for a face that shows them differently */
+    def shown: (Vector[View], View) ! R = current.map {
+      case w: Step.Waiting[A, M] @unchecked => (told, w.view)
+      case Step.Done(a) => (told, View.text(s"done: $a"))
+      case Step.Told(v, _) => (Vector.empty, v)
     }
     def actions: List[Action[_]] ! R = current.map { case w: Step.Waiting[A, M] @unchecked => w.actions; case _ => Nil }
     def done: Boolean ! R = current.map { case Step.Done(_) => true; case _ => false }

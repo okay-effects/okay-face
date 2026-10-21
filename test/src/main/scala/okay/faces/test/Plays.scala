@@ -12,7 +12,7 @@ import okay.faces.{Face, Chosen, Faces, Rejected, Step, View}
 class Plays[F <: Runner with Singleton](implicit implementation: F) {
   val fx: F = implementation
   import fx._
-  type M[X] = X ! okay.effects.Void
+  type M[X] = X ! Pure
 
   sealed trait Entry
   final case class Pick(chosen: Chosen) extends Entry
@@ -38,9 +38,9 @@ class Plays[F <: Runner with Singleton](implicit implementation: F) {
   def handle[A](p: Program[A, okay.faces.Face])(script: Script): Played[A] =
     // the faces' words are over `faces.fx`, this face's over `fx`: one value, two paths the checker cannot join
     play[A](faces.steps[A, okay.faces.Face, faces.fx.Pure](faces.of(p))(
-        faces.fx.splitOne[okay.faces.Face]).asInstanceOf[fx.![Step[A, M], okay.effects.Void]], script)
+        faces.fx.splitOne[okay.faces.Face]).asInstanceOf[fx.![Step[A, M], fx.Pure]], script)
   val faces: Faces[F] = new Faces[F]()(fx)
-  def play[A](first: Step[A, M] ! okay.effects.Void, script: Script): Played[A] = {
+  def play[A](first: Step[A, M] ! Pure, script: Script): Played[A] = {
     // `Told`s run through; `history` the Waitings passed, latest first, for Back
     def settle(step: Step[A, M], views: List[View]): (Step[A, M], List[View]) = step match {
       case Step.Told(view, next) => settle(run(next), view :: views)

@@ -26,10 +26,10 @@ class LaminarFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   trait Lower[M[_]] { def apply[X](m: M[X])(k: X => Unit): Unit }
 
   /** the row done: the rest run at once */
-  def element[A](first: Step[A, ({ type L[X] = X ! okay.effects.Void })#L] ! okay.effects.Void,
+  def element[A](first: Step[A, ({ type L[X] = X ! Pure })#L] ! Pure,
     done: A => Unit = (_: A) => (),
     browserHistory: Boolean = false, back: Boolean = true): HtmlElement = {
-    type M[X] = X ! okay.effects.Void
+    type M[X] = X ! Pure
     new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = k(run(m)) }, done, browserHistory,
       back).element(first)
   }
