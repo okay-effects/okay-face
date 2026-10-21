@@ -75,6 +75,7 @@ lazy val rest = crossBoth("rest", "rest").dependsOn(core).settings(name := "okay
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-http" % okayHttp, "io.github.okay-effects" %%% "okay-http-rest" % okayHttp,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 lazy val html = crossBoth("html", "html").dependsOn(core).settings(name := "okay-faces-html",
+    Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / ("scala-" + (if (baseDirectory.value.getName == ".jvm") "jvm" else "none")),
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-http" % okayHttp, "io.github.okay-effects" %%% "okay-http-rest" % okayHttp,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
