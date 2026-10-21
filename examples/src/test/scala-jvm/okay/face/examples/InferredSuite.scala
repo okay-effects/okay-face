@@ -13,7 +13,7 @@ class InferredSuite extends munit.FunSuite {
     val face = SwingFace()
     val term = Terminal()
     assert(face.faces.fx eq Machine); assert(term.faces.fx eq Machine)
-    val panel = face.panel(face.faces.steps[Outcome, face.faces.Only, Pure](Noughts.game))
+    val panel = face.panel(face.faces.steps[Outcome, face.faces.Only, Pure](face.faces.of(Noughts.game)))
     assert(panel.getComponentCount > 0)
     val io = new okay.effects.world.Io()
     val played = term.handle(Noughts.game)

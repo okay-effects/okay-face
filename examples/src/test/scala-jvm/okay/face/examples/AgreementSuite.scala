@@ -26,7 +26,7 @@ class AgreementSuite extends munit.FunSuite {
   def cell(n: Int): Chosen = Chosen("ref", obj("key" -> Str(n.toString)))
 
   /** the reference: the views the program shows, and how it ends */
-  val (views, outcome) = plays.handle(Noughts.game(plays.faces))(plays.Script.of(moves.map(cell) :+ Chosen.plain("again"): _*)) match {
+  val (views, outcome) = plays.handle(Noughts.game)(plays.Script.of(moves.map(cell) :+ Chosen.plain("again"): _*)) match {
     case plays.Played.Finished(vs, o) => (vs, o)
     case other => fail(s"the reference did not finish: $other")
   }
@@ -58,7 +58,7 @@ class AgreementSuite extends munit.FunSuite {
   test("the Swing panel shows every view's text, and ends the same") {
     val face = SwingFace()
     var result = Option.empty[Outcome]
-    val root = face.panel[Outcome](face.faces.steps[Outcome, face.faces.Only, Pure](Noughts.game), (o: Outcome) => result = Some(o))
+    val root = face.panel[Outcome](face.faces.steps[Outcome, face.faces.Only, Pure](face.faces.of(Noughts.game)), (o: Outcome) => result = Some(o))
     def all(c: java.awt.Component): List[java.awt.Component] = c match { case p: java.awt.Container => c :: p.getComponents.toList.flatMap(all); case _ => List(c) }
     def shown: String = all(root).collect { case l: javax.swing.JLabel => l.getText; case t: javax.swing.table.JTableHeader => ""; case a: javax.swing.JTextArea => a.getText }.mkString("\n")
     val seen = scala.collection.mutable.ListBuffer(shown)
@@ -72,7 +72,8 @@ class AgreementSuite extends munit.FunSuite {
   }
 
   test("the HTML pages show every view as the test face's, marked up, in order, and end the same") {
-    val pages = HtmlFace().handle(Noughts.game)
+    val html = HtmlFace()   // bound first: Scala 3 widens a word on an unbound face to Any
+    val pages = html.handle(Noughts.game)
     val requests = Request.get("/") :: Request.get("/s/s1") :: (moves.flatMap(n => List(Request.get(s"/s/s1/ref/$n"), Request.get("/s/s1"))) ++
       List(Request.post("/s/s1/act/again", "", "application/x-www-form-urlencoded"), Request.get("/s/s1")))
     val responses = run(https.scripted(requests)(https.serve[H](pages)))._1
@@ -87,7 +88,8 @@ class AgreementSuite extends munit.FunSuite {
   }
 
   test("the REST resources carry every view as the test face's, as JSON, in order, and end the same") {
-    val sessions = RestFace().handle(Noughts.game)
+    val rest = RestFace()
+    val sessions = rest.handle(Noughts.game)
     val requests = Request.post("/sessions", "", "application/json") :: (moves.map(n => Request.json("POST", "/sessions/s1/act/ref", obj("key" -> Str(n.toString)))) :+ Request.json("POST", "/sessions/s1/act/again", obj()))
     val responses = run(https.scripted(requests)(https.serve[H](sessions)))._1
     assertEquals(responses.map(_.status), List(201, 200, 200, 200, 200))

@@ -28,12 +28,13 @@ one's personal data, on every face above; [okay-store](https://github.com/okay-e
 types for them.
 
 ```scala
-import okay.effects.*
-import okay.face.*
-type F = Face
-def greeting: String ! F =
-  fill[Who, F](View.heading("Who are you?"), who).flatMap(w =>
-    confirm[F](View.text(s"Greet ${w.name}?")).flatMap(yes => if yes then show[F](View.text(s"Hello, ${w.name}!")).map(_ => "greeted") else pure("left")))
-// steps(greeting): a Step machine — Waiting(view, actions, resume) — that every face drives: the test face by a script,
-// a terminal by prompts, an MCP server by tool calls; back is re-resuming an earlier Waiting
+import okay.face.*                      // all a program needs: the words are tagless, no implementation is named
+val greeting: String ! Only =           // Only = Pure + Face
+  fill[Who, Only](View.heading("Who are you?"), who).flatMap(w =>
+    confirm[Only](View.text(s"Greet ${w.name}?")).flatMap(yes => if yes then show[Only](View.text(s"Hello, ${w.name}!")).map(_ => "greeted") else pure("left")))
+
+import okay.effects.machine.Machine.self   // the implementation, said once, where the program is run
+run(Terminal.console(greeting))            // or SwingFace.handle(greeting), McpFace.stdio(greeting), HtmlFace.serve(greeting, port, host)…
+// every face is a handler of the one effect: a Step machine — Waiting(view, actions, resume) — driven by a script,
+// by prompts, by tool calls, by requests; back is re-resuming an earlier Waiting
 ```

@@ -1,6 +1,7 @@
 package okay.face.html
 
 import okay.effects.Effects
+import okay.effects.tagless.{Program, Tagless}
 import okay.effects.json.Json
 import okay.effects.shape.Schema
 import okay.face.{Action, Chosen, Css, Face, Faces, Look, Rejected, Role, View}
@@ -69,10 +70,10 @@ class HtmlFace[F <: Effects with Singleton, Fs <: Faces[F]](val faces: Fs) {
 
   /** THE HANDLER: a program of the face as pages, a service over `Http` — `/` and `base` open a session, the pages at
    * `base/{id}`, titled by the level-1 heading shown, the look at `/okay.css` */
-  def handle[A](p: A ! faces.Only, base: String = "/s", look: Option[Look] = None, back: Boolean = true): Request => Response ! H =
-    pages[A, H](() => faces.dialogue[A, H](faces.steps[A, HF, H](p.into[HF]), back), "okay", base, look.getOrElse(Look.default)).service
+  def handle[A](p: Program[A, faces.Only], base: String = "/s", look: Option[Look] = None, back: Boolean = true): Request => Response ! H =
+    pages[A, H](() => faces.dialogue[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), back), "okay", base, look.getOrElse(Look.default)).service
   /** the same served: `run(new HtmlFace().serve(Noughts.game, port, host))` */
-  def serve[A](p: A ! faces.Only, port: Int = 8080, host: String = "127.0.0.1", look: Option[Look] = None, base: String = "/s", back: Boolean = true): Unit ! Pure =
+  def serve[A](p: Program[A, faces.Only], port: Int = 8080, host: String = "127.0.0.1", look: Option[Look] = None, base: String = "/s", back: Boolean = true): Unit ! Pure =
     okay.face.rest.Web.serve(faces.fx, port, host)("/" -> handle[A](p, base, look, back))
   type H[X] = okay.effects.Sum[Pure, Http, X]
   type HF[X] = okay.effects.Sum[H, Face, X]
@@ -170,6 +171,9 @@ object Forms {
 object HtmlFace {
   /** over these faces, their path kept: `HtmlFace.over(faces)` — so a `Dialogue` made by `faces` is one this face takes */
   def over[F <: Effects with Singleton](faces: Faces[F]): HtmlFace[F, faces.type] = new HtmlFace[F, faces.type](faces)
-  /** over the faces in scope — by default, the ones over the implicit implementation: `HtmlFace().serve(Noughts.games, port)` */
-  def apply[F <: Effects with Singleton]()(implicit faces: Faces[F]): HtmlFace[F, faces.type] = new HtmlFace[F, faces.type](faces)
+  /** over the faces in scope */
+  def apply[F <: Effects with Singleton]()(implicit faces: Faces[F]): HtmlFace[F, Faces[F]] = new HtmlFace[F, Faces[F]](faces)   // not `faces.type`: an implicit is no stable path
+  /** THE HANDLER, whole, served: `run(HtmlFace.serve(Noughts.games, port, host))` */
+  def serve[F <: okay.effects.Runner with Singleton, A](p: Program[A, okay.face.Only], port: Int = 8080, host: String = "127.0.0.1", look: Option[Look] = None, base: String = "/s", back: Boolean = true)(implicit faces: Faces[F]): Program[Unit, Tagless.Pure] =
+    Faces.running[F, Unit](faces)(new HtmlFace[F, Faces[F]](faces).serve[A](p, port, host, look, base, back).asInstanceOf[faces.fx.![Unit, faces.fx.Pure]])
 }

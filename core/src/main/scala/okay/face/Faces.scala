@@ -1,6 +1,7 @@
 package okay.face
 
 import okay.effects.{Effects, Sum}
+import okay.effects.tagless.{Program, Tagless}
 import okay.effects.shape.Shape
 
 /**
@@ -48,6 +49,9 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
 
   /** `Face` alone in the row: what a program of a face is, `A ! Only`, and what a face of one person handles */
   type Only[X] = Sum[Pure, Face, X]
+  /** A PROGRAM OF NO IMPLEMENTATION, on this one: written over `Faces.tagless` as a value, `Program[A, Only]`, it runs
+   * here as `A ! Only` — the faces' words are the same, tagless makes them values, a face instantiates them */
+  def of[A](p: Program[A, Only]): A ! Only = p.on(fx).asInstanceOf[A ! Only]
 
   /** THE STEPPING HANDLER: `Face` taken out of the row, the program a `Step` of what remains. `Offer` becomes a
    * `Waiting` whose `resume` decodes the choice and gives the rest as a program; `Show` a `Told`. General: `k` is kept */
@@ -74,6 +78,13 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
  * instance's own by type, and the faces that keep dialogues (`McpFace.over(faces)`, `RestFace.over(faces)`, `HtmlFace.over(faces)`)
  * are given their faces by name */
 object Faces extends FacesDefault {
+  /** THE FACES OF NO IMPLEMENTATION: `okay.face` itself — programs written over `import okay.face._` are values, and every
+   * face handles them, instantiated on its own implementation */
+  val tagless: Faces[Tagless.type] = okay.face.`package`
+  /** A FACE'S RUN AS A PROGRAM OF NOTHING: what a face does when it runs a program — a window, a console, a server — as a
+   * tagless program, run by `okay.face.run` on the implementation in scope. `p` is the face's own, over `faces.fx` */
+  def running[F <: okay.effects.Runner with Singleton, A](faces: Faces[F])(p: => faces.fx.![A, faces.fx.Pure]): Program[A, Tagless.Pure] =
+    Tagless.delay[A, Tagless.Pure](Tagless.pure[A, Tagless.Pure](faces.fx.run[A](p)))
   def apply()(implicit fx: Effects): Faces[fx.type] = {
     implicit val exact: fx.type = fx
     new Faces[fx.type]

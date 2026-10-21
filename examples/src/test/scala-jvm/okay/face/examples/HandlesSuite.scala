@@ -21,21 +21,24 @@ class HandlesSuite extends munit.FunSuite {
   val links = new Links()
 
   test("REST: a session opened, the board as JSON, the one action ref, no back, the marks served") {
-    val service: Request => Response ! H = RestFace().handle(Noughts.game, vocabulary = marks.vocabulary)
+    val rest = RestFace()   // bound first: Scala 3 widens a word on an unbound face to Any
+    val service = rest.handle(Noughts.game, vocabulary = marks.vocabulary)
     val rs = run(https.scripted(List(Request("POST", "/sessions"), Request.get("/sessions/marks")))(https.serve[H](service)))._1
     assertEquals(rs.map(_.status), List(201, 200))
     assert(rs.head.body.contains("\"rel\":\"ref\"") && rs.head.body.contains("\"back\":false") && rs.head.body.contains("You are X"), rs.head.body)
     assert(rs(1).body.contains("\"name\":\"cell\""), rs(1).body)
   }
   test("HTML: the base opens a session, the page is titled by the heading shown, the cells are links, no back, the look at /okay.css") {
-    val service: Request => Response ! H = HtmlFace().handle(Noughts.game, look = Some(light))
+    val html = HtmlFace()
+    val service = html.handle(Noughts.game, look = Some(light))
     val rs = run(https.scripted(List(Request.get("/s"), Request.get("/s/s1"), Request.get("/okay.css")))(https.serve[H](service)))._1
     assertEquals(rs.map(_.status), List(303, 200, 200))
     assert(rs(1).body.contains("<title>Noughts and crosses</title>") && rs(1).body.contains("""href="/s/s1/ref/5"""") && !rs(1).body.contains("okay-back"), rs(1).body)
     assert(rs(2).body.contains(".okay-mark-cell{"), rs(2).body)
   }
   test("MCP: named by the heading, instructed by the rules shown and the marks; the tools are the move, look and back; a call plays, back has nowhere to go") {
-    val served: Unit ! L = McpFace().handle(Noughts.game, vocabulary = marks.vocabulary)
+    val mcp = McpFace()
+    val served = mcp.handle(Noughts.game, vocabulary = marks.vocabulary)
     val init = Rpc.encode(Rpc.Request(num(1), "initialize", obj("protocolVersion" -> Str("2025-06-18"), "capabilities" -> Json.Obj.empty, "clientInfo" -> obj("name" -> Str("t")))))
     val lines = List(init, Rpc.encode(Rpc.Request(num(2), "tools/list", Json.Obj.empty)),
       Rpc.encode(Rpc.Request(num(3), "tools/call", obj("name" -> Str("ref"), "arguments" -> obj("key" -> Str("5"))))),
@@ -49,7 +52,7 @@ class HandlesSuite extends munit.FunSuite {
   test("the test face: played by a script, the views as the reference") {
     val plays = Plays()
     import plays._
-    plays.handle(Noughts.game(plays.faces))(Script.of(Chosen("ref", obj("key" -> Str("1"))), Chosen("ref", obj("key" -> Str("4"))), Chosen("ref", obj("key" -> Str("7"))))) match {
+    plays.handle(Noughts.game)(Script.of(Chosen("ref", obj("key" -> Str("1"))), Chosen("ref", obj("key" -> Str("4"))), Chosen("ref", obj("key" -> Str("7"))))) match {
       case Played.Stuck(views, at, None) => assertEquals(views.size, 5); assertEquals(at.actions.map(_.name), List("again"))
       case other => fail(s"$other")
     }

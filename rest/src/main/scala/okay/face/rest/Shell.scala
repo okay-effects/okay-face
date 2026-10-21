@@ -32,8 +32,11 @@ class Shell[F <: Effects with Singleton](implicit implementation: F) {
     Web.serve(fx, port, host)("/" -> handle(title, look, "/" -> script))
 }
 object Shell {
-  /** over the implementation in scope: `run(Shell().serve(title, port, host, Linked(dir, name)))` */
+  /** over the implementation in scope */
   def apply[F <: Effects with Singleton]()(implicit fx: F): Shell[F] = new Shell[F]()(fx)
+  /** THE PAGE OF A SCRIPT, served: `run(Shell.serve(title, port, host, Linked(dir, name)))` */
+  def serve[F <: okay.effects.Runner with Singleton](title: String, port: Int, host: String, script: () => Either[String, String], look: Option[Look] = None)(implicit fx: F): okay.effects.tagless.Program[Unit, okay.effects.tagless.Tagless.Pure] =
+    okay.effects.tagless.Tagless.delay[Unit, okay.effects.tagless.Tagless.Pure](okay.effects.tagless.Tagless.pure[Unit, okay.effects.tagless.Tagless.Pure](fx.run[Unit](new Shell[F]()(fx).serve(title, port, host, script, look).asInstanceOf[fx.![Unit, fx.Pure]])))
   val stylesheetPath = "/okay.css"
   def esc(s: String): String = s.flatMap { case '<' => "&lt;"; case '>' => "&gt;"; case '&' => "&amp;"; case '"' => "&quot;"; case c => c.toString }
   def page(title: String, script: String): String =

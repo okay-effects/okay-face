@@ -2,6 +2,7 @@ package okay.face.term
 
 import okay.effects.json.Json
 import okay.effects.shape.{Fields, Problem, Problems, Reading, Schema}
+import okay.effects.tagless.{Program, Tagless}
 import okay.effects.world.{Console, Io}
 import okay.face.{Action, Chosen, Face, Faces, Paint, Rejected, Role, Step, View}
 
@@ -94,9 +95,9 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
 
   /** THE HANDLER: a program of the face at a terminal, `Console` left in the row for a console handler — a scripted one in a
    * test, the real one by `console`; `None` when the person quits */
-  def handle[A](p: A ! faces.Only, back: Boolean = true): Option[A] ! C = terminal[A, C](faces.steps[A, CF, C](p.into[CF]), back)
-  /** the same at the real console: `run(new Terminal().console(Noughts.game))` */
-  def console[A](p: A ! faces.Only, back: Boolean = true): Option[A] ! Pure = io.realConsole[C, Pure, Option[A]](handle[A](p, back))
+  def handle[A](p: Program[A, faces.Only], back: Boolean = true): Option[A] ! C = terminal[A, C](faces.steps[A, CF, C](faces.of(p).into[CF]), back)
+  /** the same at the real console: `run(Terminal().console(Noughts.game))` */
+  def console[A](p: Program[A, faces.Only], back: Boolean = true): Option[A] ! Pure = io.realConsole[C, Pure, Option[A]](handle[A](p, back))
   type C[X] = okay.effects.Sum[Pure, Console, X]
   type CF[X] = okay.effects.Sum[C, Face, X]
 
@@ -179,6 +180,9 @@ object Terminal {
     }.reverse
   }
   def over[F <: okay.effects.Effects with Singleton](faces: Faces[F], paint: Paint = Paint.none): Terminal[F] = new Terminal[F](paint)(faces)
-  /** over the faces in scope: `run(Terminal().console(Noughts.games))` */
+  /** over the faces in scope */
   def apply[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80)(implicit faces: Faces[F]): Terminal[F] = new Terminal[F](paint, width)(faces)
+  /** THE HANDLER, whole, at the real console: `run(Terminal.console(Noughts.games))` */
+  def console[F <: okay.effects.Runner with Singleton, A](p: Program[A, okay.face.Only], paint: Paint = Paint.none, width: Int = 80, back: Boolean = true)(implicit faces: Faces[F]): Program[Option[A], Tagless.Pure] =
+    Faces.running[F, Option[A]](faces)(new Terminal[F](paint, width)(faces).console[A](p, back).asInstanceOf[faces.fx.![Option[A], faces.fx.Pure]])
 }

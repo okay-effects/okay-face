@@ -14,13 +14,13 @@ class NoughtsSuite extends munit.FunSuite {
   def cell(n: Int): Chosen = Chosen("ref", obj("key" -> Str(n.toString)))
 
   test("X wins down the left: the rules told, three boards, the end; Play again ends the game with the outcome") {
-    plays.handle(Noughts.game(plays.faces))(Script.of(cell(1), cell(4), cell(7), Chosen.plain("again"))) match {
+    plays.handle(Noughts.game)(Script.of(cell(1), cell(4), cell(7), Chosen.plain("again"))) match {
       case Played.Finished(views, Won('X')) => assertEquals(views.size, 5); assertEquals(views.head, rules)
       case other => fail(s"$other")
     }
   }
   test("a taken cell is not among the choices: rejected, the board unchanged; the one action is the move") {
-    plays.handle(Noughts.game(plays.faces))(Script.of(cell(1), cell(1))) match {
+    plays.handle(Noughts.game)(Script.of(cell(1), cell(1))) match {
       case Played.Stuck(views, at, Some(Rejected(problems))) =>
         assertEquals(views.size, 3)
         assertEquals(problems, List(Problem(List("key"), "one of 2, 3, 4, 6, 7, 8, 9")))
@@ -29,13 +29,13 @@ class NoughtsSuite extends munit.FunSuite {
     }
   }
   test("no step may be returned to: none is kept in history, Back leaves the step as it is") {
-    plays.handle(Noughts.game(plays.faces))(Script(Pick(cell(1)), Back)) match {
+    plays.handle(Noughts.game)(Script(Pick(cell(1)), Back)) match {
       case Played.Stuck(views, at, None) => assertEquals(views.size, 4); assertEquals(views(2), views(3))
       case other => fail(s"$other")
     }
   }
   test("a draw: every cell filled, nobody won") {
-    plays.handle(Noughts.game(plays.faces))(Script.of(cell(1), cell(9), cell(8), cell(4), cell(7), Chosen.plain("again"))) match {
+    plays.handle(Noughts.game)(Script.of(cell(1), cell(9), cell(8), cell(4), cell(7), Chosen.plain("again"))) match {
       case Played.Finished(_, o) => assert(o == Draw || o.isInstanceOf[Won], s"$o")
       case other => fail(s"$other")
     }

@@ -1,8 +1,7 @@
 package okay.face.examples
 
-import okay.effects.Effects
 import okay.effects.shape.Shape
-import okay.face.{Action, Face, Faces, Look, Marks, Rule, Style, Theme, Tone, View}
+import okay.face.{Action, Look, Marks, Rule, Style, Theme, Tone, View}
 
 /** the game's own types, beside the class: the rules with no effect in them, and how a game ends */
 object Noughts {
@@ -46,30 +45,20 @@ object Noughts {
     View.Table(Vector("", "", ""), board.cells.zipWithIndex.map { case (c, i) => marks.mark(Cell, c.fold[View](View.Ref((i + 1).toString, "·"))(x => View.Text(x.toString))) }.grouped(3).toVector))
   def ended(board: Board, o: Outcome): View = View.stack(picture(board), marks.mark(Result, View.text(o match { case Won(c) => s"$c won"; case Draw => "a draw" })))
 
-  /** THE PROGRAMS, over the faces given — the words `offer` and `show` are the faces', so a program is written over them:
-   * `Noughts.game` one game, `Noughts.games` games without end; each `A ! faces.Only`, what a face handles. The rules are
-   * told first, so a face has them to tell: the terminal prints them, an agent gets them as instructions */
-  def game[F <: Effects with Singleton](implicit faces: Faces[F]): faces.fx.![Outcome, faces.Only] = {
-    import faces.fx._
-    faces.show[faces.Only](rules).flatMap(_ => play(faces)(Board.empty))
-  }
-  def games[F <: Effects with Singleton](implicit faces: Faces[F]): faces.fx.![Outcome, faces.Only] = {
-    import faces.fx._
-    def loop: Outcome ! faces.Only = play(faces)(Board.empty).flatMap(_ => loop)
-    faces.show[faces.Only](rules).flatMap(_ => loop)
-  }
+  /** THE PROGRAMS: values, written with `okay.face`'s words alone — the faces' over tagless, so a program is of no
+   * implementation, and every face instantiates it on its own. `game` one game, `games` games without end; each
+   * `A ! Only`, `Face` alone in the row. The rules are told first, so a face has them to tell */
+  import okay.face._
+  val game: Outcome ! Only = show[Only](rules).flatMap(_ => play(Board.empty))
+  val games: Outcome ! Only = { def loop: Outcome ! Only = play(Board.empty).flatMap(_ => loop); show[Only](rules).flatMap(_ => loop) }
   /** one game from the board given: a loop of offers — the board shown, the free cells the one move, a cell by its number —
    * branching on the outcome, "Play again" at the end; no step goes back, a game is its own rules */
-  private def play[F <: Effects with Singleton](faces: Faces[F])(board: Board): faces.fx.![Outcome, faces.Only] = {
-    import faces.fx._
-    type R[X] = faces.Only[X]
-    board.outcome match {
-      case Some(o) => faces.offer[Unit, R](ended(board, o), List(Action.plain[Unit]("again", "Play again", Some("a new game, the board clear; you are X and begin"))(())), back = false).map(_ => o)
-      case None =>
-        // the one move is `ref`: a free cell clicked where a face clicks, its number given where one types or calls
-        val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*).described("Cell", Some("1 to 9, left to right, top to bottom"))
-        faces.offer[Int, R](picture(board), List(Action[Int, Int]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell: X goes there, then O answers"))(c => c)), back = false)
-          .flatMap(i => play(faces)(board.played(i, 'X').replied))
-    }
+  private def play(board: Board): Outcome ! Only = board.outcome match {
+    case Some(o) => offer[Unit, Only](ended(board, o), List(Action.plain[Unit]("again", "Play again", Some("a new game, the board clear; you are X and begin"))(())), back = false).map(_ => o)
+    case None =>
+      // the one move is `ref`: a free cell clicked where a face clicks, its number given where one types or calls
+      val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*).described("Cell", Some("1 to 9, left to right, top to bottom"))
+      offer[Int, Only](picture(board), List(Action[Int, Int]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell: X goes there, then O answers"))(c => c)), back = false)
+        .flatMap(i => play(board.played(i, 'X').replied))
   }
 }

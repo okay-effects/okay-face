@@ -255,8 +255,8 @@ object Face {
 ```
 
 Scala 2 has no GADT inference for a method's type parameter, so each operation carries `answer`, as every effect in
-okay-simple does. Words, in a class over any `Effects` (the module pattern: `class Faces[F <: Effects](implicit fx: F)`,
-`okay.face` the package object on the machine):
+okay-simple does. Words, in a class over any `Effects` (the module pattern: `class Faces[F <: Effects](implicit fx: F)`;
+`okay.face` the package object is the faces over `Tagless`, see "Programs are tagless" below):
 
 ```scala
 def offer[A, R[_]](view: View, actions: List[Action[A]])(implicit in: In[Face, R]): A ! R
@@ -390,6 +390,31 @@ the face's own back — and `recording(first)` for a test. The law: the same pro
 7. Nothing in okay-faces but `interop/` imports okay, the platform; nothing in face-core imports a platform or a JSON
    library. Every face works with okay-simple alone.
 
+## Programs are tagless — DECIDED 2026-10-21
+
+A program of a face names no implementation. `import okay.face._` is all it needs: the package object is
+`Faces[Tagless.type]` and re-exports the tagless words — `A ! R`, `Pure`, `Row`, `+`, `*`, `%`, `In`, `Split`, `Sub`,
+`pure`, `flatMap`/`map`/`into` on a program, the evidence — and `run(p)(implicit fx: Runner)`. So the example is a value:
+
+```scala
+import okay.face._
+val game: Outcome ! Only = show[Only](rules).flatMap(_ => play(Board.empty))   // Only = Pure + Face
+```
+
+`Tagless` (okay-simple's `okay.effects.tagless`) keeps a program as a function of the implementation: `A ! R` there is
+`Program[A, R]`, and `p.on(fx)` is the program in `fx`'s words. A face takes `Program[A, faces.Only]` and puts it on its
+own `fx` (`faces.of(p)`); nothing of the implementation is ever written by the program's author. The implementation is
+said ONCE, where the program is run, by one import: `import okay.effects.machine.Machine.self` (okay-simple's `Self`:
+every implementation value is its own implicit), so a main is one line —
+`run(SwingFace.handle(Noughts.games, look))`, `run(Terminal.console(Noughts.games))`, `run(McpFace.stdio(Noughts.games))`,
+`run(HtmlFace.serve(Noughts.games, port, host))`, `run(RestFace.serve(…))`, `run(Shell.serve(title, port, host, Linked(…)))`,
+`LaminarFace.mount(Noughts.games)` in the page. These companion words are the WHOLE handler as a tagless program again
+(`Program[X, Tagless.Pure]`, via `Faces.running(faces)(p)`), so `run` takes them like any other; the instance words
+(`SwingFace().handle(p)`, `Terminal().handle(p)`, `RestFace().handle(p)`, …) are the handler's parts in the
+implementation's own row, for a test or a server that composes them. `Faces.tagless` is the package object itself, when
+a face is wanted over it by name. Scala 3 widens a word on an unbound face (`HtmlFace().handle(p)` in one expression) to
+`Any`: bind the face first (`val html = HtmlFace()`), or use the companion word.
+
 ## Scala 2 and 3
 
 One source for both, in the shared style of okay-simple: operations with `answer`; rows written as
@@ -485,7 +510,8 @@ After step 4 the model holds or it does not, before any web platform is paid for
   so every face has it the same way.
 - AN EFFECT AND ITS HANDLER, nothing else — DONE 2026-10-21, after a `Scenario` that was tried and dropped. The effect
   is `Face`; a program of a face is `A ! faces.Only` (`Only` = `Pure + Face`), written over the faces given, since the
-  words are theirs: `Noughts.game(implicit faces: Faces[F]): faces.fx.![Outcome, faces.Only]`. A handler is a face's
+  words are theirs — and since 2026-10-21 the faces are the tagless ones, so a program is a value, `val game: Outcome ! Only`,
+  with `import okay.face._` alone (see "Programs are tagless"). A handler is a face's
   method: `SwingFace().handle(Noughts.games, look)` (a window; `None` when closed), `Terminal().handle(p)` (Console left
   in the row) and `.console(p)` (the real one), `McpFace().handle(p, vocabulary)` (the loop over Link) and `.stdio(p)`,
   `RestFace().handle(p)` and `HtmlFace().handle(p)` (services over Http) and `.serve(p, port, host)`, `LaminarFace().mount(p)`,
@@ -496,8 +522,10 @@ After step 4 the model holds or it does not, before any web platform is paid for
   is the handler's parameter. `Offer(…, back = false)` says a step may not be returned to: no face keeps it in its
   history, so none offers a way back to it; the agent's `back` tool stays listed and answers "nothing to go back to".
   Scala 2 cannot infer `F` for the `Fs <: Faces[F]` faces from an implicit, so `X()` is a companion `apply()(implicit faces)`
-  on every face and `X.over(faces)` the path-kept one; Scala 3's compiler trips on `LaminarFace().mount(…)` in one
-  expression, so the page binds the face first.
+  on every face and `X.over(faces)` the path-kept one, and the companion whole-handlers (`SwingFace.handle(p)`,
+  `Terminal.console(p)`, `McpFace.stdio(p)`, `HtmlFace.serve(…)`, `RestFace.serve(…)`, `Shell.serve(…)`,
+  `LaminarFace.mount(p)`) take the faces in scope and give a tagless program, for a one-line main; Scala 3's compiler
+  trips on `X().handle(…)` in one expression, so a test binds the face first.
 - A `Ref` as a live link — DONE 2026-10-21 by a convention: when a step offers the action `ref` (one parameter, `key`),
   a face makes every `Ref` in the view choose it with its key — the HTML page links `base/{id}/ref/{key}`, Laminar and
   the remote face on a click, the terminal by typing `ref` then the key as ever; a step without `ref` shows a `Ref` as

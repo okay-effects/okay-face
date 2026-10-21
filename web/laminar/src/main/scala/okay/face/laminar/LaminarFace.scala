@@ -3,6 +3,7 @@ package okay.face.laminar
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import okay.effects.Runner
+import okay.effects.tagless.Program
 import okay.effects.async.{Async, Asynchrony}
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
@@ -33,9 +34,9 @@ class LaminarFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
 
   /** THE HANDLER: a program of the face as an element — the dialogue run here, in the browser, with its look as a `<style>`
    * when one is given; `mount` puts it into `#app` or the body: `new LaminarFace().mount(Noughts.game)` */
-  def handle[A](p: A ! faces.Only, look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true): HtmlElement =
-    div(look.map(LaminarFace.stylesheet).toList, element[A](faces.steps[A, faces.Only, Pure](p), done, back = back))
-  def mount[A](p: A ! faces.Only, look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true): Unit = {
+  def handle[A](p: Program[A, faces.Only], look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true): HtmlElement =
+    div(look.map(LaminarFace.stylesheet).toList, element[A](faces.steps[A, faces.Only, Pure](faces.of(p)), done, back = back))
+  def mount[A](p: Program[A, faces.Only], look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true): Unit = {
     val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
     renderOnDomContentLoaded(root, handle[A](p, look, done, back))
   }
@@ -228,8 +229,11 @@ object Forms {
 }
 
 object LaminarFace {
-  /** over the faces in scope: `LaminarFace().mount(Noughts.games)` */
+  /** over the faces in scope */
   def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): LaminarFace[F] = new LaminarFace[F]()(faces)
+  /** THE HANDLER, whole, in the page: `LaminarFace.mount(Noughts.games)` */
+  def mount[F <: Runner with Singleton, A](p: Program[A, okay.face.Only], look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true)(implicit faces: Faces[F]): Unit =
+    new LaminarFace[F]()(faces).mount[A](p, look, done, back)
   /** the look as a `<style>` for the document: the same stylesheet the HTML face serves */
   def stylesheet(look: Look = Look.default): HtmlElement = styleTag(Css(look))
 

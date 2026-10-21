@@ -4,6 +4,7 @@ import java.awt.{BorderLayout, Component, Font, GridLayout}
 import javax.swing._
 import javax.swing.table.DefaultTableModel
 import okay.effects.Runner
+import okay.effects.tagless.{Program, Tagless}
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
 import okay.face.{Action, Chosen, Faces, Look, Rejected, Role, Step, View}
@@ -68,8 +69,8 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
 
   /** THE HANDLER: a program of the face in a window — titled by the first level-1 heading it shows, dressed by `look`;
    * the result the dialogue's, or `None` when the window is closed first: `run(new SwingFace().handle(Noughts.game))` */
-  def handle[A](p: A ! faces.Only, look: Option[Look] = None, back: Boolean = true): Option[A] ! Pure = {
-    val steps = faces.steps[A, faces.Only, Pure](p)
+  def handle[A](p: Program[A, faces.Only], look: Option[Look] = None, back: Boolean = true): Option[A] ! Pure = {
+    val steps = faces.steps[A, faces.Only, Pure](faces.of(p))
     pure(()).flatMap { _ =>
       val title = Step.opening[A, M](steps, run).title.getOrElse("okay")
       val outcome = new java.util.concurrent.LinkedBlockingQueue[Option[A]](1)
@@ -127,8 +128,11 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
 
 /** a `View` as Swing components */
 object SwingFace {
-  /** over the faces in scope: `run(SwingFace().handle(Noughts.games))` */
+  /** over the faces in scope */
   def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): SwingFace[F] = new SwingFace[F]()(faces)
+  /** THE HANDLER, whole: `run(SwingFace.handle(Noughts.games))` — a program of nothing, run on the implementation in scope */
+  def handle[F <: Runner with Singleton, A](p: Program[A, okay.face.Only], look: Option[Look] = None, back: Boolean = true)(implicit faces: Faces[F]): Program[Option[A], Tagless.Pure] =
+    Faces.running[F, Option[A]](faces)(new SwingFace[F]()(faces).handle[A](p, look, back).asInstanceOf[faces.fx.![Option[A], faces.fx.Pure]])
 }
 
 object Views {
