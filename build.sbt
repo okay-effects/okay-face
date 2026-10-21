@@ -84,7 +84,7 @@ lazy val html = crossBoth("html", "html").dependsOn(core, rest).settings(name :=
 /** EXAMPLES: noughts and crosses — one program, every face. The game is shared source; the JVM's mains (a window, the
  * terminal, an agent, a server) in `scala-jvm`, the page with the game in it in `scala-js` (`examplesJS`, when js is asked:
  * `sbt -Dplatforms=js examplesJS/fullLinkJS` links it); the THIN page, knowing no game, is its own script, `examplesRemoteJS`
- * (`examples/remote`); `sbt "examples/runMain okay.face.examples.NoughtsWebRemote"` serves both */
+ * (`examples/remote`); `sbt "examples/runMain okay.faces.examples.NoughtsWebRemote"` serves both */
 lazy val examples = crossBoth("examples", "examples", can = Set("js"))
   .settings(name := "okay-faces-examples", publish / skip := true,
     libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects-machine" % okayEffects, "io.github.okay-effects" %%% "okay-effects-free" % okayEffects))
@@ -96,7 +96,7 @@ lazy val examples = crossBoth("examples", "examples", can = Set("js"))
     libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1", "io.github.okay-effects" %%% "okay-http" % okayHttp)))
 lazy val examplesRemote = CrossProject("examplesRemote", file("examples/remote"))(JSPlatform).crossType(CrossType.Pure)
   .settings(crossBuilt, name := "okay-faces-examples-remote", publish / skip := true, scalaJSUseMainModuleInitializer := true,
-    Compile / mainClass := Some("okay.face.laminar.RemotePage"),   // the library's thin page, no source of the example's own
+    Compile / mainClass := Some("okay.faces.laminar.RemotePage"),   // the library's thin page, no source of the example's own
     libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1", "io.github.okay-effects" %%% "okay-http" % okayHttp))
   .jsConfigure(p => if (platformsAsked("js")) p.withId("examplesRemoteJS").dependsOn(laminar.js) else p.withId("examplesRemoteJS"))
 

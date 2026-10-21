@@ -22,13 +22,13 @@ The look is data (`specs/style.md`): a `Theme` of tokens and a `Style` of rules 
 application's own words on views are typed marks (`Marks[M]` over a sealed set with a `Shape`), one source for the
 look, the wire and the vocabulary an agent is told. The other role, a domain effect as a service: okay-simple's `Describe` projected here — `RestDomains`, `McpFace.domain`,
 `remote`. Read [specs/face-core.md](specs/face-core.md), [specs/faces.md](specs/faces.md), [specs/web.md](specs/web.md).
-The example is noughts and crosses in `examples/` (`sbt "examples/runMain okay.face.examples.NoughtsTerminal"`,
+The example is noughts and crosses in `examples/` (`sbt "examples/runMain okay.faces.examples.NoughtsTerminal"`,
 `NoughtsSwing` in a window); the first application is [verity](https://github.com/okay-effects/verity), a keeper of
 one's personal data, on every face above; [okay-store](https://github.com/okay-effects/okay-store) describes its
 types for them.
 
 ```scala
-import okay.face.*                      // all a program needs: the words are tagless, no implementation is named
+import okay.faces.*                      // all a program needs: the words are tagless, no implementation is named
 val greeting: String ! Only =           // Only = Pure + Face
   fill[Who, Only](View.heading("Who are you?"), who).flatMap(w =>
     confirm[Only](View.text(s"Greet ${w.name}?")).flatMap(yes => if yes then show[Only](View.text(s"Hello, ${w.name}!")).map(_ => "greeted") else pure("left")))

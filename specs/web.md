@@ -19,9 +19,9 @@ is `resume`), comes after them and depends on them and on `face-core`.
 
 | Module | Artifact | Package | Depends on |
 |---|---|---|---|
-| `web/airstream` | `okay-faces-airstream` | `okay.face.airstream` | okay-effects-stream, okay-effects-async; `com.raquo::airstream` |
-| `web/laminar` | `okay-faces-laminar` | `okay.face.laminar` | web/airstream; `com.raquo::laminar` |
-| `web/waypoint` | `okay-faces-waypoint` | `okay.face.waypoint` | web/laminar; `com.raquo::waypoint` |
+| `web/airstream` | `okay-faces-airstream` | `okay.faces.airstream` | okay-effects-stream, okay-effects-async; `com.raquo::airstream` |
+| `web/laminar` | `okay-faces-laminar` | `okay.faces.laminar` | web/airstream; `com.raquo::laminar` |
+| `web/waypoint` | `okay-faces-waypoint` | `okay.faces.waypoint` | web/laminar; `com.raquo::waypoint` |
 
 Versions (Maven Central, 2026-10-18): Laminar and Airstream 17.2.1, published for Scala 3 (on 3.3.1) and 2.13;
 Waypoint 9.0.0, on Laminar 17.2.0 and url-dsl 0.6.2. 18.0.0-M5 / 10.0.0-M7 are milestones: take the stable ones.

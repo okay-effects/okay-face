@@ -256,7 +256,7 @@ object Face {
 
 Scala 2 has no GADT inference for a method's type parameter, so each operation carries `answer`, as every effect in
 okay-simple does. Words, in a class over any `Effects` (the module pattern: `class Faces[F <: Effects](implicit fx: F)`;
-`okay.face` the package object is the faces over `Tagless`, see "Programs are tagless" below):
+`okay.faces` the package object is the faces over `Tagless`, see "Programs are tagless" below):
 
 ```scala
 def offer[A, R[_]](view: View, actions: List[Action[A]])(implicit in: In[Face, R]): A ! R
@@ -392,12 +392,12 @@ the face's own back — and `recording(first)` for a test. The law: the same pro
 
 ## Programs are tagless — DECIDED 2026-10-21
 
-A program of a face names no implementation. `import okay.face._` is all it needs: the package object is
+A program of a face names no implementation. `import okay.faces._` is all it needs: the package object is
 `Faces[Tagless.type]` and re-exports the tagless words — `A ! R`, `Pure`, `Row`, `+`, `*`, `%`, `In`, `Split`, `Sub`,
 `pure`, `flatMap`/`map`/`into` on a program, the evidence — and `run(p)(implicit fx: Runner)`. So the example is a value:
 
 ```scala
-import okay.face._
+import okay.faces._
 val game: Outcome ! Only = show[Only](rules).flatMap(_ => play(Board.empty))   // Only = Pure + Face
 ```
 
@@ -426,17 +426,17 @@ hold conveniences (context bounds, `Mirror` derivation goes to a separate Scala-
 
 | Module | Artifact | Package | Content | Depends on |
 |---|---|---|---|---|
-| `core/` | `okay-faces` | `okay.face` | View, Action, Face, Step; Role, Theme, Style, Look, Css (specs/style.md); Affordance, ViewJson, FormJson (the wire); `Describe` is okay-simple's | `okay-effects`, `okay-effects-shape` (and `json` through it) |
-| `test/` | `okay-faces-test` | `okay.face.test` | the scripted face: `Script`, `play`, assertions on views | core |
-| `term/` | `okay-faces-term` | `okay.face.term` | the line terminal face, a program in `Console` | core, `okay-effects-io` |
-| `mcp/` | `okay-faces-mcp` | `okay.face.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |
-| `swing/` | `okay-faces-swing` | `okay.face.swing` | the Swing face: a panel, a window; `Looks` | core (JVM) |
-| `rest/` | `okay-faces-rest` | `okay.face.rest` | the REST face: sessions as resources with affordances; `RestDomains`, a described effect as resources and from afar | core, okay-http (`core`, `rest`) |
-| `html/` | `okay-faces-html` | `okay.face.html` | the HTML face: pages from the server, the look as a stylesheet | core, okay-http |
-| `web/airstream` | `okay-faces-airstream` | `okay.face.airstream` | Airstream's streams and okay's, both ways | okay-effects-stream, async; airstream (JS) |
-| `web/laminar` | `okay-faces-laminar` | `okay.face.laminar` | the Laminar face; the remote face over the REST face | web/airstream, okay-http; laminar (JS) |
-| `web/waypoint` | `okay-faces-waypoint` | `okay.face.waypoint` | `Navigation` handled by Waypoint's router | web/laminar; waypoint (JS) |
-| `examples/` | — | `okay.face.examples` | noughts and crosses: the terminal, the window, and the faces' agreement | core, test, term, swing, rest, html |
+| `core/` | `okay-faces` | `okay.faces` | View, Action, Face, Step; Role, Theme, Style, Look, Css (specs/style.md); Affordance, ViewJson, FormJson (the wire); `Describe` is okay-simple's | `okay-effects`, `okay-effects-shape` (and `json` through it) |
+| `test/` | `okay-faces-test` | `okay.faces.test` | the scripted face: `Script`, `play`, assertions on views | core |
+| `term/` | `okay-faces-term` | `okay.faces.term` | the line terminal face, a program in `Console` | core, `okay-effects-io` |
+| `mcp/` | `okay-faces-mcp` | `okay.faces.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |
+| `swing/` | `okay-faces-swing` | `okay.faces.swing` | the Swing face: a panel, a window; `Looks` | core (JVM) |
+| `rest/` | `okay-faces-rest` | `okay.faces.rest` | the REST face: sessions as resources with affordances; `RestDomains`, a described effect as resources and from afar | core, okay-http (`core`, `rest`) |
+| `html/` | `okay-faces-html` | `okay.faces.html` | the HTML face: pages from the server, the look as a stylesheet | core, okay-http |
+| `web/airstream` | `okay-faces-airstream` | `okay.faces.airstream` | Airstream's streams and okay's, both ways | okay-effects-stream, async; airstream (JS) |
+| `web/laminar` | `okay-faces-laminar` | `okay.faces.laminar` | the Laminar face; the remote face over the REST face | web/airstream, okay-http; laminar (JS) |
+| `web/waypoint` | `okay-faces-waypoint` | `okay.faces.waypoint` | `Navigation` handled by Waypoint's router | web/laminar; waypoint (JS) |
+| `examples/` | — | `okay.faces.examples` | noughts and crosses: the terminal, the window, and the faces' agreement | core, test, term, swing, rest, html |
 
 Not here, and why: `screen/` (a keyed widget tree with a diff) was not needed — Laminar's `Var` of the step is the
 diff; `graphql/` is a face not asked for yet; `interop/okay-*` bridges to okay, the platform, wait for okay itself.
@@ -511,7 +511,7 @@ After step 4 the model holds or it does not, before any web platform is paid for
 - AN EFFECT AND ITS HANDLER, nothing else — DONE 2026-10-21, after a `Scenario` that was tried and dropped. The effect
   is `Face`; a program of a face is `A ! faces.Only` (`Only` = `Pure + Face`), written over the faces given, since the
   words are theirs — and since 2026-10-21 the faces are the tagless ones, so a program is a value, `val game: Outcome ! Only`,
-  with `import okay.face._` alone (see "Programs are tagless"). A handler is a face's
+  with `import okay.faces._` alone (see "Programs are tagless"). A handler is a face's
   method: `SwingFace().handle(Noughts.games, look)` (a window; `None` when closed), `Terminal().handle(p)` (Console left
   in the row) and `.console(p)` (the real one), `McpFace().handle(p, vocabulary)` (the loop over Link) and `.stdio(p)`,
   `RestFace().handle(p)` and `HtmlFace().handle(p)` (services over Http) and `.serve(p, port, host)`, `LaminarFace().mount(p)`,
