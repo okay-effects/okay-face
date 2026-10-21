@@ -106,14 +106,14 @@ class McpFace[F <: Runner with Singleton, Fs <: Faces[F]](val faces: Fs) {
   /** THE HANDLER: a program of the face served to an agent — the server's loop over `Link`, for a link handler: a scripted
    * one in a test, standard input and output by `stdio`. Named by the first level-1 heading the program shows, instructed
    * by what it shows before its first offer and by the `vocabulary` of its marks */
-  def handle[A](p: Program[A, faces.Only], vocabulary: Vocabulary = Vocabulary.empty, version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true): Unit ! L = {
+  def handle[A](p: Program[A, okay.faces.Face], vocabulary: Vocabulary = Vocabulary.empty, version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true): Unit ! L = {
     val local = faces.of(p)
-    val opening = Step.opening[A, ({ type M[X] = X ! Pure })#M](faces.steps[A, faces.Only, Pure](local), run)
+    val opening = Step.opening[A, ({ type M[X] = X ! Pure })#M](faces.steps[A, okay.faces.Face, Pure](local), run)
     val instructions = Some(opening.intro.map(Markdown.view(_, vocabulary)).filter(_.nonEmpty).mkString("\n\n")).filter(_.nonEmpty)
     servers.serve[L](server[A, L](opening.title.getOrElse("okay"), version, faces.steps[A, LF, L](local.into[LF]), instructions, elicitation, singleTool, vocabulary, back))
   }
   /** the same over standard input and output, the transport an agent's client starts a server with: `run(new McpFace().stdio(Noughts.game))` */
-  def stdio[A](p: Program[A, faces.Only], vocabulary: Vocabulary = Vocabulary.empty, version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true): Unit ! Pure =
+  def stdio[A](p: Program[A, okay.faces.Face], vocabulary: Vocabulary = Vocabulary.empty, version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true): Unit ! Pure =
     servers.links.stdio[L, Pure, Unit](handle[A](p, vocabulary, version, elicitation, singleTool, back))
   type L[X] = okay.effects.Sum[Pure, Link, X]
   type LF[X] = okay.effects.Sum[L, Face, X]
@@ -177,6 +177,6 @@ object McpFace {
   /** over the faces in scope */
   def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): McpFace[F, Faces[F]] = new McpFace[F, Faces[F]](faces)   // not `faces.type`: an implicit is no stable path
   /** THE HANDLER, whole, over standard input and output: `run(McpFace.stdio(Noughts.games))` */
-  def stdio[F <: Runner with Singleton, A](p: Program[A, okay.faces.Only], vocabulary: Vocabulary = Vocabulary.empty, version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true)(implicit faces: Faces[F]): Program[Unit, Tagless.Pure] =
+  def stdio[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], vocabulary: Vocabulary = Vocabulary.empty, version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true)(implicit faces: Faces[F]): Program[Unit, Tagless.Pure] =
     Faces.running[F, Unit](faces)(new McpFace[F, Faces[F]](faces).stdio[A](p, vocabulary, version, elicitation, singleTool, back).asInstanceOf[faces.fx.![Unit, faces.fx.Pure]])
 }

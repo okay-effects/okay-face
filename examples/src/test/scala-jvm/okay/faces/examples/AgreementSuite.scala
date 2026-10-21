@@ -58,7 +58,7 @@ class AgreementSuite extends munit.FunSuite {
   test("the Swing panel shows every view's text, and ends the same") {
     val face = SwingFace()
     var result = Option.empty[Outcome]
-    val root = face.panel[Outcome](face.faces.steps[Outcome, face.faces.Only, Pure](face.faces.of(Noughts.game)), (o: Outcome) => result = Some(o))
+    val root = face.panel[Outcome](face.faces.steps[Outcome, okay.faces.Face, Pure](face.faces.of(Noughts.game)), (o: Outcome) => result = Some(o))
     def all(c: java.awt.Component): List[java.awt.Component] = c match { case p: java.awt.Container => c :: p.getComponents.toList.flatMap(all); case _ => List(c) }
     def shown: String = all(root).collect { case l: javax.swing.JLabel => l.getText; case t: javax.swing.table.JTableHeader => ""; case a: javax.swing.JTextArea => a.getText }.mkString("\n")
     val seen = scala.collection.mutable.ListBuffer(shown)

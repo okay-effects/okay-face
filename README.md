@@ -29,9 +29,9 @@ types for them.
 
 ```scala
 import okay.faces.*                      // all a program needs: the words are tagless, no implementation is named
-val greeting: String ! Only =           // Only = Pure + Face
-  fill[Who, Only](View.heading("Who are you?"), who).flatMap(w =>
-    confirm[Only](View.text(s"Greet ${w.name}?")).flatMap(yes => if yes then show[Only](View.text(s"Hello, ${w.name}!")).map(_ => "greeted") else pure("left")))
+val greeting: String ! Face =           // the one effect is the row
+  fill[Who, Face](View.heading("Who are you?"), who).flatMap(w =>
+    confirm[Face](View.text(s"Greet ${w.name}?")).flatMap(yes => if yes then show[Face](View.text(s"Hello, ${w.name}!")).map(_ => "greeted") else pure("left")))
 
 import okay.effects.machine.Machine.self   // the implementation, said once, where the program is run
 run(Terminal.console(greeting))            // or SwingFace.handle(greeting), McpFace.stdio(greeting), HtmlFace.serve(greeting, port, host)…

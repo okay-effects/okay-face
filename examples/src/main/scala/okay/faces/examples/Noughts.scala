@@ -1,7 +1,7 @@
 package okay.faces.examples
 
 import okay.effects.shape.Shape
-import okay.faces.{Action, Look, Marks, Role, Rule, Style, Tone, View}
+import okay.faces.{Face, Action, Look, Marks, Role, Rule, Style, Tone, View}
 
 /** the game's own types, beside the class: the rules with no effect in them, and how a game ends */
 object Noughts {
@@ -53,18 +53,18 @@ object Noughts {
 
   /** THE PROGRAMS: values, written with `okay.faces`'s words alone — the faces' over tagless, so a program is of no
    * implementation, and every face instantiates it on its own. `game` one game, `games` games without end; each
-   * `A ! Only`, `Face` alone in the row. The rules are told first, so a face has them to tell */
+   * `A ! Face`, the one effect its own row. The rules are told first, so a face has them to tell */
   import okay.faces._
-  val game: Outcome ! Only = show[Only](rules).flatMap(_ => play(Board.empty))
-  val games: Outcome ! Only = { def loop: Outcome ! Only = play(Board.empty).flatMap(_ => loop); show[Only](rules).flatMap(_ => loop) }
+  val game: Outcome ! Face = show[Face](rules).flatMap(_ => play(Board.empty))
+  val games: Outcome ! Face = { def loop: Outcome ! Face = play(Board.empty).flatMap(_ => loop); show[Face](rules).flatMap(_ => loop) }
   /** one game from the board given: a loop of offers — the board shown, the free cells the one move, a cell by its number —
    * branching on the outcome, "Play again" at the end; no step goes back, a game is its own rules */
-  private def play(board: Board): Outcome ! Only = board.outcome match {
-    case Some(o) => offer[Unit, Only](ended(board, o), List(Action.plain[Unit]("again", "Play again", Some("a new game, the board clear; you are X and begin"))(())), back = false).map(_ => o)
+  private def play(board: Board): Outcome ! Face = board.outcome match {
+    case Some(o) => offer[Unit, Face](ended(board, o), List(Action.plain[Unit]("again", "Play again", Some("a new game, the board clear; you are X and begin"))(())), back = false).map(_ => o)
     case None =>
       // the one move is `ref`: a free cell clicked where a face clicks, its number given where one types or calls
       val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*).described("Cell", Some("1 to 9, left to right, top to bottom"))
-      offer[Int, Only](picture(board), List(Action[Int, Int]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell: X goes there, then O answers"))(c => c)), back = false)
+      offer[Int, Face](picture(board), List(Action[Int, Int]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell: X goes there, then O answers"))(c => c)), back = false)
         .flatMap(i => play(board.played(i, X).replied))
   }
 }

@@ -2,7 +2,7 @@ package okay.faces.test
 
 import okay.effects.Runner
 import okay.effects.tagless.Program
-import okay.faces.{Chosen, Faces, Rejected, Step, View}
+import okay.faces.{Face, Chosen, Faces, Rejected, Step, View}
 
 /**
  * THE TEST FACE: a step machine driven by a SCRIPT of choices, every view shown collected, BACK as a script entry — the
@@ -34,9 +34,9 @@ class Plays[F <: Runner with Singleton](implicit implementation: F) {
   }
 
   /** THE HANDLER: a program of the face played by a script — what the test face shows and how it ends */
-  def handle[A](p: Program[A, faces.Only])(script: Script): Played[A] =
+  def handle[A](p: Program[A, okay.faces.Face])(script: Script): Played[A] =
     // the faces' words are over `faces.fx`, this face's over `fx`: one value, two paths the checker cannot join
-    play[A](faces.steps[A, faces.Only, faces.fx.Pure](faces.of(p))(faces.fx.splitLast[faces.fx.Pure, okay.faces.Face]).asInstanceOf[fx.![Step[A, M], okay.effects.Void]], script)
+    play[A](faces.steps[A, okay.faces.Face, faces.fx.Pure](faces.of(p))(faces.fx.splitOne[okay.faces.Face]).asInstanceOf[fx.![Step[A, M], okay.effects.Void]], script)
   val faces: Faces[F] = new Faces[F]()(fx)
   def play[A](first: Step[A, M] ! okay.effects.Void, script: Script): Played[A] = {
     // `Told`s run through; `history` the Waitings passed, latest first, for Back

@@ -59,13 +59,13 @@ class RestFace[F <: Runner with Singleton, Fs <: Faces[F]](val faces: Fs) {
 
   /** THE HANDLER: a program of the face as a JSON API, a service over `Http` — `POST base` opens a session, the resource
    * at `base/{id}` with its links, the marks at `base/marks` — for a server, or the remote face */
-  def handle[A](p: Program[A, faces.Only], base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true): Request => Response ! H =
+  def handle[A](p: Program[A, okay.faces.Face], base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true): Request => Response ! H =
     sessions[A, H](() => faces.dialogue[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), back), base, vocabulary).service
   /** the same served: `run(new RestFace().serve(Noughts.game, port, host))`; with a `page`, the thin page at `/` that plays
    * the sessions from the browser — the remote face's script (`okay.faces.laminar.RemotePage`, linked), knowing no program */
-  def serve[A](p: Program[A, faces.Only], port: Int = 8080, host: String = "127.0.0.1", page: Option[() => Either[String, String]] = None, look: Option[Look] = None,
+  def serve[A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1", page: Option[() => Either[String, String]] = None, look: Option[Look] = None,
                base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true): Unit ! Pure = {
-    val title = Step.opening[A, ({ type M[X] = X ! Pure })#M](faces.steps[A, faces.Only, Pure](faces.of(p)), run).title.getOrElse("okay")
+    val title = Step.opening[A, ({ type M[X] = X ! Pure })#M](faces.steps[A, okay.faces.Face, Pure](faces.of(p)), run).title.getOrElse("okay")
     Web.serve(faces.fx, port, host)((List(base -> handle[A](p, base, vocabulary, back)) ++ page.map(script => "/" -> new Shell[faces.fx.type]()(faces.fx).handle(title, look, "/" -> script)).toList): _*)
   }
   type H[X] = okay.effects.Sum[Pure, Http, X]
@@ -78,7 +78,7 @@ object RestFace {
   /** over the faces in scope */
   def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): RestFace[F, Faces[F]] = new RestFace[F, Faces[F]](faces)   // not `faces.type`: an implicit is no stable path
   /** THE HANDLER, whole, served: `run(RestFace.serve(Noughts.games, port, host))` */
-  def serve[F <: Runner with Singleton, A](p: Program[A, okay.faces.Only], port: Int = 8080, host: String = "127.0.0.1", page: Option[() => Either[String, String]] = None, look: Option[Look] = None,
+  def serve[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1", page: Option[() => Either[String, String]] = None, look: Option[Look] = None,
                                            base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true)(implicit faces: Faces[F]): Program[Unit, Tagless.Pure] =
     Faces.running[F, Unit](faces)(new RestFace[F, Faces[F]](faces).serve[A](p, port, host, page, look, base, vocabulary, back).asInstanceOf[faces.fx.![Unit, faces.fx.Pure]])
 }

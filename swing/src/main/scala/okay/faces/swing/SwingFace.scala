@@ -7,7 +7,7 @@ import okay.effects.Runner
 import okay.effects.tagless.{Program, Tagless}
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
-import okay.faces.{Action, Chosen, Faces, Look, Rejected, Role, Step, View}
+import okay.faces.{Face, Action, Chosen, Faces, Look, Rejected, Role, Step, View}
 import scala.collection.mutable
 
 /**
@@ -71,8 +71,8 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
    * what the program tells before its first offer (`Step.opening`) is the window's HELP, behind the `?` at the top right,
    * not a line above the first step that the next step scrolls away; the result the dialogue's, or `None` when the
    * window is closed first: `run(new SwingFace().handle(Noughts.game))` */
-  def handle[A](p: Program[A, faces.Only], look: Option[Look] = None, back: Boolean = true): Option[A] ! Pure = {
-    val steps = faces.steps[A, faces.Only, Pure](faces.of(p))
+  def handle[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, back: Boolean = true): Option[A] ! Pure = {
+    val steps = faces.steps[A, okay.faces.Face, Pure](faces.of(p))
     pure(()).flatMap { _ =>
       val opening = Step.opening[A, M](steps, run)
       val outcome = new java.util.concurrent.LinkedBlockingQueue[Option[A]](1)
@@ -162,7 +162,7 @@ object SwingFace {
   /** over the faces in scope */
   def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): SwingFace[F] = new SwingFace[F]()(faces)
   /** THE HANDLER, whole: `run(SwingFace.handle(Noughts.games))` — a program of nothing, run on the implementation in scope */
-  def handle[F <: Runner with Singleton, A](p: Program[A, okay.faces.Only], look: Option[Look] = None, back: Boolean = true)(implicit faces: Faces[F]): Program[Option[A], Tagless.Pure] =
+  def handle[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], look: Option[Look] = None, back: Boolean = true)(implicit faces: Faces[F]): Program[Option[A], Tagless.Pure] =
     Faces.running[F, Option[A]](faces)(new SwingFace[F]()(faces).handle[A](p, look, back).asInstanceOf[faces.fx.![Option[A], faces.fx.Pure]])
 }
 

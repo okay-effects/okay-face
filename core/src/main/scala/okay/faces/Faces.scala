@@ -47,11 +47,10 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
   def fillOrCancel[P, R[_]](view: View, form: Shape[P])(implicit in: In[Face, R]): Option[P] ! R =
     offer[Option[P], R](view, List(Action[P, Option[P]]("submit", "Submit", form)(p => Some(p)), Action.plain[Option[P]]("cancel", "Cancel")(None)))
 
-  /** `Face` alone in the row: what a program of a face is, `A ! Only`, and what a face of one person handles */
-  type Only[X] = Sum[Pure, Face, X]
-  /** A PROGRAM OF NO IMPLEMENTATION, on this one: written over `Faces.tagless` as a value, `Program[A, Only]`, it runs
-   * here as `A ! Only` — the faces' words are the same, tagless makes them values, a face instantiates them */
-  def of[A](p: Program[A, Only]): A ! Only = p.on(fx).asInstanceOf[A ! Only]
+  /** `Face` alone is the row of a program of a face, `A ! Face`: one effect is a row (`splitOne`), no alias needed */
+  /** A PROGRAM OF NO IMPLEMENTATION, on this one: written over `Faces.tagless` as a value, `Program[A, Face]`, it runs
+   * here as `A ! Face` — the faces' words are the same, tagless makes them values, a face instantiates them */
+  def of[A](p: Program[A, Face]): A ! Face = p.on(fx).asInstanceOf[A ! Face]
 
   /** THE STEPPING HANDLER: `Face` taken out of the row, the program a `Step` of what remains. `Offer` becomes a
    * `Waiting` whose `resume` decodes the choice and gives the rest as a program; `Show` a `Told`. General: `k` is kept */

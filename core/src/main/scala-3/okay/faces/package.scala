@@ -5,8 +5,8 @@ import okay.effects.tagless.Tagless
 
 /**
  * `import okay.faces.*`: EVERYTHING A PROGRAM OF A FACE IS WRITTEN WITH, and nothing of any implementation — the faces'
- * words over tagless (`offer`, `show`, `confirm`, `choose`, `fill`, `fillOrCancel`, `Only`) and tagless's own (`!`,
- * `Pure`, the rows, `flatMap`, `map`, `into`, `pure`), so a program is a value: `val game: Outcome ! Only = …`.
+ * words over tagless (`offer`, `show`, `confirm`, `choose`, `fill`, `fillOrCancel`) and tagless's own (`!`,
+ * `Pure`, the rows, `flatMap`, `map`, `into`, `pure`), so a program is a value: `val game: Outcome ! Face = …`.
  * `run(p)` runs such a program of nothing else on the implementation in scope: `import okay.effects.machine.Machine.self`.
  */
 package object faces extends okay.faces.Faces[Tagless.type]()(Tagless):
