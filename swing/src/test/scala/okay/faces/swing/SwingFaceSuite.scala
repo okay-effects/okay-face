@@ -90,4 +90,12 @@ class SwingFaceSuite extends munit.FunSuite {
     byName[JButton](root, "submit:submit").doClick()
     assertEquals(got, Some(Order("ann", List(Line("tea", 2), Line("milk", 1)))))
   }
+
+  test("the help: the views told before the first step as one component, every text there, named as told") {
+    val h = SwingFace.help(Vector(View.text("You are X"), View.text("Three in a row wins")))
+    def all(c: java.awt.Component): List[java.awt.Component] = c match { case p: java.awt.Container => c :: p.getComponents.toList.flatMap(all); case _ => List(c) }
+    val texts = all(h).collect { case a: javax.swing.JTextArea => a.getText; case l: javax.swing.JLabel => l.getText }
+    assert(texts.exists(_.contains("You are X")) && texts.exists(_.contains("Three in a row")), texts.toString)
+    assertEquals(h.getName, "okay-told")
+  }
 }

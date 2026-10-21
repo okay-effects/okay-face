@@ -138,6 +138,9 @@ the view as components named by their `Role`s, a plain action a `JButton` named 
 parameters a form from its erased schema (`submit:name`), back re-resumes the previous `Waiting`; `window(title, ...)`
 puts it in a frame on the event dispatch thread, the title following `Navigation` when `pages` are given. With a `Look`
 the components are dressed by `Looks` after each rebuild; without, the platform's look and feel. Tested headless.
+The handler (`SwingFace.handle(p)`) makes what the program tells before its first offer (`Step.opening`) the window's
+HELP: a `?` button at the top right opens it in a dialog (2026-10-21, after the rules above the first board scrolled
+away at the first click); what is told later in the dialogue stays inline, as part of the step it precedes.
 
 ## face-rest — the dialogue as a JSON API
 

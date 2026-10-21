@@ -68,13 +68,16 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   }
 
   /** THE HANDLER: a program of the face in a window — titled by the first level-1 heading it shows, dressed by `look`;
-   * the result the dialogue's, or `None` when the window is closed first: `run(new SwingFace().handle(Noughts.game))` */
+   * what the program tells before its first offer (`Step.opening`) is the window's HELP, behind the `?` at the top right,
+   * not a line above the first step that the next step scrolls away; the result the dialogue's, or `None` when the
+   * window is closed first: `run(new SwingFace().handle(Noughts.game))` */
   def handle[A](p: Program[A, faces.Only], look: Option[Look] = None, back: Boolean = true): Option[A] ! Pure = {
     val steps = faces.steps[A, faces.Only, Pure](faces.of(p))
     pure(()).flatMap { _ =>
-      val title = Step.opening[A, M](steps, run).title.getOrElse("okay")
+      val opening = Step.opening[A, M](steps, run)
       val outcome = new java.util.concurrent.LinkedBlockingQueue[Option[A]](1)
-      window(title, steps, (a: A) => outcome.offer(Some(a)), look = look, back = back, closed = () => outcome.offer(None))
+      window(opening.title.getOrElse("okay"), pure[Step[A, M], okay.effects.Void](opening.first), (a: A) => outcome.offer(Some(a)),
+        look = look, back = back, closed = () => outcome.offer(None), help = opening.intro)
       pure[Option[A], Pure](outcome.take())
     }
   }
@@ -83,13 +86,21 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
    * follows the program's current page */
   def window[A](title: String, first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (),
                 pages: Option[(okay.faces.Pages[_], Any => String)] = None, look: Option[Look] = None, back: Boolean = true,
-                closed: () => Unit = () => sys.exit(0)): Unit =
+                closed: () => Unit = () => sys.exit(0), help: Vector[View] = Vector.empty): Unit =
     SwingUtilities.invokeLater(new Runnable { def run(): Unit = {
       val frame = new JFrame(title)
       pages.foreach { case (ps, name) => ps.asInstanceOf[okay.faces.Pages[Any]].onChange(p => frame.setTitle(s"$title — ${name(p)}")) }
       frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
       frame.addWindowListener(new java.awt.event.WindowAdapter { override def windowClosed(e: java.awt.event.WindowEvent): Unit = closed() })
       frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, look, back)), ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER))
+      // the help, when there is one: a `?` at the top right, the views told before the first step in a dialog
+      if (help.nonEmpty) {
+        val bar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 2))
+        val button = new JButton("?"); button.setName(SwingFace.helpName); button.setToolTipText("Help")
+        button.setMargin(new java.awt.Insets(0, 0, 0, 0)); button.setPreferredSize(new java.awt.Dimension(28, 28)); button.setFocusable(false)
+        button.addActionListener((_: java.awt.event.ActionEvent) => JOptionPane.showMessageDialog(frame, SwingFace.help(help, look), title, JOptionPane.PLAIN_MESSAGE))
+        bar.add(button); frame.getContentPane.add(bar, BorderLayout.NORTH)
+      }
       // the window sized to its content, within the screen; it grows no further — a longer dialogue scrolls
       frame.pack()
       val screen = java.awt.Toolkit.getDefaultToolkit.getScreenSize
@@ -128,6 +139,26 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
 
 /** a `View` as Swing components */
 object SwingFace {
+  /** the name of the window's `?` button */
+  val helpName = "okay-help"
+  /** the help as a component: the views told before the first step, dressed by `look`, wrapped to a readable width and
+   * scrolling past a height */
+  def help(views: Vector[View], look: Option[Look] = None): JComponent = {
+    val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS)); box.setName(Role.Told.cls)
+    views.foreach(v => box.add(Views.component(v)))
+    look.foreach(l => Looks(l)(box))
+    val fit = Views.fitting(box)
+    val sp = new JScrollPane(fit, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER)
+    sp.setBorder(BorderFactory.createEmptyBorder()); sp.setName(Role.Told.cls)
+    // the width fixed, so the text wraps there; the height what the wrapped text then needs, up to a readable page —
+    // a wrapped text area knows its height only once laid out at a width, so lay the box out at that width first
+    def layout(c: Component): Unit = c match { case p: java.awt.Container => p.doLayout(); p.getComponents.foreach(layout); case _ => () }
+    def invalidate(c: Component): Unit = { c.invalidate(); c match { case p: java.awt.Container => p.getComponents.foreach(invalidate); case _ => () } }
+    fit.setSize(440, 4000); layout(fit); invalidate(fit)   // the layouts' cached sizes dropped, so the box asks its wrapped texts again
+    val h = box.getPreferredSize.height
+    sp.setPreferredSize(new java.awt.Dimension(460, math.min(h + 16, 360).max(60)))
+    sp
+  }
   /** over the faces in scope */
   def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): SwingFace[F] = new SwingFace[F]()(faces)
   /** THE HANDLER, whole: `run(SwingFace.handle(Noughts.games))` — a program of nothing, run on the implementation in scope */
