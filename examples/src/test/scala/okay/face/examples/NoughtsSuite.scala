@@ -14,7 +14,7 @@ class NoughtsSuite extends munit.FunSuite {
   import game._
   import plays._
   type F[X] = Sum[Void, Face, X]
-  def cell(n: Int): Chosen = Chosen("play", obj("cell" -> Str(n.toString)))
+  def cell(n: Int): Chosen = Chosen("ref", obj("key" -> Str(n.toString)))
   def start = faces.steps[Outcome, F, Void](game.game[F](Board.empty))
 
   test("X wins down the left: the program answers centre, then the first free cell") {
@@ -28,8 +28,8 @@ class NoughtsSuite extends munit.FunSuite {
     play(start, Script.of(cell(1), cell(1))) match {
       case Played.Stuck(views, at, Some(Rejected(problems))) =>
         assertEquals(views.size, 2)
-        assertEquals(problems, List(Problem(List("cell"), "one of 2, 3, 4, 6, 7, 8, 9")))
-        assertEquals(at.actions.map(_.name), List("play", "ref", "restart"))
+        assertEquals(problems, List(Problem(List("key"), "one of 2, 3, 4, 6, 7, 8, 9")))
+        assertEquals(at.actions.map(_.name), List("ref", "restart"))
       case other => fail(s"$other")
     }
   }
@@ -61,7 +61,7 @@ class NoughtsSuite extends munit.FunSuite {
 class NoughtsTerminalSuite extends munit.FunSuite {
   import NoughtsTerminal._
   test("X wins down the left at the terminal: the boards printed, the cell asked as a menu") {
-    val (printed, result) = Machine.run(term.io.console(List("1", "1", "play", "4", "1", "7", "again"))(
+    val (printed, result) = Machine.run(term.io.console(List("1", "1", "ref", "4", "1", "7", "again"))(
       term.terminal[game.Outcome, C](faces.steps[game.Outcome, CF, C](game.game[CF](game.Board.empty)))))
     assertEquals(result, Some(game.Won('X')))
     assert(printed.contains("NOUGHTS AND CROSSES"))

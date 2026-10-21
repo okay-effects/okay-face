@@ -38,8 +38,8 @@ class Noughts[F <: Effects](val faces: Faces[F]) {
   val look: Look = Look(Theme.light, style)
   val dark: Look = Look(Theme.dark, style)
 
-  /** the board: a taken cell its mark, a free one a `Ref` by its number — live when `ref` is offered, so a face that can
-   * click plays by a click; the terminal and an agent play by `play(cell)` as ever */
+  /** the board: a taken cell its mark, a free one a `Ref` by its number — live, since `ref` is offered: a face that can
+   * click plays by a click; the terminal and an agent give the number */
   def picture(board: Board): View = View.stack(View.heading("Noughts and crosses"),
     View.Table(Vector("", "", ""), board.cells.zipWithIndex.map { case (c, i) => marks.mark(Cell, c.fold[View](View.Ref((i + 1).toString, "·"))(x => View.Text(x.toString))) }.grouped(3).toVector))
   def ended(board: Board, o: Outcome): View = View.stack(picture(board), marks.mark(Result, View.text(o match { case Won(c) => s"$c won"; case Draw => "a draw" })))
@@ -48,10 +48,10 @@ class Noughts[F <: Effects](val faces: Faces[F]) {
   def game[R[_]](board: Board)(implicit in: In[Face, R]): Outcome ! R = board.outcome match {
     case Some(o) => offer[Unit, R](ended(board, o), List(Action.plain[Unit]("again", "Play again")(()))).map(_ => o)
     case None =>
+      // the one move is `ref`: a free cell clicked where a face clicks, its number given where one types or calls
       val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*).described("Cell", Some("1 to 9, left to right, top to bottom"))
       offer[Move, R](picture(board), List(
-        Action[Int, Move]("play", "Play", Shape.record(Shape.field("cell", cells))(c => c)(c => c))(Play(_)),
-        Action[Int, Move]("ref", "Play the cell", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell, clicked"))(Play(_)),
+        Action[Int, Move]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell"))(Play(_)),
         Action.plain[Move]("restart", "Start over")(Restart)))
         .flatMap {
           case Play(i) => game[R](board.played(i, 'X').replied)

@@ -1,6 +1,6 @@
 package okay.face.examples
 
-import javax.swing.{JButton, JComboBox}
+import javax.swing.JButton
 import okay.effects.{Sum, Void}
 import okay.effects.json.Json
 import okay.effects.json.Json.{Str, obj}
@@ -12,7 +12,7 @@ import okay.face.rest.RestFace
 import okay.face.swing.SwingFace
 import okay.face.term.{Render, Terminal}
 import okay.face.test.Plays
-import okay.http.{Http, Https, Query, Request}
+import okay.http.{Http, Https, Request}
 
 /** THE FACES AGREE: one game, one script of choices — X down the left, the program answering — and every face shows
  * the test face's views, in order, and ends the same. The test face is the reference: what it shows is what the
@@ -26,7 +26,7 @@ class AgreementSuite extends munit.FunSuite {
   import Machine._
   type F[X] = Sum[Void, Face, X]
   val moves = List(1, 4, 7)
-  def cell(n: Int): Chosen = Chosen("play", obj("cell" -> Str(n.toString)))
+  def cell(n: Int): Chosen = Chosen("ref", obj("key" -> Str(n.toString)))
 
   /** the reference: the views the program shows, and how it ends */
   val (views, outcome) = plays.play(faces.steps[Outcome, F, Void](game.game[F](Board.empty)), plays.Script.of(moves.map(cell) :+ Chosen.plain("again"): _*)) match {
@@ -52,7 +52,7 @@ class AgreementSuite extends munit.FunSuite {
     type C[X] = Sum[Void, Console, X]
     type CF[X] = Sum[C, Face, X]
     val term = new Terminal[Machine.type](faces)
-    val inputs = moves.flatMap(n => List("play", n.toString)) :+ "again"
+    val inputs = moves.flatMap(n => List("ref", n.toString)) :+ "again"
     val (printed, ended) = Machine.run(term.io.console(inputs)(term.terminal[Outcome, C](faces.steps[Outcome, CF, C](game.game[CF](Board.empty)))))
     assertEquals(ended, Some(outcome))
     val text = printed.mkString("\n")
@@ -69,7 +69,8 @@ class AgreementSuite extends munit.FunSuite {
     def byName[C <: java.awt.Component](name: String): C = all(root).find(_.getName == name).getOrElse(fail(s"no $name")).asInstanceOf[C]
     def shown: String = all(root).collect { case l: javax.swing.JLabel => l.getText; case t: javax.swing.table.JTableHeader => ""; case a: javax.swing.JTextArea => a.getText }.mkString("\n")
     val seen = scala.collection.mutable.ListBuffer(shown)
-    moves.foreach { n => byName[JComboBox[String]]("f-cell").setSelectedItem(n.toString); byName[JButton]("submit:play").doClick(); seen += shown }
+    // a free cell is a button, told apart by its tooltip, the key
+    moves.foreach { n => all(root).collectFirst { case b: JButton if b.getToolTipText == n.toString => b }.getOrElse(fail(s"no cell $n")).doClick(); seen += shown }
     byName[JButton]("action:again").doClick(); seen += shown
     assertEquals(result, Some(outcome))
     views.zip(seen.toList).foreach { case (v, s) => assert(s.contains(okay.face.swing.Views.text(View.Heading(1, "Noughts and crosses"))) || s.contains("won"), s) }
@@ -82,7 +83,7 @@ class AgreementSuite extends munit.FunSuite {
     val https: Https[Machine.type] = new Https[Machine.type]()(Machine)
     val pages = HtmlFace(faces).pages[Outcome, H](() => faces.dialogue[Outcome, H](faces.steps[Outcome, HF, H](game.game[HF](Board.empty))), "Noughts")
     val requests = Request.get("/") :: Request.get("/s/s1") :: (moves.flatMap(n => List(
-      Request.post("/s/s1/act/play", Query.print(Map("cell" -> List(n.toString))), "application/x-www-form-urlencoded"), Request.get("/s/s1"))) ++
+      Request.get(s"/s/s1/ref/$n"), Request.get("/s/s1"))) ++
       List(Request.post("/s/s1/act/again", "", "application/x-www-form-urlencoded"), Request.get("/s/s1")))
     val responses = Machine.run(https.scripted(requests)(https.serve[H](pages.service)))._1
     val gets = responses.filter(_.status == 200).map(_.body)
@@ -98,7 +99,7 @@ class AgreementSuite extends munit.FunSuite {
     type HF[X] = Sum[H, Face, X]
     val https: Https[Machine.type] = new Https[Machine.type]()(Machine)
     val sessions = RestFace(faces).sessions[Outcome, H](() => faces.dialogue[Outcome, H](faces.steps[Outcome, HF, H](game.game[HF](Board.empty))))
-    val requests = Request.post("/sessions", "", "application/json") :: (moves.map(n => Request.json("POST", "/sessions/s1/act/play", obj("cell" -> Str(n.toString)))) :+ Request.json("POST", "/sessions/s1/act/again", obj()))
+    val requests = Request.post("/sessions", "", "application/json") :: (moves.map(n => Request.json("POST", "/sessions/s1/act/ref", obj("key" -> Str(n.toString)))) :+ Request.json("POST", "/sessions/s1/act/again", obj()))
     val responses = Machine.run(https.scripted(requests)(https.serve[H](sessions.service)))._1
     assertEquals(responses.map(_.status), List(201, 200, 200, 200, 200))
     // a resource's view is what was told since the last step and the step's own view; at the end, the told and "done" once "again" is taken
