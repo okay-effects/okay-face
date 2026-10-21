@@ -34,6 +34,10 @@ class StyleSuite extends munit.FunSuite {
     assert(!Css(Look.default).split("\n").drop(1).exists(_.contains("#")), "rules name tones, the palette alone has colours")
     assert(Css(Look.dark).contains("--okay-bg:#0d1117"))
   }
+  test("a centered rule: the content in the middle, in the block and in text") {
+    val css = Css(Look(Theme.light, Style.plain.set(Role.Mark("cell"), Rule(flow = Flow.Row, centered = true))))
+    assert(css.contains(".okay-mark-cell{display:flex;flex-wrap:wrap;align-items:center;gap:calc(0 * var(--okay-space));justify-content:center;align-items:center;text-align:center}"), css)
+  }
   test("two themes in one stylesheet: the light tokens on :root, the dark ones under prefers-color-scheme") {
     val css = Css(Look.default, Look.dark)
     assert(css.contains("--okay-bg:#ffffff") && css.contains("@media (prefers-color-scheme: dark){:root{") && css.contains("--okay-bg:#0d1117"), css)

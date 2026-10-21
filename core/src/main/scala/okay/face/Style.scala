@@ -111,9 +111,11 @@ object Theme {
 sealed trait Flow extends Product with Serializable
 object Flow { case object Column extends Flow; case object Row extends Flow }
 
-/** A RULE for a role, in tokens: tones, not colours; `size` times the base; `pad` and `gap` in units of space */
+/** A RULE for a role, in tokens: tones, not colours; `size` times the base; `pad` and `gap` in units of space;
+ * `centered`, the content in the middle of the part — a cell of a board */
 final case class Rule(color: Option[Tone] = None, background: Option[Tone] = None, border: Option[Tone] = None,
-                      bold: Boolean = false, size: Double = 1.0, mono: Boolean = false, pad: Int = 0, gap: Int = 0, flow: Flow = Flow.Column) {
+                      bold: Boolean = false, size: Double = 1.0, mono: Boolean = false, pad: Int = 0, gap: Int = 0, flow: Flow = Flow.Column,
+                      centered: Boolean = false) {
   def isEmpty: Boolean = this == Rule()
 }
 
@@ -209,7 +211,8 @@ object Css {
       if (r.size != 1.0) Some(s"font-size:${r.size}em") else None,
       if (r.mono) Some("font-family:var(--okay-mono)") else None,
       if (r.pad > 0) Some(s"padding:calc(${r.pad} * var(--okay-space))") else None,
-      if (r.gap > 0 || r.flow == Flow.Row) Some((if (r.flow == Flow.Row) "display:flex;flex-wrap:wrap;align-items:center" else "display:flex;flex-direction:column") + s";gap:calc(${r.gap} * var(--okay-space))") else None
+      if (r.gap > 0 || r.flow == Flow.Row) Some((if (r.flow == Flow.Row) "display:flex;flex-wrap:wrap;align-items:center" else "display:flex;flex-direction:column") + s";gap:calc(${r.gap} * var(--okay-space))") else None,
+      if (r.centered) Some("justify-content:center;align-items:center;text-align:center") else None
     ).flatten
     ds.mkString(";")
   }

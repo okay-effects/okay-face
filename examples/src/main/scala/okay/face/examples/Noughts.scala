@@ -33,7 +33,7 @@ class Noughts[F <: Effects](val faces: Faces[F]) {
   case object Cell extends Mark
   val marks: Marks[Mark] = Marks.of(Shape.derived[Mark]).explained(Result -> "how the game ended: who won, or a draw", Cell -> "a cell of the board: X, O, or free to play")
   /** the look: a cell big enough to tap, bordered; the result bold */
-  val style: Style = Style.default.set(marks.role(Cell), Rule(size = 1.6, pad = 1, border = Some(Tone.Border), flow = okay.face.Flow.Row))
+  val style: Style = Style.default.set(marks.role(Cell), Rule(size = 1.6, pad = 1, border = Some(Tone.Border), flow = okay.face.Flow.Row, centered = true))
     .set(marks.role(Result), Rule(bold = true, color = Some(Tone.Accent)))
   val look: Look = Look(Theme.light, style)
   val dark: Look = Look(Theme.dark, style)

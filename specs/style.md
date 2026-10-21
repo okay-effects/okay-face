@@ -16,7 +16,8 @@ final case class Look(theme: Theme, style: Style)                               
   `Warning`, `Problem`), a `Family` (`System`, `Serif`, `Mono`), the base `size` (px, points), the unit of `space`
   (px), and the `measure` (characters of text across). `Theme.light`, `Theme.dark`.
 - **Style**: a `Rule` per `Role`. A rule names TONES, never colours — `color`, `background`, `border` are `Option[Tone]` —
-  with `bold`, `size` (times the base), `mono`, `pad` and `gap` (units of space) and `flow` (`Column`, `Row`). So one
+  with `bold`, `size` (times the base), `mono`, `pad` and `gap` (units of space), `flow` (`Column`, `Row`) and
+  `centered` (the content in the middle of the part: `justify-content`/`text-align` on the web, the alignment in Swing). So one
   style stands under any theme, and a dark theme is a change of palette, not of rules. `Style.default` is what a
   dialogue needs to be read; `Style.plain` says nothing; `adjust(role)(rule => …)` changes one rule.
 - **Look**: the two together. `Look.default`, `Look.dark`.

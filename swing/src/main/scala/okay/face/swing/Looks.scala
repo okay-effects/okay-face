@@ -1,7 +1,7 @@
 package okay.face.swing
 
 import java.awt.{Color => AwtColor, Component, Container, Font}
-import javax.swing.{AbstractButton, BorderFactory, JComponent, JLabel}
+import javax.swing.{AbstractButton, BorderFactory, JComponent, JLabel, SwingConstants}
 import okay.face.{Family, Look, Role, Rule, Tone}
 
 /** SWING'S INTERPRETER of a look: the components of a face, found by their names — the roles' classes the face set —
@@ -25,6 +25,11 @@ final class Looks(look: Look) {
     c.setFont(new Font(family(r.mono), style, (base * r.size).round.toInt))
     r.color.foreach(t => c.setForeground(color(t)))
     r.background.foreach { t => c.setBackground(color(t)); c.setOpaque(true) }
+    if (r.centered) c match {
+      case l: JLabel => l.setHorizontalAlignment(SwingConstants.CENTER)
+      case b: AbstractButton => b.setHorizontalAlignment(SwingConstants.CENTER)
+      case _ => c.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT)
+    }
     val pad = r.pad * look.theme.space
     val inner = if (pad > 0) Some(BorderFactory.createEmptyBorder(pad, pad, pad, pad)) else None
     val line = r.border.map(t => BorderFactory.createLineBorder(color(t)))
