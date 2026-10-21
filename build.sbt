@@ -83,6 +83,17 @@ lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, 
   .settings(crossBuilt, name := "okay-faces-examples", publish / skip := true,
     libraryDependencies ++= Seq("io.github.okay-effects" %% "okay-effects-machine" % okayEffects, "io.github.okay-effects" %% "okay-effects-free" % okayEffects))
 
+/** THE EXAMPLE IN THE BROWSER, Scala.js, when js is asked: the game under the Laminar face, or the remote face over the
+ * game served by `NoughtsWeb` — `sbt -Dplatforms=js examplesWeb/fullLinkJS`, then `sbt "examples/runMain okay.face.examples.NoughtsWeb"` */
+lazy val examplesWeb = {
+  val p = Project("examplesWeb", file("examples/web")).enablePlugins(ScalaJSPlugin)
+    .settings(crossBuilt, name := "okay-faces-examples-web", publish / skip := true, scalaJSUseMainModuleInitializer := true,
+      Compile / unmanagedSources += baseDirectory.value / ".." / "src" / "main" / "scala" / "okay" / "face" / "examples" / "Noughts.scala",
+      libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1", "io.github.okay-effects" %%% "okay-http" % okayHttp,
+        "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects))
+  if (platformsAsked("js")) p.dependsOn(core.js, laminar.js) else p
+}
+
 /** THE LAMINAR FACE, Scala.js only: a Step machine as a Laminar element — the view drawn, the actions buttons and forms,
  * a click is `resume`; and THE REMOTE FACE, the same page over a dialogue behind the REST face, through okay-http's `Browser.fetch`. Built and tested when js is asked: `sbt -Dplatforms=js laminarJS/test`, under jsdom */
 lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).crossType(CrossType.Pure)
