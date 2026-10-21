@@ -12,7 +12,7 @@ import okay.faces.{Face, Faces, View}
 class SwingFaceSuite extends munit.FunSuite {
   System.setProperty("java.awt.headless", "true")
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
-  val face = new SwingFace[Machine.type]()(faces)
+  val face = new SwingFace[Machine.type]()(Machine)
   import Machine._
   import faces._
   type F[X] = Sum[Void, Face, X]

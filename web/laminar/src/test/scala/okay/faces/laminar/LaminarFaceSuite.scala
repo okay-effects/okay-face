@@ -15,7 +15,7 @@ import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
  */
 class LaminarFaceSuite extends munit.FunSuite {
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
-  val face = new LaminarFace[Machine.type]()(faces)
+  val face = new LaminarFace[Machine.type]()(Machine)
   import Machine._
   import faces._
   type F[X] = Sum[Void, Face, X]

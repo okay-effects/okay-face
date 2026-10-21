@@ -15,10 +15,11 @@ import okay.faces.{Action, Chosen, Face, Faces, Paint, Rejected, Role, Step, Vie
  * pipe gets none.
  */
 class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80)(
-  implicit val faces: Faces[F]) {
-  import faces.fx._
-  val io: Io[faces.fx.type] = new Io[faces.fx.type]()(faces.fx)
-  val reading: Reading[faces.fx.type] = new Reading[faces.fx.type]()(faces.fx)
+  implicit val fx: F) {
+  import fx._
+  val faces: Faces[fx.type] = new Faces[fx.type]()(fx)
+  val io: Io[fx.type] = new Io[fx.type]()(fx)
+  val reading: Reading[fx.type] = new Reading[fx.type]()(fx)
   import io.{printLine, readLine, readSecret}
 
   private def say[R[_]](lines: List[String])(implicit c: In[Console, R]): Unit ! R =
@@ -78,7 +79,7 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
     }
 
   def prompting[R[_], Rest[_], A](p: A ! R)(implicit sp: Split[Fields, R, Rest], c: In[Console, Rest]): A ! Rest =
-    faces.fx.handle[Fields, R, Rest, A, A](p,
+    fx.handle[Fields, R, Rest, A, A](p,
       new Handler[Fields, Rest, A, A] {
         def ret(a: A) = pure(a)
         def op[X](op: Fields[X], k: X => A ! Rest) = op match {
@@ -207,14 +208,13 @@ object Terminal {
         if (line.length + 1 + word.length <= width) (line + " " + word) :: done else (pad + word) :: line :: done
     }.reverse
   }
-  def over[F <: okay.effects.Effects with Singleton](faces: Faces[F], paint: Paint = Paint.none): Terminal[F] =
-    new Terminal[F](paint)(faces)
-  /** over the faces in scope */
+  /** over the implementation in scope */
   def apply[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80)(
-    implicit faces: Faces[F]): Terminal[F] = new Terminal[F](paint, width)(faces)
+    implicit fx: F): Terminal[F] = new Terminal[F](paint, width)(fx)
   /** THE HANDLER, whole, at the real console: `run(Terminal.console(Noughts.games))` */
   def console[F <: okay.effects.Runner with Singleton, A](p: Program[A, okay.faces.Face], paint: Paint = Paint.none,
-    width: Int = 80, back: Boolean = true)(implicit faces: Faces[F]): Program[Option[A], Tagless.Pure] =
-    Faces.running[F, Option[A]](faces)(new Terminal[F](paint, width)(faces).console[A](p, back).asInstanceOf[faces.fx.![
-        Option[A], faces.fx.Pure]])
+    width: Int = 80, back: Boolean = true)(implicit fx: F): Program[Option[A], Tagless.Pure] = {
+    val term = new Terminal[F](paint, width)(fx)
+    Faces.running(term.fx.run[Option[A]](term.console[A](p, back)))
+  }
 }

@@ -11,7 +11,7 @@ import okay.faces.{Face, Faces, View}
 /** THE TERMINAL FACE under a scripted console: what it prints, what it reads, on an implementation */
 abstract class TerminalChecks(val fx0: Runner, name: String) extends munit.FunSuite {
   val faces: Faces[fx0.type] = new Faces[fx0.type]()(fx0)
-  val term: Terminal[fx0.type] = new Terminal[fx0.type]()(faces)
+  val term: Terminal[fx0.type] = new Terminal[fx0.type]()(fx0)
   import fx0._
   import faces._
   import term.io.console

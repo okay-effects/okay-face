@@ -10,7 +10,7 @@ import okay.http.{Http, Https, Query, Request}
 
 class HtmlFaceSuite extends munit.FunSuite {
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
-  val face = HtmlFace.over(faces)
+  val face = new HtmlFace[Machine.type]()(Machine)
   val https: Https[Machine.type] = new Https[Machine.type]()(Machine)
   import Machine._
   import faces._

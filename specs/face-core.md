@@ -541,11 +541,15 @@ After step 4 the model holds or it does not, before any web platform is paid for
   is the handler's parameter. `Offer(…, back = true)` says a step may be returned to (DEFAULT FLIPPED 2026-10-21: it was
   true; a step is rarely one to go back to, so a program says so where it is); without, no face keeps it in its
   history, so none offers a way back to it; the agent's `back` tool stays listed and answers "nothing to go back to".
-  Scala 2 cannot infer `F` for the `Fs <: Faces[F]` faces from an implicit, so `X()` is a companion `apply()(implicit faces)`
-  on every face and `X.over(faces)` the path-kept one, and the companion whole-handlers (`SwingFace.handle(p)`,
-  `Terminal.console(p)`, `McpFace.stdio(p)`, `HtmlFace.serve(…)`, `RestFace.serve(…)`, `Shell.serve(…)`,
-  `LaminarFace.mount(p)`) take the faces in scope and give a tagless program, for a one-line main; Scala 3's compiler
-  trips on `X().handle(…)` in one expression, so a test binds the face first.
+  A FACE IS OVER THE IMPLEMENTATION, not over faces (2026-10-21, after a day of casts): `class XFace[F <: Runner with
+  Singleton](implicit val fx: F)` makes its own words and stepping handler as `Faces[fx.type]`, so every type in it is
+  on one path, `fx`'s, and nothing is cast. A session (`Session[F, A, R]`, the faces' `Dialogue[A, R]`) is typed by the
+  implementation alone, so one made by any `Faces` over `Machine` is taken by any face over `Machine`; `X.over(faces)`
+  is gone. `X()` is `apply()(implicit fx: F)`; the companion whole-handlers (`SwingFace.handle(p)`, `Terminal.console(p)`,
+  `McpFace.stdio(p)`, `HtmlFace.serve(…)`, `RestFace.serve(…)`, `Shell.serve(…)`, `LaminarFace.mount(p)`) make a face
+  over the implementation in scope and give its run as a tagless program (`Faces.running(face.fx.run(face.handle(p)))`),
+  for a one-line main. Scala 3 still widens a face's word on an unbound face (`X().handle(…)` in one expression) to
+  `Any`, as any path-dependent result on an unstable prefix: bind the face first, or use the companion word.
 - A `Ref` as a live link — DONE 2026-10-21 by a convention: when a step offers the action `ref` (one parameter, `key`),
   a face makes every `Ref` in the view choose it with its key — the HTML page links `base/{id}/ref/{key}`, Laminar and
   the remote face on a click, the terminal by typing `ref` then the key as ever; a step without `ref` shows a `Ref` as

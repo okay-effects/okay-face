@@ -18,9 +18,10 @@ import okay.http.rest.{Rests, Trouble}
  * The markup is structure alone — HTML5 that is well-formed XML, each part marked with its `Role`'s classes — and the
  * look is the stylesheet at `GET /okay.css`, compiled from the `Look` given.
  */
-class HtmlFace[F <: Effects with Singleton, Fs <: Faces[F]](val faces: Fs) {
-  import faces.fx._
-  val rests: Rests[faces.fx.type] = new Rests[faces.fx.type]()(faces.fx)
+class HtmlFace[F <: Effects with Singleton](implicit val fx: F) {
+  import fx._
+  val faces: Faces[fx.type] = new Faces[fx.type]()(fx)
+  val rests: Rests[fx.type] = new Rests[fx.type]()(fx)
   import rests.{Route, dispatch, get, post}
 
   final class Pages[A, R[_]](open: () => faces.Dialogue[A, R], title: String, base: String = "/s",
@@ -103,7 +104,7 @@ class HtmlFace[F <: Effects with Singleton, Fs <: Faces[F]](val faces: Fs) {
   /** the same served: `run(new HtmlFace().serve(Noughts.games, port, host))` */
   def serve[A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1", look: Option[Look] = None,
     base: String = "/s", back: Boolean = true): Unit ! Pure =
-    okay.faces.rest.Web.serve(faces.fx, port, host)("/" -> handle[A](p, base, look, back))
+    okay.faces.rest.Web.serve(fx, port, host)("/" -> handle[A](p, base, look, back))
   type H[X] = okay.effects.Sum[Pure, Http, X]
   type HF[X] = okay.effects.Sum[H, Face, X]
 }
@@ -240,16 +241,13 @@ object Forms {
 }
 
 object HtmlFace {
-  /** over these faces, their path kept: `HtmlFace.over(faces)` — so a `Dialogue` made by `faces` is one this face takes
-   */
-  def over[F <: Effects with Singleton](faces: Faces[F]): HtmlFace[F, faces.type] = new HtmlFace[F, faces.type](faces)
-  /** over the faces in scope */
-  def apply[F <: Effects with Singleton]()(implicit faces: Faces[F]): HtmlFace[F, Faces[F]] =
-    new HtmlFace[F, Faces[F]](faces) // not `faces.type`: an implicit is no stable path
+  /** over the implementation in scope */
+  def apply[F <: Effects with Singleton]()(implicit fx: F): HtmlFace[F] = new HtmlFace[F]()(fx)
   /** THE HANDLER, whole, served: `run(HtmlFace.serve(Noughts.games, port, host))` */
   def serve[F <: okay.effects.Runner with Singleton, A](p: Program[A, okay.faces.Face], port: Int = 8080,
     host: String = "127.0.0.1", look: Option[Look] = None, base: String = "/s", back: Boolean = true)(
-    implicit faces: Faces[F]): Program[Unit, Tagless.Pure] =
-    Faces.running[F, Unit](faces)(new HtmlFace[F, Faces[F]](faces).serve[A](p, port, host, look, base,
-        back).asInstanceOf[faces.fx.![Unit, faces.fx.Pure]])
+    implicit fx: F): Program[Unit, Tagless.Pure] = {
+    val face = new HtmlFace[F]()(fx)
+    Faces.running(face.fx.run[Unit](face.serve[A](p, port, host, look, base, back)))
+  }
 }

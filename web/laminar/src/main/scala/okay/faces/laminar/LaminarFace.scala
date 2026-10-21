@@ -19,8 +19,9 @@ import scala.concurrent.ExecutionContext
  * runs by the `Runner` when the row is done (`element`), or to a `Future` when `Async` remains (`elementAsync`).
  * Every element carries its `Role`'s classes; `LaminarFace.stylesheet(look)` is the `<style>` that dresses them.
  */
-class LaminarFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
-  import faces.fx._
+class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
+  import fx._
+  val faces: Faces[fx.type] = new Faces[fx.type]()(fx)
 
   /** how the rest of a step is run: at once, or when its future completes */
   trait Lower[M[_]] { def apply[X](m: M[X])(k: X => Unit): Unit }
@@ -51,7 +52,7 @@ class LaminarFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   def elementAsync[A](first: Step[A, ({ type L[X] = X ! Async })#L] ! Async, done: A => Unit = (_: A) => (),
     browserHistory: Boolean = false, back: Boolean = true)(implicit ec: ExecutionContext): HtmlElement = {
     type M[X] = X ! Async
-    val asynchrony = new Asynchrony[faces.fx.type]()(faces.fx, ec)
+    val asynchrony = new Asynchrony[fx.type]()(fx, ec)
     new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = asynchrony.toFuture(m).foreach(k) },
       done, browserHistory, back).element(first)
   }
@@ -284,12 +285,12 @@ object Forms {
 }
 
 object LaminarFace {
-  /** over the faces in scope */
-  def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): LaminarFace[F] = new LaminarFace[F]()(faces)
+  /** over the implementation in scope */
+  def apply[F <: Runner with Singleton]()(implicit fx: F): LaminarFace[F] = new LaminarFace[F]()(fx)
   /** THE HANDLER, whole, in the page: `LaminarFace.mount(Noughts.games)` */
   def mount[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], look: Option[Look] = None,
-    done: A => Unit = (_: A) => (), back: Boolean = true)(implicit faces: Faces[F]): Unit =
-    new LaminarFace[F]()(faces).mount[A](p, look, done, back)
+    done: A => Unit = (_: A) => (), back: Boolean = true)(implicit fx: F): Unit =
+    new LaminarFace[F]()(fx).mount[A](p, look, done, back)
   /** the look as a `<style>` for the document: the same stylesheet the HTML face serves */
   def stylesheet(look: Look = Look.default): HtmlElement = styleTag(Css(look))
 

@@ -15,15 +15,16 @@ import okay.mcp.{Content, Link, ResourceContent, ResourceSpec, Servers, ToolCall
  * is unchanged. The view is a resource too. The step machine's rest runs by the `Runner`: the row is done before the
  * face, but for `Link`, which the server's loop needs (and `Consent` by elicitation performs).
  */
-class McpFace[F <: Runner with Singleton, Fs <: Faces[F]](val faces: Fs) {
-  import faces.fx._
+class McpFace[F <: Runner with Singleton](implicit val fx: F) {
+  import fx._
+  val faces: Faces[fx.type] = new Faces[fx.type]()(fx)
   /** the server over the SAME implementation value, so one `!` serves both */
-  val servers: Servers[faces.fx.type] = new Servers[faces.fx.type]()(faces.fx)
+  val servers: Servers[fx.type] = new Servers[fx.type]()(fx)
 
   type Dialogue[A, R[_]] = faces.Dialogue[A, R]
   /** the same servers over HTTP: `http.service(() => server(...))` */
-  val http: McpHttp[faces.fx.type, servers.type] = new McpHttp[faces.fx.type, servers.type](servers)
-  val domains: Domains[faces.fx.type] = new Domains[faces.fx.type]()(faces.fx)
+  val http: McpHttp[fx.type, servers.type] = new McpHttp[fx.type, servers.type](servers)
+  val domains: Domains[fx.type] = new Domains[fx.type]()(fx)
 
   /** the dialogue as tools: the step's actions, `look`, `back` */
   def tools[A, R[_]](d: Dialogue[A, R], vocabulary: Vocabulary = Vocabulary.empty): servers.Tools[R] =
@@ -217,16 +218,13 @@ object Markdown {
 }
 
 object McpFace {
-  /** over these faces, their path kept: `McpFace.over(faces)` — so a `Dialogue` made by `faces` is one this face takes
-   */
-  def over[F <: Runner with Singleton](faces: Faces[F]): McpFace[F, faces.type] = new McpFace[F, faces.type](faces)
-  /** over the faces in scope */
-  def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): McpFace[F, Faces[F]] =
-    new McpFace[F, Faces[F]](faces) // not `faces.type`: an implicit is no stable path
+  /** over the implementation in scope */
+  def apply[F <: Runner with Singleton]()(implicit fx: F): McpFace[F] = new McpFace[F]()(fx)
   /** THE HANDLER, whole, over standard input and output: `run(McpFace.stdio(Noughts.games))` */
   def stdio[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], vocabulary: Vocabulary = Vocabulary.empty,
     version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true)(
-    implicit faces: Faces[F]): Program[Unit, Tagless.Pure] =
-    Faces.running[F, Unit](faces)(new McpFace[F, Faces[F]](faces).stdio[A](p, vocabulary, version, elicitation,
-        singleTool, back).asInstanceOf[faces.fx.![Unit, faces.fx.Pure]])
+    implicit fx: F): Program[Unit, Tagless.Pure] = {
+    val face = new McpFace[F]()(fx)
+    Faces.running(face.fx.run[Unit](face.stdio[A](p, vocabulary, version, elicitation, singleTool, back)))
+  }
 }

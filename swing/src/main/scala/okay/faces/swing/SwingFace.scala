@@ -21,8 +21,9 @@ import scala.collection.mutable
  * implicit implementation, and the `Singleton` bound keeps the type exact when Scala 3 infers it — `new SwingFace()`
  * with `import okay.effects.machine.Machine._`, on both compilers.
  */
-class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
-  import faces.fx._
+class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
+  import fx._
+  val faces: Faces[fx.type] = new Faces[fx.type]()(fx)
   type M[X] = X ! Pure
 
   final case class Shown[A](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]], problems: Problems)
@@ -66,7 +67,7 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
           unlisten = w.listen(next =>
             SwingUtilities.invokeLater(new Runnable {
               def run(): Unit =
-                if (current.exists(_ eq w)) show(settle(faces.fx.run(next), Vector.empty, w :: s.history))
+                if (current.exists(_ eq w)) show(settle(fx.run(next), Vector.empty, w :: s.history))
             }))
         case _ => ()
       }
@@ -192,14 +193,15 @@ object SwingFace {
     sp.setPreferredSize(new java.awt.Dimension(460, math.min(h + 16, 360).max(60)))
     sp
   }
-  /** over the faces in scope */
-  def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): SwingFace[F] = new SwingFace[F]()(faces)
+  /** over the implementation in scope */
+  def apply[F <: Runner with Singleton]()(implicit fx: F): SwingFace[F] = new SwingFace[F]()(fx)
   /** THE HANDLER, whole: `run(SwingFace.handle(Noughts.games))` — a program of nothing, run on the implementation in
    * scope */
   def handle[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], look: Option[Look] = None,
-    back: Boolean = true)(implicit faces: Faces[F]): Program[Option[A], Tagless.Pure] =
-    Faces.running[F, Option[A]](faces)(new SwingFace[F]()(faces).handle[A](p, look, back).asInstanceOf[faces.fx.![
-        Option[A], faces.fx.Pure]])
+    back: Boolean = true)(implicit fx: F): Program[Option[A], Tagless.Pure] = {
+    val face = new SwingFace[F]()(fx)
+    Faces.running(face.fx.run[Option[A]](face.handle[A](p, look, back)))
+  }
 }
 
 object Views {

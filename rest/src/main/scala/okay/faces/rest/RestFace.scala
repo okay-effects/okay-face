@@ -19,9 +19,10 @@ import okay.http.rest.{Link, Resource, Rests, Trouble}
  * as
  * the remote Laminar face; the links carry JSON Schema for everyone else.
  */
-class RestFace[F <: Runner with Singleton, Fs <: Faces[F]](val faces: Fs) {
-  import faces.fx._
-  val rests: Rests[faces.fx.type] = new Rests[faces.fx.type]()(faces.fx)
+class RestFace[F <: Runner with Singleton](implicit val fx: F) {
+  import fx._
+  val faces: Faces[fx.type] = new Faces[fx.type]()(fx)
+  val rests: Rests[fx.type] = new Rests[fx.type]()(fx)
   import rests.{Route, dispatch, get, post}
 
   final class Sessions[A, R[_]](open: () => faces.Dialogue[A, R], base: String = "/sessions",
@@ -100,25 +101,22 @@ class RestFace[F <: Runner with Singleton, Fs <: Faces[F]](val faces: Fs) {
     base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true): Unit ! Pure = {
     val title = Step.opening[A, ({ type M[X] = X ! Pure })#M](faces.steps[A, okay.faces.Face, Pure](faces.of(p)),
       run).title.getOrElse("okay")
-    Web.serve(faces.fx, port, host)((List(base -> handle[A](p, base, vocabulary, back)) ++ page.map(script =>
-        "/" -> new Shell[faces.fx.type]()(faces.fx).handle(title, look, "/" -> script)).toList): _*)
+    Web.serve(fx, port, host)((List(base -> handle[A](p, base, vocabulary, back)) ++ page.map(script =>
+        "/" -> new Shell[fx.type]()(fx).handle(title, look, "/" -> script)).toList): _*)
   }
   type H[X] = okay.effects.Sum[Pure, Http, X]
   type HF[X] = okay.effects.Sum[H, Face, X]
 }
 
 object RestFace {
-  /** over these faces, their path kept: `RestFace.over(faces)` — so a `Dialogue` made by `faces` is one this face takes
-   */
-  def over[F <: Runner with Singleton](faces: Faces[F]): RestFace[F, faces.type] = new RestFace[F, faces.type](faces)
-  /** over the faces in scope */
-  def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): RestFace[F, Faces[F]] =
-    new RestFace[F, Faces[F]](faces) // not `faces.type`: an implicit is no stable path
+  /** over the implementation in scope */
+  def apply[F <: Runner with Singleton]()(implicit fx: F): RestFace[F] = new RestFace[F]()(fx)
   /** THE HANDLER, whole, served: `run(RestFace.serve(Noughts.games, port, host))` */
   def serve[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1",
     page: Option[() => Either[String, String]] = None, look: Option[Look] = None,
     base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true)(
-    implicit faces: Faces[F]): Program[Unit, Tagless.Pure] =
-    Faces.running[F, Unit](faces)(new RestFace[F, Faces[F]](faces).serve[A](p, port, host, page, look, base, vocabulary,
-        back).asInstanceOf[faces.fx.![Unit, faces.fx.Pure]])
+    implicit fx: F): Program[Unit, Tagless.Pure] = {
+    val face = new RestFace[F]()(fx)
+    Faces.running(face.fx.run[Unit](face.serve[A](p, port, host, page, look, base, vocabulary, back)))
+  }
 }

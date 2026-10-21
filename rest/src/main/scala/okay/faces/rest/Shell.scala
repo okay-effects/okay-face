@@ -42,10 +42,10 @@ object Shell {
   /** THE PAGE OF A SCRIPT, served: `run(Shell.serve(title, port, host, Linked(dir, name)))` */
   def serve[F <: okay.effects.Runner with Singleton](title: String, port: Int, host: String,
     script: () => Either[String, String], look: Option[Look] = None)(
-    implicit fx: F): okay.effects.tagless.Program[Unit, okay.effects.tagless.Tagless.Pure] =
-    okay.effects.tagless.Tagless.delay[Unit, okay.effects.tagless.Tagless.Pure](okay.effects.tagless.Tagless.pure[Unit,
-        okay.effects.tagless.Tagless.Pure](fx.run[Unit](new Shell[F]()(fx).serve(title, port, host, script,
-            look).asInstanceOf[fx.![Unit, fx.Pure]])))
+    implicit fx: F): okay.effects.tagless.Program[Unit, okay.effects.tagless.Tagless.Pure] = {
+    val shell = new Shell[F]()(fx)
+    okay.faces.Faces.running(shell.fx.run[Unit](shell.serve(title, port, host, script, look)))
+  }
   val stylesheetPath = "/okay.css"
   def esc(s: String): String = s.flatMap {
     case '<' => "&lt;"; case '>' => "&gt;"; case '&' => "&amp;"; case '"' => "&quot;"; case c => c.toString

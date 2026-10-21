@@ -36,10 +36,9 @@ class Plays[F <: Runner with Singleton](implicit implementation: F) {
 
   /** THE HANDLER: a program of the face played by a script — what the test face shows and how it ends */
   def handle[A](p: Program[A, okay.faces.Face])(script: Script): Played[A] =
-    // the faces' words are over `faces.fx`, this face's over `fx`: one value, two paths the checker cannot join
-    play[A](faces.steps[A, okay.faces.Face, faces.fx.Pure](faces.of(p))(
-        faces.fx.splitOne[okay.faces.Face]).asInstanceOf[fx.![Step[A, M], fx.Pure]], script)
-  val faces: Faces[F] = new Faces[F]()(fx)
+    play[A](faces.steps[A, okay.faces.Face, Pure](faces.of(p))(splitOne[okay.faces.Face]), script)
+  /** the words and the stepping handler, over this very implementation: one path, `fx`'s */
+  val faces: Faces[fx.type] = new Faces[fx.type]()(fx)
   def play[A](first: Step[A, M] ! Pure, script: Script): Played[A] = {
     // `Told`s run through; `history` the Waitings passed, latest first, for Back
     def settle(step: Step[A, M], views: List[View]): (Step[A, M], List[View]) = step match {

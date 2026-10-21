@@ -14,7 +14,7 @@ import okay.mcp.{Link, Rpc, Servers}
  * bad argument with the step unchanged, goes back */
 class McpFaceSuite extends munit.FunSuite {
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
-  val face = McpFace.over(faces)
+  val face = new McpFace[Machine.type]()(Machine)
   val servers: face.servers.type = face.servers
   import Machine._
   import faces._

@@ -26,7 +26,7 @@ object Tally {
 
 class DomainToolsSuite extends munit.FunSuite {
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
-  val face = McpFace.over(faces)
+  val face = new McpFace[Machine.type]()(Machine)
   import Machine._
   type T[X] = Sum[Void, Tally, X]
   def tallying[R[_], Rest[_], A](initial: Int)(p: A ! R)(implicit sp: Split[Tally, R, Rest]): (Int, A) ! Rest =

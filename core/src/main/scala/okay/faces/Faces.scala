@@ -11,11 +11,11 @@ import okay.effects.shape.Shape
 class Faces[F <: Effects with Singleton](implicit implementation: F) {
   val fx: F = implementation
   import fx._
-  /** sessions with a step machine, for the faces that serve many counterparts */
-  val dialogues: Dialogues[fx.type] = new Dialogues[fx.type]()(fx)
-  type Dialogue[A, R[_]] = dialogues.Dialogue[A, R]
-  def dialogue[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true): Dialogue[A, R] =
-    dialogues.dialogue[A, R](first, back)
+  /** a session with a step machine, for the faces that serve many counterparts: over this implementation, so any
+   * face over it takes one made here */
+  type Dialogue[A, R[_]] = Session[fx.type, A, R]
+  def dialogue[A, R[_]](first0: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true): Dialogue[A, R] =
+    new Session[fx.type, A, R](fx, back) { protected def first: Step[A, M] ! R = first0 }
 
   def offer[A, R[_]](view: View, actions: List[Action[A]])(implicit in: In[Face, R]): A ! R =
     perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a))
@@ -61,7 +61,7 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
   /** `Face` alone is the row of a program of a face, `A ! Face`: one effect is a row (`splitOne`), no alias needed */
   /** A PROGRAM OF NO IMPLEMENTATION, on this one: written over `Faces.tagless` as a value, `Program[A, Face]`, it runs
    * here as `A ! Face` — the faces' words are the same, tagless makes them values, a face instantiates them */
-  def of[A](p: Program[A, Face]): A ! Face = p.on(fx).asInstanceOf[A ! Face]
+  def of[A](p: Program[A, Face]): A ! Face = p.on(fx)
 
   /** THE STEPPING HANDLER: `Face` taken out of the row, the program a `Step` of what remains. `Offer` becomes a
    * `Waiting` whose `resume` decodes the choice and gives the rest as a program; `Show` a `Told`. General: `k` is kept
@@ -83,28 +83,20 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
   }
 }
 
-/** THE FACES BY DEFAULT, from the implementation in scope: with `import okay.effects.machine.Machine._` and nothing
- * else said, `new SwingFace()`, `new Terminal()`, `new Noughts()` find their faces here, and the implementation's type
- * with them — `F` inferred as the implicit's singleton type. The implicit is written per compiler (`FacesDefault`):
- * Scala 3 infers `F` from `default[F](implicit fx: F)` under a `Singleton` bound; Scala 2 cannot search for an
- * implicit of a type still unknown, but takes `F` from a dependent result, `default(implicit fx: Effects):
- * Faces[fx.type]`.
- * A fresh value each time, and that is fine: `Faces` holds no state, only words over `fx`, so any two over one
- * implementation are the same faces — what a step machine makes on one runs on another. Only a `Dialogue` is one
- * instance's own by type, and the faces that keep dialogues (`McpFace.over(faces)`, `RestFace.over(faces)`,
- * `HtmlFace.over(faces)`)
- * are given their faces by name */
-object Faces extends FacesDefault {
+/** THE FACES OVER AN IMPLEMENTATION: `Faces()` with one in scope, `Faces.of[Machine.type]`. A fresh value each time,
+ * and that is fine: `Faces` holds no state, only words over `fx`, so any two over one implementation are the same
+ * faces — what a step machine makes on one runs on another, and a `Dialogue` is typed by the implementation alone.
+ * A face (`SwingFace`, `Terminal`, …) takes the implementation, not faces: it makes its own over `fx.type`, so every
+ * type in it is on ONE path, `fx`'s */
+object Faces {
   /** THE FACES OF NO IMPLEMENTATION: `okay.faces` itself — programs written over `import okay.faces._` are values, and
    * every
    * face handles them, instantiated on its own implementation */
   val tagless: Faces[Tagless.type] = okay.faces.`package`
-  /** A FACE'S RUN AS A PROGRAM OF NOTHING: what a face does when it runs a program — a window, a console, a server — as
-   * a
-   * tagless program, run by `okay.faces.run` on the implementation in scope. `p` is the face's own, over `faces.fx` */
-  def running[F <: okay.effects.Runner with Singleton, A](faces: Faces[F])(
-    p: => faces.fx.![A, faces.fx.Pure]): Program[A, Tagless.Pure] =
-    Tagless.delay[A, Tagless.Pure](Tagless.pure[A, Tagless.Pure](faces.fx.run[A](p)))
+  /** A FACE'S RUN AS A PROGRAM OF NOTHING: what a face does when it runs a program — a window, a console, a server —
+   * as a tagless program, run by `okay.faces.run` on the implementation in scope: `running(face.fx.run(face.handle(p)))`
+   */
+  def running[A](a: => A): Program[A, Tagless.Pure] = Tagless.delay[A, Tagless.Pure](Tagless.pure[A, Tagless.Pure](a))
   def apply()(implicit fx: Effects): Faces[fx.type] = {
     implicit val exact: fx.type = fx
     new Faces[fx.type]

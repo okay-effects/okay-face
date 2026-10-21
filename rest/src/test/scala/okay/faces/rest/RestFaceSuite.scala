@@ -11,7 +11,7 @@ import okay.http.{Http, Https, Request}
 
 class RestFaceSuite extends munit.FunSuite {
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
-  val face = RestFace.over(faces)
+  val face = new RestFace[Machine.type]()(Machine)
   val https: Https[Machine.type] = new Https[Machine.type]()(Machine)
   import Machine._
   import faces._
