@@ -29,7 +29,8 @@ class RestFaceSuite extends munit.FunSuite {
       }
     }
   def talk(requests: Request*): List[okay.http.Response] = {
-    val sessions = face.sessions[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), ids = okay.faces.Sessions.counting("s"))
+    val sessions = face.sessions[String, H](
+      () => faces.dialogue[String, H](steps[String, HF, H](greeting)), ids = okay.faces.Sessions.counting("s"))
     Machine.run(https.scripted(requests.toList)(https.serve[H](sessions.service)))._1
   }
 
@@ -54,7 +55,8 @@ class RestFaceSuite extends munit.FunSuite {
   test("the marks: a link in the resource and GET /sessions/marks when the sessions have a vocabulary; a 404 without") {
     val vocab = Vocabulary("price" -> "the amount due")
     val sessions =
-      face.sessions[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), vocabulary = vocab, ids = okay.faces.Sessions.counting("s"))
+      face.sessions[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), vocabulary = vocab,
+        ids = okay.faces.Sessions.counting("s"))
     val rs = Machine.run(https.scripted(List(Request("POST", "/sessions"), Request.get("/sessions/marks")))(
         https.serve[H](sessions.service)))._1
     assert(rs.head.body.contains("\"rel\":\"marks\"") && rs.head.body.contains("/sessions/marks"), rs.head.body)
@@ -74,7 +76,8 @@ class RestFaceSuite extends munit.FunSuite {
     def program: String ! HF =
       offer[Int, HF](View.text("waiting"), List(okay.faces.Action.plain[Int]("skip", "Skip")(0)),
         bus.meanwhile).flatMap(n => show[HF](View.text(s"got $n")).map(_ => s"$n"))
-    val sessions = face.sessions[String, H](() => faces.dialogue[String, H](steps[String, HF, H](program)), ids = okay.faces.Sessions.counting("s"))
+    val sessions = face.sessions[String, H](
+      () => faces.dialogue[String, H](steps[String, HF, H](program)), ids = okay.faces.Sessions.counting("s"))
     val opened = Machine.run(https.scripted(List(Request.post("/sessions", "", "application/json")))(
         https.serve[H](sessions.service)))._1.head
     assert(opened.body.contains("\"listening\":true"), opened.body)

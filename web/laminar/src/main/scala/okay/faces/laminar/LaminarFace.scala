@@ -175,16 +175,17 @@ object Views {
 object Forms {
   def action[A](a: Action[A], choose: Chosen => Unit, busy: Boolean, words: Words = Words.english): HtmlElement =
     a.params.erased match {
-    case Schema.Record(fields) if fields.isEmpty =>
-      button(typ := "button", cls := Role.Action.classes, dataAttr("action") := a.name, disabled := busy, a.label,
-        onClick --> Observer[dom.MouseEvent](_ => choose(Chosen.plain(a.name))))
-    case schema =>
-      val inputs = new Inputs(words)
-      val body = inputs.of(Nil, schema)
-      form(cls := Role.Form.classes, dataAttr("action") := a.name, a.doc.map(d => p(cls := Role.Doc.classes, d)), body,
-        button(typ := "submit", cls := Role.Action.classes, disabled := busy, a.label),
-        onSubmit.preventDefault --> Observer[dom.Event](_ => choose(Chosen(a.name, inputs.collect(Nil, schema)))))
-  }
+      case Schema.Record(fields) if fields.isEmpty =>
+        button(typ := "button", cls := Role.Action.classes, dataAttr("action") := a.name, disabled := busy, a.label,
+          onClick --> Observer[dom.MouseEvent](_ => choose(Chosen.plain(a.name))))
+      case schema =>
+        val inputs = new Inputs(words)
+        val body = inputs.of(Nil, schema)
+        form(cls := Role.Form.classes, dataAttr("action") := a.name, a.doc.map(d => p(cls := Role.Doc.classes, d)),
+          body,
+          button(typ := "submit", cls := Role.Action.classes, disabled := busy, a.label),
+          onSubmit.preventDefault --> Observer[dom.Event](_ => choose(Chosen(a.name, inputs.collect(Nil, schema)))))
+    }
 
   /** the inputs of a form, kept by path, read at submit */
   final class Inputs(words: Words = Words.english) {

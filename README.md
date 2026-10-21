@@ -29,12 +29,30 @@ types for them.
 
 ```scala
 import okay.faces.*                      // all a program needs: the words are tagless, no implementation is named
+import okay.effects.shape.Shape
+
+case class Who(name: String)
+val who = Shape.derived[Who].labelled("name", "Name")
+
 val greeting: String ! Face =           // the one effect is the row
   fill[Who, Face](View.heading("Who are you?"), who).flatMap(w =>
-    confirm[Face](View.text(s"Greet ${w.name}?")).flatMap(yes => if yes then show[Face](View.text(s"Hello, ${w.name}!")).map(_ => "greeted") else pure("left")))
+    confirm[Face](View.text(s"Greet ${w.name}?")).flatMap(yes =>
+      if yes then show[Face](View.text(s"Hello, ${w.name}!")).map(_ => "greeted") else pure("left")))
 
-import okay.effects.machine.Machine.self   // the implementation, said once, where the program is run
-run(Terminal.console(greeting))            // or SwingFace.handle(greeting), McpFace.stdio(greeting), HtmlFace.serve(greeting, port, host)…
 // every face is a handler of the one effect: a Step machine — Waiting(view, actions, resume) — driven by a script,
-// by prompts, by tool calls, by requests; back is re-resuming an earlier Waiting
+// by prompts, by tool calls, by requests. The implementation is said once, where the program is run:
+object AtTheTerminal:
+  import okay.effects.machine.Machine.self
+  import okay.faces.term.Terminal
+  def main(args: Array[String]): Unit = run(Terminal.console(greeting))
+  // or SwingFace.handle(greeting), McpFace.stdio(greeting), HtmlFace.serve(greeting, port, host)…
+
+// the test face plays it by a script, and tells what was shown:
+import okay.effects.machine.Machine.self
+import okay.faces.test.Plays
+val plays = Plays()
+plays.handle(greeting)(plays.Script.of(Chosen("submit", okay.effects.json.Json.obj("name" -> okay.effects.json.Json.Str("Ann"))),
+    Chosen.plain("yes"))) match
+  case plays.Played.Finished(views, a) => assert(a == "greeted" && views.last == View.text("Hello, Ann!"))
+  case other => assert(false, other.toString)
 ```

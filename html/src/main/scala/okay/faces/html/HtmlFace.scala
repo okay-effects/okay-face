@@ -133,7 +133,8 @@ object Html {
          |${if (problems.isEmpty) ""
         else s"<ul ${cls(Role.Problems)}>" + problems.map(p => s"<li>${esc(p.render)}</li>").mkString + "</ul>"}
          |<nav ${cls(Role.Actions)}>${actions.filterNot(_.name == "ref").map(a => Forms.action(a, here)).mkString("\n")}
-         |${if (back) s"""<form method="post" action="$here/back"><button ${cls(Role.Back)}>${esc(words.back)}</button></form>"""
+         |${if (back)
+          s"""<form method="post" action="$here/back"><button ${cls(Role.Back)}>${esc(words.back)}</button></form>"""
         else ""}</nav>
          |</main>""".stripMargin)
   def lost(title: String, base: String, words: Words = Words.english): String =

@@ -60,7 +60,8 @@ class HandlesSuite extends munit.FunSuite {
         "You are X") && sent.head.contains("Marks on views"), sent.head)
     assert(sent(1).contains("\"name\":\"ref\"") && !sent(1).contains("\"name\":\"back\""), sent(1))
     assert(sent(2).contains("X"), sent(2))
-    assert(sent.exists(_.contains("nothing to go back to")), "a move is not kept in history: back, called anyway, has nowhere to go")
+    assert(sent.exists(_.contains("nothing to go back to")),
+      "a move is not kept in history: back, called anyway, has nowhere to go")
   }
   test("the test face: played by a script, the views as the reference") {
     val plays = Plays()

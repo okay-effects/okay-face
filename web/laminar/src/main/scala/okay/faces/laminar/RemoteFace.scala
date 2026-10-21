@@ -17,7 +17,8 @@ import scala.concurrent.{ExecutionContext, Future}
  * `400` with problems leaves the step; `POST self/back`. A choice is checked against the schema before it travels.
  * The transport is a function, `Browser.fetch()` in a page, the server's own service in a test.
  */
-class RemoteFace(transport: Request => Future[Response], poll: Int = 1000, words: okay.faces.Words = okay.faces.Words.english)(
+class RemoteFace(transport: Request => Future[Response], poll: Int = 1000,
+  words: okay.faces.Words = okay.faces.Words.english)(
   implicit ec: ExecutionContext) {
   import RemoteFace.Shown
   private val nothing = Shown("", View.Empty, Nil, back = false, done = false, Nil, busy = true)

@@ -99,9 +99,14 @@ lazy val examples = crossBoth("examples", "examples", can = Set("js"))
   .jvmConfigure(_.dependsOn(core.jvm, test.jvm, term.jvm, swing, rest.jvm, html.jvm, mcp.jvm).settings(
       Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-jvm",
       Test / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "test" / "scala-jvm"))
-  .onJS(_.dependsOn(core.js, laminar.js).settings(scalaJSUseMainModuleInitializer := true,
+  .onJS(_.dependsOn(core.js, laminar.js, rest.js).settings(scalaJSUseMainModuleInitializer := true,
       Compile / mainClass := Some("okay.faces.examples.NoughtsLocal"), // this script the game's; the list's is its own
       Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-js",
+      // the pages tested under jsdom, as the Laminar face is: `sbt -Dplatforms=js examplesJS/test`
+      Test / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "test" / "scala-js",
+      Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(
+        org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
+          .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))),
       libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1",
         "io.github.okay-effects" %%% "okay-http" % okayHttp)))
 /** THE LIST'S PAGE: its own script, `examples/todo/.js`, the same sources — one page, one script, no dispatch */
@@ -160,8 +165,34 @@ lazy val waypoint = CrossProject("waypoint", file("web/waypoint"))(JSPlatform).c
     if (platformsAsked("js")) p.withId("waypointJS").dependsOn(core.js) else p.withId("waypointJS")).dependsOn(
     airstream)
 
+/** THE DOCUMENTATION'S CODE, CHECKED (as okay-simple does): each ```scala block of the README, in turn in one class,
+ * compiled by Scala 3; an instance made in a test, so a block's `assert`s run. `sbt docsCheck/test` */
+def docBlocks = Def.task {
+  val root = (ThisBuild / baseDirectory).value
+  val out = (Test / sourceManaged).value / "docs"
+  val Block = "(?s)```scala\n(.*?)```".r
+  val pages = Seq(root / "README.md").flatMap { md =>
+    val blocks = Block.findAllMatchIn(IO.read(md)).map(_.group(1)).toList
+    if (blocks.isEmpty) None else Some(md.getName.replaceAll("[^A-Za-z0-9]", "_") -> blocks)
+  }
+  val classes = pages.map { case (name, blocks) =>
+    val f = out / s"$name.scala"
+    IO.write(f, s"package docs.check\n\nclass $name {\n" + blocks.mkString("\n") + "\n}\n"); f
+  }
+  val suite = out / "DocsSuite.scala"
+  IO.write(suite, "package docs.check\n\nclass DocsSuite extends munit.FunSuite {\n" + pages.map { case (name, _) =>
+      "  test(\"" + name + "\") { assert(new " + name + "().toString.nonEmpty) }\n"
+    }.mkString + "}\n")
+  classes :+ suite
+}
+lazy val docsCheck = (project in file("docs/check"))
+  .dependsOn(core.jvm, test.jvm, term.jvm, swing, mcp.jvm, rest.jvm, html.jvm)
+  .settings(name := "okay-faces-docs-check", publish / skip := true, scalaVersion := scala3,
+    crossScalaVersions := Seq(scala3), libraryDependencies += "org.scalameta" %% "munit" % "1.2.3" % Test,
+    scalacOptions ++= Seq("-deprecation", "-feature"), Test / sourceGenerators += docBlocks.taskValue)
+
 lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, mcp.jvm,
-    rest.jvm, html.jvm, examples.jvm) ++
+    rest.jvm, html.jvm, examples.jvm, docsCheck) ++
     ((if (platformsAsked("js"))
         Seq[ProjectReference](laminar.js, airstream.js, waypoint.js, examples.js, examplesTodo.js, examplesRemote.js)
       else Nil))): _*).settings(name := "okay-faces-root", publish / skip := true)

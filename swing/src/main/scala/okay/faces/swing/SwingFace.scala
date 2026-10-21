@@ -115,7 +115,7 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
         if (help.nonEmpty) {
           val bar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 2))
           val button = new JButton("?"); button.setName(SwingFace.helpName)
-        button.setToolTipText(look.map(_.words).getOrElse(Words.english).help)
+          button.setToolTipText(look.map(_.words).getOrElse(Words.english).help)
           button.setMargin(new java.awt.Insets(0, 0, 0, 0)); button.setPreferredSize(new java.awt.Dimension(28, 28));
           button.setFocusable(false)
           button.addActionListener((_: java.awt.event.ActionEvent) =>
@@ -132,7 +132,8 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
     })
 
   private def render[A](s: Shown[A], show: Shown[A] => Unit,
-    settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A], back: Boolean, words: Words): JComponent = {
+    settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A], back: Boolean, words: Words)
+    : JComponent = {
     val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS))
     s.told.foreach(v => box.add(named(Views.component(v), Role.Told.cls)))
     s.step match {
@@ -319,20 +320,21 @@ object Views {
 /** an action as a button, or as a form drawn from its parameters' erased schema; what is typed becomes JSON the
  * action's shape decodes — the face does not validate, the shape does */
 object Forms {
-  def action[A](a: Action[A], choose: Chosen => Unit, words: Words = Words.english): JComponent = a.params.erased match {
-    case Schema.Record(fields) if fields.isEmpty =>
-      val b = new JButton(a.label); b.setName("action:" + a.name)
-      b.addActionListener(_ => choose(Chosen.plain(a.name))); b
-    case schema =>
-      val inputs = new Inputs(words)
-      val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.setName("form:" + a.name)
-      p.setBorder(BorderFactory.createTitledBorder(a.label))
-      a.doc.foreach(d => { val l = new JLabel(d); l.setName(Role.Doc.cls); p.add(l) })
-      p.add(inputs.of(Nil, schema))
-      val submit = new JButton(a.label); submit.setName("submit:" + a.name)
-      submit.addActionListener(_ => choose(Chosen(a.name, inputs.collect(Nil, schema))))
-      p.add(submit); p
-  }
+  def action[A](a: Action[A], choose: Chosen => Unit, words: Words = Words.english): JComponent =
+    a.params.erased match {
+      case Schema.Record(fields) if fields.isEmpty =>
+        val b = new JButton(a.label); b.setName("action:" + a.name)
+        b.addActionListener(_ => choose(Chosen.plain(a.name))); b
+      case schema =>
+        val inputs = new Inputs(words)
+        val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.setName("form:" + a.name)
+        p.setBorder(BorderFactory.createTitledBorder(a.label))
+        a.doc.foreach(d => { val l = new JLabel(d); l.setName(Role.Doc.cls); p.add(l) })
+        p.add(inputs.of(Nil, schema))
+        val submit = new JButton(a.label); submit.setName("submit:" + a.name)
+        submit.addActionListener(_ => choose(Chosen(a.name, inputs.collect(Nil, schema))))
+        p.add(submit); p
+    }
 
   final class Inputs(words: Words = Words.english) {
     private val texts = mutable.Map.empty[List[String], JTextField]

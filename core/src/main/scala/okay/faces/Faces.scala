@@ -95,7 +95,8 @@ object Faces {
    * face handles them, instantiated on its own implementation */
   val tagless: Faces[Tagless.type] = okay.faces.`package`
   /** A FACE'S RUN AS A PROGRAM OF NOTHING: what a face does when it runs a program — a window, a console, a server —
-   * as a tagless program, run by `okay.faces.run` on the implementation in scope: `running(face.fx.run(face.handle(p)))`
+   * as a tagless program, run by `okay.faces.run` on the implementation in scope:
+   * `running(face.fx.run(face.handle(p)))`
    */
   def running[A](a: => A): Program[A, Tagless.Pure] = Tagless.delay[A, Tagless.Pure](Tagless.pure[A, Tagless.Pure](a))
   def apply()(implicit fx: Effects): Faces[fx.type] = {

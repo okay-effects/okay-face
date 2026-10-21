@@ -85,7 +85,9 @@ class McpHttp[F <: Effects with Singleton, S <: Servers[F]](val servers: S) {
                 case Some(id) => sessions.get(id) match {
                     case None => pure[Response, R](Response.text("no such session", 404))
                     case Some((stream, parked)) => run(id, stream, parked, ms).map { case (mail, next) =>
-                        next match { case Ended() => sessions.remove(id); case _ => sessions.update(id, (stream, next)) }
+                        next match {
+                          case Ended() => sessions.remove(id); case _ => sessions.update(id, (stream, next))
+                        }
                         reply(mail.out, stream, batch, id)
                       }
                   }

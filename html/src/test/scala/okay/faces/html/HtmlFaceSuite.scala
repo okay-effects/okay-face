@@ -30,7 +30,8 @@ class HtmlFaceSuite extends munit.FunSuite {
   def form(kv: (String, String)*): Request = Request.post("/s/s1/act/submit",
     Query.print(kv.toList.groupBy(_._1).map { case (k, vs) => k -> vs.map(_._2) }), "application/x-www-form-urlencoded")
   def talk(requests: Request*): List[okay.http.Response] = {
-    val pages = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), "Greeting", ids = okay.faces.Sessions.counting("s"))
+    val pages = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), "Greeting",
+      ids = okay.faces.Sessions.counting("s"))
     Machine.run(https.scripted(requests.toList)(https.serve[H](pages.service)))._1
   }
 
@@ -51,7 +52,8 @@ class HtmlFaceSuite extends munit.FunSuite {
     assert(rs(3).body.contains("<li>age: of age</li>") && rs(3).body.contains("Who are you?"), rs(3).body)
     assert(rs(5).body.contains("Greet &lt;Ann&gt;, 41?") && rs(5).body.contains("""value="yes""""), rs(5).body)
     assert(rs(5).body.contains("/s/s1/back"))
-    assert(rs(7).body.contains("Hello, Ann!") && rs(7).body.contains("okay-notice-info") && !rs(7).body.contains("greeted Ann"), rs(7).body)
+    assert(rs(7).body.contains("Hello, Ann!") && rs(7).body.contains("okay-notice-info") && !rs(7).body.contains(
+        "greeted Ann"), rs(7).body)
   }
   test("a form's fields to JSON along the schema: nested, optional blank, checkbox, choice, list, sum") {
     val schema = Schema.Record(Vector(
@@ -101,7 +103,8 @@ class HtmlFaceSuite extends munit.FunSuite {
       offer[String, HF](View.stack(View.text("records"), View.Ref("r1", "Ann"), View.Ref("r2", "Bo")),
         List(okay.faces.Action[String, String]("ref", "Open", record(field("key", text))(k => k)(k => k))(k =>
             k))).flatMap(k => show[HF](View.text(s"opened $k")).map(_ => k))
-    val pages = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](listing)), "Refs", ids = okay.faces.Sessions.counting("s"))
+    val pages = face.pages[String, H](
+      () => faces.dialogue[String, H](steps[String, HF, H](listing)), "Refs", ids = okay.faces.Sessions.counting("s"))
     val rs = Machine.run(https.scripted(List(Request.get("/"), Request.get("/s/s1"), Request.get("/s/s1/ref/r2"),
           Request.get("/s/s1")))(https.serve[H](pages.service)))._1
     assert(rs(1).body.contains("""href="/s/s1/ref/r2""""), rs(1).body)
