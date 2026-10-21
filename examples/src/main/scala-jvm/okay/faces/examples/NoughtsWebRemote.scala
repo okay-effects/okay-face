@@ -9,5 +9,5 @@ import okay.faces.rest.{Linked, RestFace}
  * `sbt -Dplatforms=js examplesRemoteJS/fullLinkJS` */
 object NoughtsWebRemote {
   def main(args: Array[String]): Unit = run(RestFace.serve(Noughts.games, Args.port(args), Args.host(args),
-    page = Some(Linked("examples/remote/.js", "okay-faces-examples-remote")), look = Some(Noughts.light), vocabulary = Noughts.marks.vocabulary))
+    page = Some(Linked("examples/remote/.js", "okay-faces-examples-remote")), look = Some(Noughts.look), vocabulary = Noughts.marks.vocabulary))
 }

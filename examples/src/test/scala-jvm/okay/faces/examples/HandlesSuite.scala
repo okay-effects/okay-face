@@ -30,7 +30,7 @@ class HandlesSuite extends munit.FunSuite {
   }
   test("HTML: the base opens a session, the page is titled by the heading shown, the cells are links, no back, the look at /okay.css") {
     val html = HtmlFace()
-    val service = html.handle(Noughts.game, look = Some(light))
+    val service = html.handle(Noughts.game, look = Some(look))
     val rs = run(https.scripted(List(Request.get("/s"), Request.get("/s/s1"), Request.get("/okay.css")))(https.serve[H](service)))._1
     assertEquals(rs.map(_.status), List(303, 200, 200))
     assert(rs(1).body.contains("<title>Noughts and crosses</title>") && rs(1).body.contains("""href="/s/s1/ref/5"""") && !rs(1).body.contains("okay-back"), rs(1).body)

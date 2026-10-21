@@ -7,7 +7,7 @@ import okay.faces.html.HtmlFace
 /** THE GAME AS PAGES FROM THE SERVER: `sbt "examples/runMain okay.faces.examples.NoughtsHtml [port] [host]"` — the HTML
  * face handles the program: structural pages, no script, a cell a link */
 object NoughtsHtml {
-  def main(args: Array[String]): Unit = run(HtmlFace.serve(Noughts.games, Args.port(args), Args.host(args), look = Some(Noughts.light)))
+  def main(args: Array[String]): Unit = run(HtmlFace.serve(Noughts.games, Args.port(args), Args.host(args), look = Some(Noughts.look)))
 }
 
 /** the port and the host from the arguments: `[port] [host]`, `8090` and the loopback by default; `0.0.0.0` opens to the network */

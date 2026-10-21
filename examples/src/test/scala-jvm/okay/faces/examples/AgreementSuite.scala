@@ -41,7 +41,7 @@ class AgreementSuite extends munit.FunSuite {
     assertEquals(ViewJson.encode(line), obj("type" -> Str("marked"), "mark" -> Str("result"), "view" -> obj("type" -> Str("text"), "text" -> Str("X won"))))
     assertEquals(okay.faces.swing.Views.component(line).getName, "okay-mark-result")
     assertEquals(marks.vocabulary.markdown, "- result: how the game ended: who won, or a draw\n- cell: a cell of the board: X, O, or free to play")
-    assert(okay.faces.Css(light).contains(".okay-mark-result{"), okay.faces.Css(light))
+    assert(okay.faces.Css(look).contains(".okay-mark-result{"), okay.faces.Css(look))
   }
 
   test("the terminal shows every view as the test face's, rendered, in order, and ends the same") {
