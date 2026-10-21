@@ -488,6 +488,7 @@ After step 4 the model holds or it does not, before any web platform is paid for
   the remote face on a click, the terminal by typing `ref` then the key as ever; a step without `ref` shows a `Ref` as
   a name. The program says what a reference does; the faces make it clickable. A face that clicks (HTML, Laminar, the
   remote face, Swing — a `Ref` a button there, a table of live refs a grid) leaves `ref` OUT of its menu: the refs are
-  its control; the terminal and an agent keep it as an action, typed or called with the key. The example plays a cell
-  by a click this way (2026-10-21).
+  its control; an agent keeps it as a tool called with the key. The terminal types the key: a `[key]` shown in the view,
+  typed at the prompt, chooses `ref` — its click — and the action stays out of the menu there too. The example plays a
+  cell by a click, or by its number, this way (2026-10-21).
 - Whether `Schema` should carry layout hints at all, or they belong to a `screen/` layer only.

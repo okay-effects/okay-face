@@ -97,12 +97,30 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
   def terminal[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true)(implicit c: In[Console, R]): Option[A] ! R = {
     type M[X] = X ! R
     type RF[X] = okay.effects.Sum[R, Fields, X]
-    def menuOf(w: Step.Waiting[A, M]): List[String] =
-      List(w.actions.zipWithIndex.map { case (a, i) => paint(Role.Action, s"${i + 1}) ${a.label}") }.mkString("  ") + paint(Role.Doc, if (back) "   (< back, ? help, q quit)" else "   (? help, q quit)"))
-    def docs(w: Step.Waiting[A, M]): List[String] = w.actions.map(a => s"${a.name}: ${a.doc.getOrElse(a.label)}")
+    // LIVE REFS: when the step offers `ref`, a `Ref`'s key typed is the terminal's click — the view's `[key]`s are the
+    // choices, and the action itself stays out of the menu, as it does where a face clicks
+    def live(w: Step.Waiting[A, M]): Boolean = w.actions.exists(_.name == "ref")
+    def keys(v: View): List[String] = v match {
+      case View.Ref(key, _) => List(key)
+      case View.Marked(_, x) => keys(x)
+      case View.Group(_, cs) => cs.toList.flatMap(keys)
+      case View.Table(_, rows) => rows.toList.flatMap(_.toList.flatMap(keys))
+      case View.Items(items) => items.toList.flatMap(keys)
+      case View.Fields(rows) => rows.toList.flatMap { case (_, x) => keys(x) }
+      case _ => Nil
+    }
+    def menu(w: Step.Waiting[A, M]): List[Action[_]] = if (live(w)) w.actions.filterNot(_.name == "ref") else w.actions
+    def menuOf(w: Step.Waiting[A, M]): List[String] = {
+      val entries = menu(w).zipWithIndex.map { case (a, i) => paint(Role.Action, s"${i + 1}) ${a.label}") }
+      val hint = (if (live(w) && keys(w.view).nonEmpty) List("a [key]") else Nil) ++ (if (back) List("< back") else Nil) ++ List("? help", "q quit")
+      List(entries.mkString("  ") + paint(Role.Doc, hint.mkString("   (", ", ", ")")))
+    }
+    def docs(w: Step.Waiting[A, M]): List[String] =
+      (if (live(w)) w.actions.find(_.name == "ref").map(a => s"a [key] typed: ${a.doc.getOrElse(a.label)}").toList else Nil) ++ menu(w).map(a => s"${a.name}: ${a.doc.getOrElse(a.label)}")
     def pick(w: Step.Waiting[A, M], line: String): Option[Action[_]] = {
       val t = line.trim
-      w.actions.find(_.name == t).orElse(t.toIntOption.filter(i => i >= 1 && i <= w.actions.size).map(i => w.actions(i - 1)))
+      val m = menu(w)
+      m.find(_.name == t).orElse(t.toIntOption.filter(i => i >= 1 && i <= m.size).map(i => m(i - 1)))
     }
     /** the action's arguments from the person: the parameters read field by field, or nothing for a plain action */
     def arguments(a: Action[_]): Either[Problems, Json] ! R = a.params.erased match {
@@ -121,8 +139,12 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
             case _ => loop(w, history)
           }
           case Some(l) if l.trim == "?" => say[R](docs(w)).flatMap(_ => loop(w, history))
+          case Some(l) if live(w) && keys(w.view).contains(l.trim) => w.resume(Chosen("ref", Json.obj("key" -> Json.Str(l.trim)))) match {
+            case Left(Rejected(ps)) => problems[R](ps).flatMap(_ => loop(w, history))
+            case Right(next) => next.flatMap(loop(_, w :: history))
+          }
           case Some(l) => pick(w, l) match {
-            case None => printLine[R](s"problem: one of ${w.actions.map(_.name).mkString(", ")}").flatMap(_ => loop(w, history))
+            case None => printLine[R](s"problem: one of ${(menu(w).map(_.name) ++ (if (live(w)) keys(w.view).map("[" + _ + "]") else Nil)).mkString(", ")}").flatMap(_ => loop(w, history))
             case Some(a) => arguments(a).flatMap {
               case Left(ps) => problems[R](ps).flatMap(_ => loop(w, history))
               case Right(args) => w.resume(Chosen(a.name, args)) match {

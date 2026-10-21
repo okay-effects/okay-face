@@ -61,11 +61,11 @@ class NoughtsSuite extends munit.FunSuite {
 class NoughtsTerminalSuite extends munit.FunSuite {
   import NoughtsTerminal._
   test("X wins down the left at the terminal: the boards printed, the cell asked as a menu") {
-    val (printed, result) = Machine.run(term.io.console(List("1", "1", "ref", "4", "1", "7", "again"))(
+    val (printed, result) = Machine.run(term.io.console(List("1", "4", "7", "again"))(
       term.terminal[game.Outcome, C](term.faces.steps[game.Outcome, CF, C](game.game[CF](game.Board.empty)))))
     assertEquals(result, Some(game.Won('X')))
     assert(printed.contains("NOUGHTS AND CROSSES"))
     assert(printed.contains("X won"), printed.mkString("\n"))
-    assert(printed.exists(_.startsWith("1) 1")), printed.mkString("\n"))   // the free cells as a menu
+    assert(printed.exists(_.contains("a [key]")), printed.mkString("\n"))   // the free cells by their keys
   }
 }

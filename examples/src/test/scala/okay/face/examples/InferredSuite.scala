@@ -20,7 +20,7 @@ class InferredSuite extends munit.FunSuite {
     assert(panel.getComponentCount > 0)
     type C[X] = Row[*[Pure] + *[Console], X]
     type CF[X] = Row[*[Pure] + *[Console] + *[Face], X]
-    val (printed, _) = run(term.io.console(List("1", "1", "ref", "4", "1", "7"))(term.terminal[game.Outcome, C](term.faces.steps[game.Outcome, CF, C](game.game[CF](game.Board.empty)))))
+    val (printed, _) = run(term.io.console(List("1", "4", "7"))(term.terminal[game.Outcome, C](term.faces.steps[game.Outcome, CF, C](game.game[CF](game.Board.empty)))))
     assert(printed.exists(_.contains("X won")), printed.mkString("\n"))
   }
 }
