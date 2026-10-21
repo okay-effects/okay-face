@@ -59,8 +59,8 @@ class NoughtsSuite extends munit.FunSuite {
 
 /** the same game at the terminal, the scenario handled whole, under a scripted console; a quit is None */
 class NoughtsTerminalSuite extends munit.FunSuite {
-  val game = new Noughts()
   import okay.effects.machine.Machine._
+  val game = new Noughts()
   val io = new okay.effects.world.Io()
   test("X wins down the left at the terminal: the boards printed, a cell by its key; the games go on until quit") {
     val played = okay.face.term.Terminal.handle(game)
