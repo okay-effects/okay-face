@@ -10,8 +10,8 @@ class RowSuite extends munit.FunSuite {
     val game = new Noughts[Machine.type]()
     type F[X] = Row[*[Pure] + *[Face], X]
     type M[X] = X ! Pure
-    run(game.faces.steps[game.Outcome, F, Pure](game.games[F])) match {
-      case w: okay.face.Step.Waiting[game.Outcome, M] @unchecked => assertEquals(w.actions.map(_.name), List("ref"))
+    run(game.faces.steps[Outcome, F, Pure](game.games[F])) match {
+      case w: okay.face.Step.Waiting[Outcome, M] @unchecked => assertEquals(w.actions.map(_.name), List("ref"))
       case other => fail(s"$other")
     }
   }

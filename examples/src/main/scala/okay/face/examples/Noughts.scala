@@ -7,30 +7,10 @@ import okay.face.{Action, Face, Faces, Look, Marks, Rule, Scenario, Style, Theme
 /** NOUGHTS AND CROSSES: the person is X, the program O. A loop of offers — the board shown, the free cells the one
  * action's choices — branching on the outcome, a `Tell` at the end; back is the face's and undoes a move. The same
  * program plays in a terminal, over MCP against an agent, and in a test by script */
-/** the outcome, named outside the class: a scenario's result type is said once for every instance */
-object Noughts {
-  sealed trait Outcome
-  final case class Won(by: Char) extends Outcome
-  case object Draw extends Outcome
-}
-class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) extends Scenario[F, Noughts.Outcome] {
-  type Outcome = Noughts.Outcome
-  type Won = Noughts.Won
-  val Won = Noughts.Won
-  val Draw = Noughts.Draw
+class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) extends Scenario[F, Outcome] {
   import faces.fx._
   import faces.{offer, show}
 
-  final case class Board(cells: Vector[Option[Char]]) {
-    def free: List[Int] = cells.zipWithIndex.collect { case (None, i) => i }.toList
-    def played(i: Int, c: Char): Board = Board(cells.updated(i, Some(c)))
-    private val lines = List(List(0, 1, 2), List(3, 4, 5), List(6, 7, 8), List(0, 3, 6), List(1, 4, 7), List(2, 5, 8), List(0, 4, 8), List(2, 4, 6))
-    def winner: Option[Char] = lines.collectFirst { case l if cells(l.head).isDefined && l.forall(i => cells(i) == cells(l.head)) => cells(l.head).get }
-    def outcome: Option[Outcome] = winner.map(Won(_)).orElse(if (free.isEmpty) Some(Draw) else None)
-    /** the program's reply: the first free cell, centre first — not clever, and not the point */
-    def replied: Board = if (outcome.isDefined) this else { val i = if (cells(4).isEmpty) 4 else free.head; played(i, 'O') }
-  }
-  object Board { val empty: Board = Board(Vector.fill(9)(None)) }
   /** THE GAME'S OWN MARKS, typed: the result line is marked `result`; a style may dress it, an agent is told what it is */
   sealed trait Mark
   case object Result extends Mark
