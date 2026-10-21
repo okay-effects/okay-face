@@ -15,8 +15,11 @@ import scala.collection.mutable
  * re-resumes the previous `Waiting`. `panel` is the face; `window` puts it in a frame on the event dispatch thread.
  * The rest of a step runs by the `Runner`: the row is done before the face. With a `Look`, the components are dressed
  * by their roles (`Looks`) after each rebuild; without one, the platform's look and feel stands.
+ * `F` is the implementation's singleton type (`Machine.type`): the faces come implicitly, from `Faces.default` over the
+ * implicit implementation, and the `Singleton` bound keeps the type exact when Scala 3 infers it — `new SwingFace()`
+ * with `import okay.effects.machine.implicits._`; Scala 2 names it, `new SwingFace[Machine.type]()`.
  */
-class SwingFace[F <: Runner](implicit val faces: Faces[F]) {
+class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   import faces.fx._
   type M[X] = X ! okay.effects.Void
 
