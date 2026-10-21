@@ -495,8 +495,10 @@ After step 4 the model holds or it does not, before any web platform is paid for
   services); `McpFace.handle(game)` the server's loop over `Link` for `new Links().stdio(…)`, named, instructed and
   marked by the scenario's `title`, `instructions`, `vocabulary`; `LaminarFace.mount(game)` the dialogue in the page,
   `RemoteFace.mount(fetch)` the thin page; `Plays.handle(game)(script)` the test face. One scenario, seven mains of a line.
-  Scala 3 wants the handled program bound to a value, and a handler (`new Links()`, `new JdkHttp()`) too, before the one
-  is given to the other: the dependent types resolve on names, not inside an argument.
+  With the transport inside, a line: `run(McpFace.stdio(game))`, `run(Terminal.console(game))` — the `handle` words keep
+  the transport's effect in the row for a scripted one. Scala 3 wants a handled program bound to a value, and a handler
+  (`new Links()`, `new JdkHttp()`) too, before the one is given to the other: the dependent types resolve on names, not
+  inside an argument (Scala 2 takes the nesting); the words with the transport inside do that binding themselves.
 - A `Ref` as a live link — DONE 2026-10-21 by a convention: when a step offers the action `ref` (one parameter, `key`),
   a face makes every `Ref` in the view choose it with its key — the HTML page links `base/{id}/ref/{key}`, Laminar and
   the remote face on a click, the terminal by typing `ref` then the key as ever; a step without `ref` shows a `Ref` as

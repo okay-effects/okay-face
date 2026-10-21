@@ -166,6 +166,16 @@ object McpFace {
     val server = face.server[A, L](s.title, version, s.faces.steps[A, LF, L](s.program[LF]), s.instructions, elicitation, singleTool, s.vocabulary, s.back)
     face.servers.serve[L](server)
   }
+  /** the same over standard input and output, the transport an agent's client starts a server with: `run(McpFace.stdio(game))` */
+  def stdio[F <: Runner with Singleton, A](s: Scenario[F, A], version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false): s.faces.fx.![Unit, s.faces.fx.Pure] = {
+    import s.faces.fx._
+    type L[X] = okay.effects.Sum[Pure, Link, X]
+    val served: Unit ! L = McpFace.handle[F, A](s, version, elicitation, singleTool)
+    val links = new okay.mcp.Links[F]()(s.faces.fx)
+    type LL[X] = okay.effects.Sum[links.fx.Pure, Link, X]
+    val sp: links.fx.Split[Link, LL, links.fx.Pure] = links.fx.splitLast[links.fx.Pure, Link]
+    links.stdio[LL, links.fx.Pure, Unit](served.asInstanceOf[links.fx.![Unit, LL]])(sp).asInstanceOf[Unit ! Pure]
+  }
   /** over these faces, their path kept: `McpFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
   def apply[F <: Runner with Singleton](faces: Faces[F]): McpFace[F, faces.type] = new McpFace[F, faces.type](faces)
 }

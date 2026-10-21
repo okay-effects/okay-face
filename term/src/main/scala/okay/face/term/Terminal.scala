@@ -175,6 +175,16 @@ object Terminal {
     term.terminal[A, C](steps.asInstanceOf[term.faces.fx.![Step[A, ({ type L[X] = term.faces.fx.![X, C] })#L], C]], back = s.back)(in)
       .asInstanceOf[Option[A] ! C]
   }
+  /** the same at the real console: `run(Terminal.console(game))` — `None` when the person quits */
+  def console[F <: okay.effects.Effects with Singleton, A](s: Scenario[F, A], paint: Paint = Paint.none, width: Int = 80): s.faces.fx.![Option[A], s.faces.fx.Pure] = {
+    import s.faces.fx._
+    type C[X] = okay.effects.Sum[Pure, Console, X]
+    val played: Option[A] ! C = Terminal.handle[F, A](s, paint, width)
+    val io = new Io[F]()(s.faces.fx)
+    type CC[X] = okay.effects.Sum[io.fx.Pure, Console, X]
+    val sp: io.fx.Split[Console, CC, io.fx.Pure] = io.fx.splitLast[io.fx.Pure, Console]
+    io.realConsole[CC, io.fx.Pure, Option[A]](played.asInstanceOf[io.fx.![Option[A], CC]])(sp).asInstanceOf[Option[A] ! Pure]
+  }
   /** words onto lines of at most `width` columns, lines after the first indented by `indent`; a word longer than the room stands alone */
   def wrap(text: String, width: Int, indent: Int = 0): List[String] = {
     val pad = " " * indent
