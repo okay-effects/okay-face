@@ -78,7 +78,7 @@ object Html {
       s"""<main ${cls(Role.Face)}>
          |<section ${cls(Role.View)}>${view(v, if (actions.exists(_.name == "ref")) Some(here) else None)}</section>
          |${if (problems.isEmpty) "" else s"<ul ${cls(Role.Problems)}>" + problems.map(p => s"<li>${esc(p.render)}</li>").mkString + "</ul>"}
-         |<nav ${cls(Role.Actions)}>${actions.map(a => Forms.action(a, here)).mkString("\n")}
+         |<nav ${cls(Role.Actions)}>${actions.filterNot(_.name == "ref").map(a => Forms.action(a, here)).mkString("\n")}
          |${if (back) s"""<form method="post" action="$here/back"><button ${cls(Role.Back)}>Back</button></form>""" else ""}</nav>
          |</main>""".stripMargin)
   def lost(title: String, base: String): String =

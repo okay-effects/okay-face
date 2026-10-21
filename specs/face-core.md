@@ -486,5 +486,8 @@ After step 4 the model holds or it does not, before any web platform is paid for
 - A `Ref` as a live link — DONE 2026-10-21 by a convention: when a step offers the action `ref` (one parameter, `key`),
   a face makes every `Ref` in the view choose it with its key — the HTML page links `base/{id}/ref/{key}`, Laminar and
   the remote face on a click, the terminal by typing `ref` then the key as ever; a step without `ref` shows a `Ref` as
-  a name. The program says what a reference does; the faces make it clickable.
+  a name. The program says what a reference does; the faces make it clickable. A face that clicks (HTML, Laminar, the
+  remote face, Swing — a `Ref` a button there, a table of live refs a grid) leaves `ref` OUT of its menu: the refs are
+  its control; the terminal and an agent keep it as an action, typed or called with the key. The example plays a cell
+  by a click this way (2026-10-21).
 - Whether `Schema` should carry layout hints at all, or they belong to a `screen/` layer only.

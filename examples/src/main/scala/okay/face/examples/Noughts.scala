@@ -2,7 +2,7 @@ package okay.face.examples
 
 import okay.effects.Effects
 import okay.effects.shape.Shape
-import okay.face.{Action, Face, Faces, Marks, View}
+import okay.face.{Action, Face, Faces, Look, Marks, Rule, Style, Theme, Tone, View}
 
 /** NOUGHTS AND CROSSES: the person is X, the program O. A loop of offers — the board shown, the free cells the one
  * action's choices — branching on the outcome, a `Tell` at the end; back is the face's and undoes a move. The same
@@ -30,10 +30,18 @@ class Noughts[F <: Effects](val faces: Faces[F]) {
   /** THE GAME'S OWN MARKS, typed: the result line is marked `result`; a style may dress it, an agent is told what it is */
   sealed trait Mark
   case object Result extends Mark
-  val marks: Marks[Mark] = Marks.of(Shape.derived[Mark]).explained(Result -> "how the game ended: who won, or a draw")
+  case object Cell extends Mark
+  val marks: Marks[Mark] = Marks.of(Shape.derived[Mark]).explained(Result -> "how the game ended: who won, or a draw", Cell -> "a cell of the board: X, O, or free to play")
+  /** the look: a cell big enough to tap, bordered; the result bold */
+  val style: Style = Style.default.set(marks.role(Cell), Rule(size = 1.6, pad = 1, border = Some(Tone.Border), flow = okay.face.Flow.Row))
+    .set(marks.role(Result), Rule(bold = true, color = Some(Tone.Accent)))
+  val look: Look = Look(Theme.light, style)
+  val dark: Look = Look(Theme.dark, style)
 
+  /** the board: a taken cell its mark, a free one a `Ref` by its number — live when `ref` is offered, so a face that can
+   * click plays by a click; the terminal and an agent play by `play(cell)` as ever */
   def picture(board: Board): View = View.stack(View.heading("Noughts and crosses"),
-    View.Table(Vector("", "", ""), board.cells.map(c => View.Text(c.fold("·")(_.toString))).grouped(3).toVector))
+    View.Table(Vector("", "", ""), board.cells.zipWithIndex.map { case (c, i) => marks.mark(Cell, c.fold[View](View.Ref((i + 1).toString, "·"))(x => View.Text(x.toString))) }.grouped(3).toVector))
   def ended(board: Board, o: Outcome): View = View.stack(picture(board), marks.mark(Result, View.text(o match { case Won(c) => s"$c won"; case Draw => "a draw" })))
 
   def game[R[_]](board: Board)(implicit in: In[Face, R]): Outcome ! R = board.outcome match {
@@ -42,6 +50,7 @@ class Noughts[F <: Effects](val faces: Faces[F]) {
       val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*).described("Cell", Some("1 to 9, left to right, top to bottom"))
       offer[Move, R](picture(board), List(
         Action[Int, Move]("play", "Play", Shape.record(Shape.field("cell", cells))(c => c)(c => c))(Play(_)),
+        Action[Int, Move]("ref", "Play the cell", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell, clicked"))(Play(_)),
         Action.plain[Move]("restart", "Start over")(Restart)))
         .flatMap {
           case Play(i) => game[R](board.played(i, 'X').replied)

@@ -70,14 +70,15 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
       case Step.Done(a) => box.add(label(s"done: $a", "okay-done"))
       case Step.Told(_, _) => ()
       case w: Step.Waiting[A, M] @unchecked =>
-        box.add(Views.component(w.view))
-        if (s.problems.nonEmpty) { val p = new JPanel(new GridLayout(0, 1)); p.setName(Role.Problems.cls); s.problems.foreach(pr => p.add(label(pr.render, Role.Problems.cls))); box.add(p) }
         def choose(chosen: Chosen): Unit = w.resume(chosen) match {
           case Left(Rejected(ps)) => show(s.copy(problems = ps))
           case Right(next) => show(settle(run(next), Vector.empty, w :: s.history))
         }
+        val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref")) Some(key => choose(Chosen("ref", Json.obj("key" -> Json.Str(key))))) else None
+        box.add(Views.component(w.view, ref))
+        if (s.problems.nonEmpty) { val p = new JPanel(new GridLayout(0, 1)); p.setName(Role.Problems.cls); s.problems.foreach(pr => p.add(label(pr.render, Role.Problems.cls))); box.add(p) }
         val actions = new JPanel; actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS)); actions.setName(Role.Actions.cls)
-        w.actions.foreach(a => actions.add(Forms.action(a, choose)))
+        w.actions.filterNot(_.name == "ref").foreach(a => actions.add(Forms.action(a, choose)))
         if (s.history.nonEmpty) {
           val back = new JButton("Back"); back.setName(Role.Back.cls)
           back.addActionListener(_ => show(Shown(Vector.empty, s.history.head, s.history.tail, Nil)))
@@ -93,7 +94,9 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
 
 /** a `View` as Swing components */
 object Views {
-  def component(v: View): JComponent = v match {
+  def component(v: View): JComponent = component(v, None)
+  /** `ref`: what a `Ref` does when the step offers the action `ref` — a button, and a table of such a grid of them */
+  def component(v: View, ref: Option[String => Unit]): JComponent = v match {
     case View.Empty => new JPanel
     case View.Text(s) => named(wrapped(s), Role.Text.cls)
     case View.Heading(level, s) =>
@@ -101,8 +104,11 @@ object Views {
     case View.Notice(level, s) => named(new JLabel(s"${level.toString.toLowerCase}: $s"), Role.Notice(level).cls)
     case View.Fields(rows) =>
       val p = new JPanel(new GridLayout(0, 2, 8, 2))
-      rows.foreach { case (k, x) => p.add(named(new JLabel(k + ":"), Role.Label.cls)); p.add(component(x)) }
+      rows.foreach { case (k, x) => p.add(named(new JLabel(k + ":"), Role.Label.cls)); p.add(component(x, ref)) }
       named(p, Role.Fields.cls)
+    case View.Table(_, rows) if ref.isDefined && rows.exists(_.exists(hasRef)) =>
+      val p = new JPanel(new GridLayout(rows.size, rows.headOption.fold(1)(_.size), 4, 4))
+      rows.foreach(_.foreach(c => p.add(component(c, ref)))); named(p, Role.Table.cls)
     case View.Table(columns, rows) =>
       val model = new DefaultTableModel(rows.map(_.map(c => text(c): AnyRef).toArray).toArray, columns.map(c => c: AnyRef).toArray) {
         override def isCellEditable(r: Int, c: Int): Boolean = false
@@ -114,12 +120,16 @@ object Views {
     case View.Group(title, children) =>
       val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS))
       title.foreach(t => p.setBorder(BorderFactory.createTitledBorder(t)))
-      children.foreach(c => p.add(component(c))); named(p, Role.Group.cls)
-    case View.Ref(key, l) => named(new JLabel(s"$l [$key]"), Role.Ref.cls)
+      children.foreach(c => p.add(component(c, ref))); named(p, Role.Group.cls)
+    case View.Ref(key, l) => ref match {
+      case Some(r) => val b = new JButton(l); b.setName(Role.Ref.cls); b.setToolTipText(key); b.addActionListener((_: java.awt.event.ActionEvent) => r(key)); b
+      case None => named(new JLabel(s"$l [$key]"), Role.Ref.cls)
+    }
     case View.Datum(json, _) => val a = new JTextArea(Json.pretty(json)); a.setEditable(false); a.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12)); named(a, Role.Datum.cls)
     case View.Masked(hint) => named(new JLabel(hint), Role.Masked.cls)
-    case View.Marked(mark, x) => val c = component(x); c.setName(Role.Mark(mark).cls); c   // the mark's rule dresses it, not its own
+    case View.Marked(mark, x) => val c = component(x, ref); c.setName(Role.Mark(mark).cls); c   // the mark's rule dresses it, not its own
   }
+  private def hasRef(v: View): Boolean = v match { case View.Ref(_, _) => true; case View.Marked(_, x) => hasRef(x); case _ => false }
   /** a view in one line */
   def text(v: View): String = v match {
     case View.Empty => ""

@@ -43,7 +43,7 @@ class AgreementSuite extends munit.FunSuite {
     assert(Html.view(line).contains("""<span class="okay-mark okay-mark-result"><p class="okay-text">X won</p></span>"""), Html.view(line))
     assertEquals(ViewJson.encode(line), obj("type" -> Str("marked"), "mark" -> Str("result"), "view" -> obj("type" -> Str("text"), "text" -> Str("X won"))))
     assertEquals(okay.face.swing.Views.component(line).getName, "okay-mark-result")
-    assertEquals(game.marks.vocabulary.markdown, "- result: how the game ended: who won, or a draw")
+    assertEquals(game.marks.vocabulary.markdown, "- result: how the game ended: who won, or a draw\n- cell: a cell of the board: X, O, or free to play")
     val css = okay.face.Css(okay.face.Look(okay.face.Theme.light, okay.face.Style.default.adjust(game.marks.role(game.Result))(_.copy(bold = true))))
     assert(css.contains(".okay-mark-result{font-weight:bold}"), css)
   }
@@ -85,7 +85,9 @@ class AgreementSuite extends munit.FunSuite {
     val responses = Machine.run(https.scripted(requests)(https.serve[H](pages.service)))._1
     val gets = responses.filter(_.status == 200).map(_.body)
     assertEquals(gets.size, 4)
-    views.zip(gets).foreach { case (v, page) => assert(page.contains(Html.view(v)), s"the page does not show the view:\n${Html.view(v)}\n$page") }
+    // a waiting step's refs are links to play; the ended board's are names
+    views.zip(gets).foreach { case (v, page) => assert(page.contains(Html.view(v, Some("/s/s1"))) || page.contains(Html.view(v)), s"the page does not show the view:\n${Html.view(v, Some("/s/s1"))}\n$page") }
+    assert(gets(1).contains("""href="/s/s1/ref/2""""), "a free cell is a link to play it")
     assert(gets.last.contains("done: Won(X)"))
   }
 

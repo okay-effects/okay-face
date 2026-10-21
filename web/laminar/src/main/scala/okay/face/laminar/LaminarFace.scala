@@ -86,7 +86,7 @@ class LaminarFace[F <: Runner](val faces: Faces[F]) {
           val backButton = if (s.history.isEmpty) emptyNode else button(typ := "button", cls := Role.Back.classes, "Back", onClick --> Observer[dom.MouseEvent](_ => back()))
           val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref")) Some(key => choose(w, Chosen("ref", Json.obj("key" -> Json.Str(key))))) else None
           div(notices, sectionTag(cls := Role.View.classes, Views.element(w.view, ref)), problems,
-            navTag(cls := Role.Actions.classes, w.actions.map(a => Forms.action(a, choose(w, _), s.busy)), backButton))
+            navTag(cls := Role.Actions.classes, w.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(w, _), s.busy)), backButton))
       }
     }
   }

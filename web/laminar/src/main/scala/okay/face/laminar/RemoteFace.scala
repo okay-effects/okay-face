@@ -50,7 +50,7 @@ class RemoteFace(transport: Request => Future[Response], poll: Int = 1000)(impli
         val backButton = if (!s.back) emptyNode else button(typ := "button", cls := Role.Back.classes, "Back", disabled := s.busy, onClick --> Observer[dom.MouseEvent](_ => back(s)))
         val ref: Option[String => Unit] = if (s.actions.exists(_.name == "ref")) Some(key => choose(s, Chosen("ref", Json.obj("key" -> Json.Str(key))))) else None
         div(sectionTag(cls := Role.View.classes, Views.element(s.view, ref)), problems,
-          if (s.done) div(cls := "okay-done", "done") else navTag(cls := Role.Actions.classes, s.actions.map(a => Forms.action(a, choose(s, _), s.busy)), backButton))
+          if (s.done) div(cls := "okay-done", "done") else navTag(cls := Role.Actions.classes, s.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(s, _), s.busy)), backButton))
       })
   }
 }

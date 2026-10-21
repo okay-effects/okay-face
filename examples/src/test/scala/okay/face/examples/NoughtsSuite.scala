@@ -29,7 +29,7 @@ class NoughtsSuite extends munit.FunSuite {
       case Played.Stuck(views, at, Some(Rejected(problems))) =>
         assertEquals(views.size, 2)
         assertEquals(problems, List(Problem(List("cell"), "one of 2, 3, 4, 6, 7, 8, 9")))
-        assertEquals(at.actions.map(_.name), List("play", "restart"))
+        assertEquals(at.actions.map(_.name), List("play", "ref", "restart"))
       case other => fail(s"$other")
     }
   }
