@@ -16,7 +16,7 @@ final class Looks(look: Look) {
   def roleOf(c: Component): Option[Role] = Option(c.getName).flatMap { n =>
     if (n.startsWith("action:") || n.startsWith("submit:")) Some(Role.Action)
     else if (n.startsWith("form:")) Some(Role.Form)
-    else Role.byClass.get(n)
+    else Role.ofClass(n)
   }
 
   /** the rule on one component */

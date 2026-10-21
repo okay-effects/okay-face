@@ -34,6 +34,7 @@ object Render {
     case View.Ref(key, label) => List(paint(Role.Ref, s"$label [$key]"))
     case View.Datum(json, _) => Json.pretty(json).split("\n").toList
     case View.Masked(hint) => List(paint(Role.Masked, hint))
+    case View.Marked(mark, x) => view(x, paint).map(paint(Role.Mark(mark), _))
   }
 
   /** a view in one line, for a cell or a field's value */
@@ -50,6 +51,7 @@ object Render {
     case View.Ref(key, label) => paint(Role.Ref, s"$label [$key]")
     case View.Datum(json, _) => Json.print(json)
     case View.Masked(hint) => paint(Role.Masked, hint)
+    case View.Marked(mark, x) => paint(Role.Mark(mark), oneLine(x, paint))
   }
 
   def wrap(s: String, w: Int = width): List[String] = s.split("\n", -1).toList.flatMap { para =>

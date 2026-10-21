@@ -40,6 +40,7 @@ object ViewJson {
     case View.Ref(key, label) => Json.obj("type" -> Json.Str("ref"), "key" -> Json.Str(key), "label" -> Json.Str(label))
     case View.Datum(json, schema) => Json.Obj(Vector("type" -> Json.Str("datum"), "value" -> json) ++ schema.map(s => "schema" -> Schema.shape.encode(s)))
     case View.Masked(hint) => Json.obj("type" -> Json.Str("masked"), "hint" -> Json.Str(hint))
+    case View.Marked(mark, v) => Json.obj("type" -> Json.Str("marked"), "mark" -> Json.Str(mark), "view" -> encode(v))
   }
 
   def decode(j: Json): Either[String, View] = j match {
@@ -66,6 +67,7 @@ object ViewJson {
         case Some(s) => Schema.shape.decode(s).left.map(okay.effects.shape.Problem.render).map(sc => View.Datum(v, Some(sc)))
       })
       case Some(Json.Str("masked")) => str(o, "hint").map(View.Masked(_))
+      case Some(Json.Str("marked")) => for { m <- str(o, "mark"); v <- o.get("view").toRight("no view").flatMap(decode) } yield View.Marked(m, v)
       case Some(Json.Str(t)) => Left(s"no view type $t")
       case _ => Left("a view has a type")
     }

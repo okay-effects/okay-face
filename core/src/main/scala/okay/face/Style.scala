@@ -49,12 +49,16 @@ object Role {
   /** one parameter: a label and a control */
   case object Field extends Role(List("field"))
   case object Back extends Role(List("back"))
+  /** the application's own: a `View.Marked(mark, _)`; its rule the application's, in its `Style`, so the vocabulary
+   * of parts stays the library's and the marks are said where they are styled */
+  final case class Mark(mark: String) extends Role(List("mark", "mark-" + mark))
 
   val all: List[Role] = List(Face, View, Told, Text) ++ (1 to 3).map(Heading(_)) ++
     List(okay.face.View.Notice.Info, okay.face.View.Notice.Warning, okay.face.View.Notice.Problem).map(Notice(_)) ++
     List(Fields, Label, Table, Items, Group, GroupTitle, Ref, Datum, Masked, Problems, Actions, Action, Form, Doc, Field, Back)
-  /** a role by its most specific class, "okay-heading-1" */
+  /** a role by its most specific class, "okay-heading-1"; a mark by its name, "okay-mark-price" */
   val byClass: Map[String, Role] = all.map(r => r.cls -> r).toMap
+  def ofClass(cls: String): Option[Role] = byClass.get(cls).orElse(if (cls.startsWith("okay-mark-")) Some(Mark(cls.drop("okay-mark-".length))) else None)
 }
 
 /** a colour, as the tokens hold it */
@@ -183,7 +187,8 @@ object Css {
       ".okay-face h1,.okay-face h2,.okay-face h3,.okay-face h4,.okay-face p,.okay-face dl,.okay-face ul,.okay-face pre{margin:0}" +
       ".okay-table{border-collapse:collapse}.okay-form,.okay-field{display:flex;flex-direction:column}.okay-field{align-items:flex-start}" +
       ".okay-action{border:0;font:inherit;cursor:pointer}.okay-back{border:0;font:inherit;cursor:pointer}"
-    val blocks = Role.all.flatMap { role =>
+    val marks = look.style.rules.keys.collect { case m: Role.Mark => m }.toList.sortBy(_.mark)
+    val blocks = (Role.all ++ marks).flatMap { role =>
       val r = look.style(role)
       val cells = if (role == Role.Table) Some(s".okay-table th,.okay-table td{${declarations(r.copy(background = None))}}") else None
       val own = declarations(if (role == Role.Table) r.copy(border = None, pad = 0) else r)

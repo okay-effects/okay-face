@@ -112,6 +112,7 @@ object Views {
     case View.Ref(key, label) => a(cls := Role.Ref.classes, href := s"#$key", label, ref.map(r => onClick.preventDefault --> Observer[dom.MouseEvent](_ => r(key))))
     case View.Datum(json, _) => pre(cls := Role.Datum.classes, Json.pretty(json))
     case View.Masked(hint) => span(cls := Role.Masked.classes, hint)
+    case View.Marked(mark, x) => span(cls := Role.Mark(mark).classes, element(x, ref))
   }
 }
 

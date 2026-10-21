@@ -34,6 +34,9 @@ object View {
   final case class Datum(json: Json, schema: Option[Schema] = None) extends View
   /** a secret NOT shown: "•••• 4821" */
   final case class Masked(hint: String) extends View
+  /** a view marked with the application's own word — "price", "overdue" — for a style's rule by `Role.Mark(mark)`;
+   * a face shows it as the view within, marked, and the style says what the mark looks like */
+  final case class Marked(mark: String, view: View) extends View
 
   def text(s: String): View = Text(s)
   def heading(s: String, level: Int = 1): View = Heading(level, s)
@@ -45,4 +48,5 @@ object View {
   def items(xs: View*): View = Items(xs.toVector)
   def group(title: String)(children: View*): View = Group(Some(title), children.toVector)
   def stack(children: View*): View = Group(None, children.toVector)
+  def marked(mark: String, view: View): View = Marked(mark, view)
 }

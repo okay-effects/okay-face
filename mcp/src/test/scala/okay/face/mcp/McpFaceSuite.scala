@@ -73,6 +73,6 @@ class McpFaceSuite extends munit.FunSuite {
   test("Markdown and JSON of views") {
     val v = View.stack(View.heading("T"), View.table("a", "b")(Vector(View.text("1"), View.Masked("••"))), View.fields("k" -> View.text("v")), View.items(View.text("x")))
     assertEquals(Markdown.view(v), "# T\n\n| a | b |\n| --- | --- |\n| 1 | •• |\n\n- **k:** v\n\n- x")
-    assertEquals(Json.print(ViewJson.encode(View.Masked("••"))), """{"type":"masked","hint":"••"}""")
+    assertEquals(Json.print(okay.face.ViewJson.encode(View.Masked("••"))), """{"type":"masked","hint":"••"}""")
   }
 }

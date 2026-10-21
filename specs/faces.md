@@ -68,12 +68,18 @@ and `back` as ever, the current actions with their schemas in every result's tex
 `server(..., singleTool = true)`. The forms of every face take a list of records as items added and removed (Laminar,
 Swing) or as slots, `min` and one spare, a blank one no item (HTML).
 
-OVER HTTP too (2026-10-21, `McpFace.http.service(() => server(...), path)`, on okay-http): the protocol's streamable
-HTTP transport, its request-and-answer half — `POST path` carries a message or a batch and answers with the replies as
-JSON (a notification alone `202`); `initialize` opens a session named by the `Mcp-Session-Id` header, each session its
-own server and dialogue, `DELETE path` ends it; `GET path` is `405`, no event stream, so nothing said unasked reaches
-the client: no `list_changed` (a client re-lists, or takes the single tool) and no elicitation (a consent comes another
-way). It serves beside the REST and HTML faces on one port; verity's `api` mode has it at `/mcp`.
+OVER HTTP too (2026-10-21, `McpFace.http.service(stream => server(...), path)`, on okay-http): the protocol's
+streamable HTTP transport. `POST path` carries a message or a batch; the answer carries what the server says back —
+as JSON when the client takes JSON, as a finite stream of events (`text/event-stream`, closed with the answer) when
+it accepts one, and then the server's own messages ride in it: a `list_changed`, an elicitation. `initialize` opens a
+session named by the `Mcp-Session-Id` header, each session its own server and dialogue; `DELETE path` ends it; `GET
+path` is `405`, no open stream. THE LOOP IS THE STDIO ONE, `serve` over `Link`, handled by a request's mail — a
+receive takes the next message that came, a send puts a line to go — and PARKED when the mail is empty: the handler
+keeps the loop's continuation in the session, the response goes, the next POST resumes it. So an elicitation, a send
+and then a receive, parks until the client's answer arrives: a question to the user crosses HTTP exchanges as it
+crosses lines on stdio, by the continuation, no thread kept. `open` is told whether the client accepts a stream, and
+only then should a server ask. It serves beside the REST and HTML faces on one port; verity's `api` mode has it at
+`/mcp`, and asks the owner's consent by elicitation when the agent's client streams.
 
 JSON-RPC 2.0, one message per line, over the process's stdin and stdout; stderr for logs. Our own `Json` and a hundred
 lines of framing; no dependency. JVM and Native. Protocol version `2025-06-18`; `initialize` answers capabilities

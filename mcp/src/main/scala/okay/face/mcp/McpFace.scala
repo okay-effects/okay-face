@@ -4,7 +4,7 @@ import okay.effects.Runner
 import okay.effects.json.Json
 import okay.effects.shape.{JsonSchema, Schema}
 import okay.effects.describe.{Describe, Domains}
-import okay.face.{Action, Chosen, Faces, Rejected, Step, View}
+import okay.face.{Action, Chosen, Faces, Rejected, Step, View, ViewJson}
 import okay.mcp.{Content, ResourceContent, ResourceSpec, Servers, ToolCall, ToolResult, ToolSpec}
 
 /**
@@ -124,8 +124,10 @@ object Markdown {
     case View.Ref(key, label) => s"[$label](#$key)"
     case View.Datum(json, _) => "```json\n" + Json.pretty(json) + "\n```"
     case View.Masked(hint) => hint
+    case View.Marked(_, x) => view(x)
   }
   def oneLine(v: View): String = v match {
+    case View.Marked(_, x) => oneLine(x)
     case View.Fields(rows) => rows.map { case (k, x) => s"$k: ${oneLine(x)}" }.mkString(", ")
     case View.Table(_, rows) => rows.map(_.map(oneLine).mkString(" ")).mkString(" / ")
     case View.Items(items) => items.map(oneLine).mkString(", ")
@@ -133,23 +135,6 @@ object Markdown {
     case View.Datum(json, _) => Json.print(json)
     case View.Heading(_, s) => s
     case other => view(other)
-  }
-}
-
-/** a `View` as JSON, for structured content: `{"type": ..., ...}` */
-object ViewJson {
-  def encode(v: View): Json = v match {
-    case View.Empty => Json.obj("type" -> Json.Str("empty"))
-    case View.Text(s) => Json.obj("type" -> Json.Str("text"), "text" -> Json.Str(s))
-    case View.Heading(level, s) => Json.obj("type" -> Json.Str("heading"), "level" -> Json.num(level), "text" -> Json.Str(s))
-    case View.Notice(level, s) => Json.obj("type" -> Json.Str("notice"), "level" -> Json.Str(level.toString.toLowerCase), "text" -> Json.Str(s))
-    case View.Fields(rows) => Json.obj("type" -> Json.Str("fields"), "rows" -> Json.Arr(rows.map { case (k, x) => Json.obj("label" -> Json.Str(k), "value" -> encode(x)) }))
-    case View.Table(columns, rows) => Json.obj("type" -> Json.Str("table"), "columns" -> Json.Arr(columns.map(Json.Str(_))), "rows" -> Json.Arr(rows.map(r => Json.Arr(r.map(encode)))))
-    case View.Items(items) => Json.obj("type" -> Json.Str("items"), "items" -> Json.Arr(items.map(encode)))
-    case View.Group(title, children) => Json.Obj(Vector("type" -> Json.Str("group")) ++ title.map(t => "title" -> Json.Str(t)) :+ ("children" -> Json.Arr(children.map(encode))))
-    case View.Ref(key, label) => Json.obj("type" -> Json.Str("ref"), "key" -> Json.Str(key), "label" -> Json.Str(label))
-    case View.Datum(json, schema) => Json.Obj(Vector("type" -> Json.Str("datum"), "value" -> json) ++ schema.map(s => "schema" -> Schema.shape.encode(s)))
-    case View.Masked(hint) => Json.obj("type" -> Json.Str("masked"), "hint" -> Json.Str(hint))
   }
 }
 

@@ -118,6 +118,7 @@ object Views {
     case View.Ref(key, l) => named(new JLabel(s"$l [$key]"), Role.Ref.cls)
     case View.Datum(json, _) => val a = new JTextArea(Json.pretty(json)); a.setEditable(false); a.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12)); named(a, Role.Datum.cls)
     case View.Masked(hint) => named(new JLabel(hint), Role.Masked.cls)
+    case View.Marked(mark, x) => val c = component(x); c.setName(Role.Mark(mark).cls); c   // the mark's rule dresses it, not its own
   }
   /** a view in one line */
   def text(v: View): String = v match {
@@ -132,6 +133,7 @@ object Views {
     case View.Ref(key, l) => s"$l [$key]"
     case View.Datum(json, _) => Json.print(json)
     case View.Masked(hint) => hint
+    case View.Marked(_, x) => text(x)
   }
   private def wrapped(s: String): JTextArea = { val a = new JTextArea(s); a.setEditable(false); a.setLineWrap(true); a.setWrapStyleWord(true); a.setOpaque(false); a }
   private def named[C <: JComponent](c: C, name: String): C = { c.setName(name); c }

@@ -79,7 +79,8 @@ look is another stylesheet. `web/laminar`: the `<style>` element from a look; th
 
 - Dark mode: DONE as `Css(light, dark)` — one stylesheet, the light theme's tokens on `:root`, the dark theme's under
   `@media (prefers-color-scheme: dark)`; the rules are the light look's, and stand under both since they name tones.
-- Per-application roles (a "price", a "badge"): `Role` is sealed, so the vocabulary is the library's. A view that needs
-  more semantics is a new `View` case first, then a role for it. The sealed set is what makes "one style, every face"
-  checkable.
+- Per-application roles: DONE as marks — `View.Marked("price", view)` and `Role.Mark("price")`, a case of the sealed
+  `Role` with a name, so the vocabulary of parts stays the library's and an application's marks are explicit: a rule
+  for a mark is set in the application's `Style`, `Css` emits `.okay-mark-price` for every mark the style names, Swing
+  dresses the component by the mark's name, the terminal paints by it. A mark with no rule is the view within, unmarked.
 - Fonts by name: `Family` is a kind, each face picks the face. A theme with a web font is an application's own CSS.
