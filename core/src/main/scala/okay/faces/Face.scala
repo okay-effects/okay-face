@@ -13,7 +13,8 @@ sealed trait Face[X]
 object Face {
   /** show, and wait for one of the actions, taken with its parameters — or for the event `meanwhile`, if one is given;
    * `back`: whether this step may be returned to once left — a face keeps it in its history then and offers a way
-   * back; NOT by default (2026-10-21): most steps are not to be returned to, a program says `back = true` where one is */
+   * back; NOT by default (2026-10-21): most steps are not to be returned to, a program says `back = true` where one
+   * is */
   final case class Offer[A, X](view: View, actions: List[Action[A]], answer: A => X,
     meanwhile: Option[Meanwhile[A]] = None, back: Boolean = false)
     extends Face[X]

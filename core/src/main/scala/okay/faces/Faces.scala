@@ -42,7 +42,8 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
     offer[Boolean, R](question,
       List(Action.plain[Boolean]("yes", "Yes")(true), Action.plain[Boolean]("no", "No")(false)), back)
   /** one of the options, each a plain action named from its label */
-  def choose[A, R[_]](view: View, options: List[(String, A)], back: Boolean = false)(implicit in: In[Face, R]): A ! R = {
+  def choose[A, R[_]](view: View, options: List[(String, A)], back: Boolean = false)(
+    implicit in: In[Face, R]): A ! R = {
     val names = options.map(o => Action.nameOf(o._1))
     val unique = names.zipWithIndex.map { case (n, i) => if (names.indexOf(n) == i) n else s"$n-${i + 1}" }
     offer[A, R](view, options.zip(unique).map { case ((label, a), name) => Action.plain[A](name, label)(a) }, back)
@@ -51,7 +52,8 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
   def fill[P, R[_]](view: View, form: Shape[P], back: Boolean = false)(implicit in: In[Face, R]): P ! R =
     offer[P, R](view, List(Action[P, P]("submit", "Submit", form)(p => p)), back)
   /** a form, filled and submitted, or cancelled */
-  def fillOrCancel[P, R[_]](view: View, form: Shape[P], back: Boolean = false)(implicit in: In[Face, R]): Option[P] ! R =
+  def fillOrCancel[P, R[_]](view: View, form: Shape[P], back: Boolean = false)(
+    implicit in: In[Face, R]): Option[P] ! R =
     offer[Option[P], R](view,
       List(Action[P, Option[P]]("submit", "Submit", form)(p => Some(p)),
         Action.plain[Option[P]]("cancel", "Cancel")(None)), back)
