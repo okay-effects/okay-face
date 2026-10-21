@@ -22,7 +22,7 @@ class HtmlFaceSuite extends munit.FunSuite {
     record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w =>
       (w.name, w.age))
   def greeting: String ! HF =
-    fill[Who, HF](View.heading("Who are you?"), who).flatMap { w =>
+    fill[Who, HF](View.heading("Who are you?"), who, back = true).flatMap { w =>
       confirm[HF](View.text(s"Greet <${w.name}>, ${w.age}?")).flatMap { yes =>
         if (yes) show[HF](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, HF]("left")
       }

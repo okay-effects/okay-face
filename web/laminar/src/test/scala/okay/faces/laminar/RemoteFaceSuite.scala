@@ -24,7 +24,7 @@ class RemoteFaceSuite extends munit.FunSuite {
     record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w =>
       (w.name, w.age))
   def greeting: String ! F =
-    fill[Who, F](View.heading("Who are you?"), who).flatMap { w =>
+    fill[Who, F](View.heading("Who are you?"), who, back = true).flatMap { w =>
       confirm[F](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
         if (yes) show[F](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, F]("left")
       }

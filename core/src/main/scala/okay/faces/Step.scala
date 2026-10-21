@@ -19,7 +19,7 @@ object Step {
    * and waits on THIS step again — or the rest, a program of the remaining row */
   final case class Waiting[A, M[_]](view: View, actions: List[Action[_]],
     resume: Chosen => Either[Rejected, M[Step[A, M]]],
-    meanwhile: Option[Meanwhile[M[Step[A, M]]]] = None, back: Boolean = true)
+    meanwhile: Option[Meanwhile[M[Step[A, M]]]] = None, back: Boolean = false)
     extends Step[A, M] {
     /** a face that listens: the rest of the program when the event fires, to run as `resume`'s */
     def listen(k: M[Step[A, M]] => Unit): () => Unit = meanwhile.fold(() => ())(_.register(k))

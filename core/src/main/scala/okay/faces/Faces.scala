@@ -37,24 +37,24 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
   def show[R[_]](view: View)(implicit in: In[Face, R]): Unit ! R =
     perform[Face].apply[R, Unit](Face.Show[Unit](view, u => u))
 
-  /** yes or no */
-  def confirm[R[_]](question: View)(implicit in: In[Face, R]): Boolean ! R =
+  /** yes or no; `back = true`: a step one may return to */
+  def confirm[R[_]](question: View, back: Boolean = false)(implicit in: In[Face, R]): Boolean ! R =
     offer[Boolean, R](question,
-      List(Action.plain[Boolean]("yes", "Yes")(true), Action.plain[Boolean]("no", "No")(false)))
+      List(Action.plain[Boolean]("yes", "Yes")(true), Action.plain[Boolean]("no", "No")(false)), back)
   /** one of the options, each a plain action named from its label */
-  def choose[A, R[_]](view: View, options: List[(String, A)])(implicit in: In[Face, R]): A ! R = {
+  def choose[A, R[_]](view: View, options: List[(String, A)], back: Boolean = false)(implicit in: In[Face, R]): A ! R = {
     val names = options.map(o => Action.nameOf(o._1))
     val unique = names.zipWithIndex.map { case (n, i) => if (names.indexOf(n) == i) n else s"$n-${i + 1}" }
-    offer[A, R](view, options.zip(unique).map { case ((label, a), name) => Action.plain[A](name, label)(a) })
+    offer[A, R](view, options.zip(unique).map { case ((label, a), name) => Action.plain[A](name, label)(a) }, back)
   }
   /** a form, filled and submitted */
-  def fill[P, R[_]](view: View, form: Shape[P])(implicit in: In[Face, R]): P ! R =
-    offer[P, R](view, List(Action[P, P]("submit", "Submit", form)(p => p)))
+  def fill[P, R[_]](view: View, form: Shape[P], back: Boolean = false)(implicit in: In[Face, R]): P ! R =
+    offer[P, R](view, List(Action[P, P]("submit", "Submit", form)(p => p)), back)
   /** a form, filled and submitted, or cancelled */
-  def fillOrCancel[P, R[_]](view: View, form: Shape[P])(implicit in: In[Face, R]): Option[P] ! R =
+  def fillOrCancel[P, R[_]](view: View, form: Shape[P], back: Boolean = false)(implicit in: In[Face, R]): Option[P] ! R =
     offer[Option[P], R](view,
       List(Action[P, Option[P]]("submit", "Submit", form)(p => Some(p)),
-        Action.plain[Option[P]]("cancel", "Cancel")(None)))
+        Action.plain[Option[P]]("cancel", "Cancel")(None)), back)
 
   /** `Face` alone is the row of a program of a face, `A ! Face`: one effect is a row (`splitOne`), no alias needed */
   /** A PROGRAM OF NO IMPLEMENTATION, on this one: written over `Faces.tagless` as a value, `Program[A, Face]`, it runs

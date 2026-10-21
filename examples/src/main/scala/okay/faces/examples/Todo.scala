@@ -5,8 +5,8 @@ import okay.faces.{Look, Marks, Role, Rule, Style, Tone, View}
 
 /** TO DO: the second example, with nothing of a game in it — a list kept from step to step, an item added by a FORM
  * (an action with parameters), an item done or to do again by a click on it (`ref`), one removed by a CHOICE and a
- * CONFIRMATION, the done ones cleared after a yes, and BACK, which here undoes: every step is kept in history, so
- * going back is the list as it was. The same faces handle it as handle the game; the program knows none of them */
+ * CONFIRMATION, the done ones cleared after a yes. The same faces handle it as handle the game; the program knows
+ * none of them */
 object Todo {
   /** an item: what, by when if ever, a note if any */
   final case class Item(title: String, due: Option[Day] = None, note: Option[String] = None)
@@ -53,7 +53,7 @@ object Todo {
 
   /** what is told first: a face has it to tell, an agent gets it as instructions */
   val about: View = View.text("Your list, kept while you are here. An item is a [number]: choose one and it is done, " +
-    "or to do again. Add one by the form; remove one, or clear the done ones, after a yes. Back undoes the last step.")
+    "or to do again. Add one by the form; remove one, or clear the done ones, after a yes.")
   /** what the listing says: each item's mark and title, in order — a test reads the list off the view */
   def shown(v: View): Vector[(String, String)] = v match {
     case View.Items(items) => items.flatMap(shown)
@@ -77,7 +77,7 @@ object Todo {
    * no end — the face's own way out (a window closed, a session dropped, a quit at the terminal) is the way out */
   import okay.faces._
   val keeping: Unit ! Face = show[Face](about).flatMap(_ => keep(Todos.empty))
-  /** the list offered with what one can do to it; every step may be returned to, so back is undo */
+  /** the list offered with what one can do to it */
   def keep(t: Todos): Unit ! Face = {
     val ids = Shape.choice[Int](t.items.map { case (id, i) => id.toString -> id }: _*)
       .described("Item", Some("an item by its number"))

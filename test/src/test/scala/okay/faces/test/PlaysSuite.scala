@@ -25,7 +25,7 @@ abstract class PlaysChecks(val fx0: Runner, name: String) extends munit.FunSuite
 
   /** a greeting: a form, a confirmation, a branch on it, a word at the end */
   def greeting: String ! F =
-    fill[Who, F](View.heading("Who are you?"), who).flatMap { w =>
+    fill[Who, F](View.heading("Who are you?"), who, back = true).flatMap { w =>
       confirm[F](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
         if (yes) show[F](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}")
         else choose[String, F](View.text("Then what?"), List("Try again" -> "again", "Leave" -> "left")).flatMap {
@@ -72,7 +72,8 @@ abstract class PlaysChecks(val fx0: Runner, name: String) extends munit.FunSuite
     /** a counter the person increments; the count is a State handled inside Face */
     def counting: Int ! FS = get[Int, FS].flatMap { n =>
       offer[Boolean, FS](View.text(s"count $n"),
-        List(Action.plain[Boolean]("more", "More")(true), Action.plain[Boolean]("done", "Done")(false))).flatMap {
+        List(Action.plain[Boolean]("more", "More")(true), Action.plain[Boolean]("done", "Done")(false)),
+        back = true).flatMap {
         more =>
           if (more) put[Int, FS](n + 1).flatMap(_ => counting) else pure[Int, FS](n)
       }

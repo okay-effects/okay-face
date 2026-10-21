@@ -12,10 +12,10 @@ import okay.effects.shape.Problems
 sealed trait Face[X]
 object Face {
   /** show, and wait for one of the actions, taken with its parameters — or for the event `meanwhile`, if one is given;
-   * `back`: whether this step may be returned to once left — a face keeps it in its history then; a game of its own
-   * rules says no, and no face offers a way back to it */
+   * `back`: whether this step may be returned to once left — a face keeps it in its history then and offers a way
+   * back; NOT by default (2026-10-21): most steps are not to be returned to, a program says `back = true` where one is */
   final case class Offer[A, X](view: View, actions: List[Action[A]], answer: A => X,
-    meanwhile: Option[Meanwhile[A]] = None, back: Boolean = true)
+    meanwhile: Option[Meanwhile[A]] = None, back: Boolean = false)
     extends Face[X]
   /** show, and go on */
   final case class Show[X](view: View, answer: Unit => X) extends Face[X]

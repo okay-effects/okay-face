@@ -24,7 +24,7 @@ abstract class TerminalChecks(val fx0: Runner, name: String) extends munit.FunSu
       Who(_, _))(w => (w.name, w.age))
 
   def greeting: String ! CF =
-    fill[Who, CF](View.heading("Who are you?"), who).flatMap { w =>
+    fill[Who, CF](View.heading("Who are you?"), who, back = true).flatMap { w =>
       confirm[CF](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
         if (yes) show[CF](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, CF]("left")
       }

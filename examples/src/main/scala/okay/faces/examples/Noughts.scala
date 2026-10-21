@@ -78,12 +78,12 @@ object Noughts {
     def loop: Outcome ! Face = play(Board.empty).flatMap(_ => loop); show[Face](rules).flatMap(_ => loop)
   }
   /** one game from the board given: a loop of offers — the board shown, the free cells the one move, a cell by its
-   * number —
-   * branching on the outcome, "Play again" at the end; no step goes back, a game is its own rules */
+   * number — branching on the outcome, "Play again" at the end; no step goes back (none does, unless a program says
+   * so), a game is its own rules */
   def play(board: Board): Outcome ! Face = board.outcome match {
     case Some(o) => offer[Unit, Face](ended(board, o),
         List(Action.plain[Unit]("again", "Play again",
-            Some("a new game, the board clear; you are X and begin"))(())), back = false).map(_ => o)
+            Some("a new game, the board clear; you are X and begin"))(()))).map(_ => o)
     case None =>
       // the one move is `ref`: a free cell clicked where a face clicks, its number given where one types or calls
       val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*)
@@ -91,7 +91,7 @@ object Noughts {
       offer[Int, Face](picture(board),
         List(Action[Int, Int]("ref", "Play",
             Shape.record(Shape.field("key", cells))(c => c)(c => c),
-            Some("a free cell: X goes there, then O answers"))(c => c)), back = false)
+            Some("a free cell: X goes there, then O answers"))(c => c)))
         .flatMap(i => play(board.played(i, X).replied))
   }
 }

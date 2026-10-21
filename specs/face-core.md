@@ -470,7 +470,7 @@ A list of items (`examples/.../Todo.scala`), so that the faces are checked again
 for, with nothing of a game in it: an item added by a FORM (an action with parameters, `Shape.derived[Item]`, a
 `Day` and two optional fields), an item done or to do again by a click on it (`ref` again, in a `View.Items`), one
 removed by a `choose` and a `confirm`, the done ones cleared after a yes, a `show` mid-dialogue ("added: …"), and
-BACK, which here undoes, since every step is kept. It has no end of its own: the list is kept as long as one is there,
+no back (nothing to return to, the list is the state). It has no end of its own: the list is kept as long as one is there,
 and the way out is the face's (a window closed, a quit at the terminal, a session dropped). The same one-line mains
 (`TodoSwing`, `TodoTerminal`, `TodoMcp`, `TodoHtml`, `TodoWebLocal`, `TodoWebRemote`, in `TodoMains.scala`; the game's
 in `NoughtsMains.scala`); in the browser its own script, `TodoLocal` (`examplesTodoJS`, `examples/todo/.js`), as the
@@ -538,7 +538,8 @@ After step 4 the model holds or it does not, before any web platform is paid for
   thin page the library's `RemotePage`. Everything a face wants to know of a program it learns from what the program
   shows: the first level-1 heading is a window's title, a page's, an agent's server's name; what is told before the first
   offer is the agent's instructions (`Step.opening`). What is the face's own — a look, the vocabulary of marks, a port —
-  is the handler's parameter. `Offer(…, back = false)` says a step may not be returned to: no face keeps it in its
+  is the handler's parameter. `Offer(…, back = true)` says a step may be returned to (DEFAULT FLIPPED 2026-10-21: it was
+  true; a step is rarely one to go back to, so a program says so where it is); without, no face keeps it in its
   history, so none offers a way back to it; the agent's `back` tool stays listed and answers "nothing to go back to".
   Scala 2 cannot infer `F` for the `Fs <: Faces[F]` faces from an implicit, so `X()` is a companion `apply()(implicit faces)`
   on every face and `X.over(faces)` the path-kept one, and the companion whole-handlers (`SwingFace.handle(p)`,

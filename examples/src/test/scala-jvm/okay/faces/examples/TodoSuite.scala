@@ -59,9 +59,9 @@ class TodoSuite extends munit.FunSuite {
       case other => fail(s"$other")
     }
   }
-  test("back is undo: the list as it was before the last step") {
+  test("no step is returned to: Back leaves the list as it is") {
     plays.handle(Todo.keeping)(Script(Pick(add("a")), Pick(add("b")), Back)) match {
-      case Played.Stuck(views, _, None) => assertEquals(shown(views.last), Vector("pending" -> "a"))
+      case Played.Stuck(views, _, None) => assertEquals(shown(views.last), Vector("pending" -> "a", "pending" -> "b"))
       case other => fail(s"$other")
     }
   }
