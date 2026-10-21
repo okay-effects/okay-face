@@ -108,7 +108,7 @@ object Views {
       named(p, Role.Fields.cls)
     case View.Table(_, rows) if ref.isDefined && rows.exists(_.exists(hasRef)) =>
       val p = new JPanel(new GridLayout(rows.size, rows.headOption.fold(1)(_.size), 4, 4))
-      rows.foreach(_.foreach(c => p.add(component(c, ref)))); named(p, Role.Table.cls)
+      rows.foreach(_.foreach(c => p.add(cell(c, ref)))); named(p, Role.Table.cls)
     case View.Table(columns, rows) =>
       val model = new DefaultTableModel(rows.map(_.map(c => text(c): AnyRef).toArray).toArray, columns.map(c => c: AnyRef).toArray) {
         override def isCellEditable(r: Int, c: Int): Boolean = false
@@ -130,6 +130,12 @@ object Views {
     case View.Marked(mark, x) => val c = component(x, ref); c.setName(Role.Mark(mark).cls); c   // the mark's rule dresses it, not its own
   }
   private def hasRef(v: View): Boolean = v match { case View.Ref(_, _) => true; case View.Marked(_, x) => hasRef(x); case _ => false }
+  /** a cell of a grid: a live Ref its button, anything else a label in the middle — the mark's name kept for the look */
+  private def cell(v: View, ref: Option[String => Unit]): JComponent = v match {
+    case View.Marked(mark, x) => val c = cell(x, ref); c.setName(Role.Mark(mark).cls); c
+    case View.Ref(_, _) => component(v, ref)
+    case other => val l = new JLabel(text(other), SwingConstants.CENTER); named(l, Role.Text.cls)
+  }
   /** a view in one line */
   def text(v: View): String = v match {
     case View.Empty => ""
