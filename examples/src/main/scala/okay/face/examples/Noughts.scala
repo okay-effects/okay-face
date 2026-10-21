@@ -48,7 +48,7 @@ class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) {
     case None =>
       // the one move is `ref`: a free cell clicked where a face clicks, its number given where one types or calls
       val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*).described("Cell", Some("1 to 9, left to right, top to bottom"))
-      offer[Int, R](picture(board), List(Action[Int, Int]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell"))(c => c)))
+      offer[Int, R](picture(board), List(Action[Int, Int]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell, X goes there"))(c => c)))
         .flatMap(i => game[R](board.played(i, 'X').replied))
   }
   /** games without end, one after another: what a window or a page runs */

@@ -116,7 +116,7 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
       List(entries.mkString("  ") + paint(Role.Doc, hint.mkString("   (", ", ", ")")))
     }
     def docs(w: Step.Waiting[A, M]): List[String] =
-      (if (live(w)) w.actions.find(_.name == "ref").map(a => s"a [key] typed: ${a.doc.getOrElse(a.label)}").toList else Nil) ++ menu(w).map(a => s"${a.name}: ${a.doc.getOrElse(a.label)}")
+      (if (live(w)) w.actions.find(_.name == "ref").map(a => s"type a [key]: ${a.doc.getOrElse(a.label)}").toList else Nil) ++ menu(w).map(a => s"${a.name}: ${a.doc.getOrElse(a.label)}")
     def pick(w: Step.Waiting[A, M], line: String): Option[Action[_]] = {
       val t = line.trim
       val m = menu(w)
