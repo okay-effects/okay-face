@@ -1,7 +1,7 @@
 package okay.face.examples
 
 import okay.effects.machine.Machine._
-import okay.face.html.{HtmlFace, Shell, Web}
+import okay.face.html.{HtmlFace, Linked, Shell, Web}
 import okay.face.rest.RestFace
 
 /** NOUGHTS AND CROSSES SERVED: `sbt "examples/runMain okay.face.examples.NoughtsWeb [port] [host]"` — one port, four faces:
@@ -16,13 +16,4 @@ object NoughtsWeb {
     "/" -> Shell.handle(game, "/" -> Linked("examples/remote/.js", "okay-faces-examples-remote"), "/local" -> Linked("examples/.js", "okay-faces-examples"))))
   def port(args: Array[String]): Int = args.headOption.filter(_.forall(_.isDigit)).map(_.toInt).getOrElse(8090)
   def host(args: Array[String]): String = args.drop(1).headOption.getOrElse("127.0.0.1")
-}
-
-/** a linked Scala.js script, where sbt puts it: full first, fast otherwise */
-final case class Linked(dir: String, name: String) extends (() => Either[String, String]) {
-  def apply(): Either[String, String] =
-    List("opt", "fastopt").map(k => new java.io.File(s"$dir/target/scala-3.3.8/$name-$k/main.js")).find(_.isFile) match {
-      case Some(f) => Right(new String(java.nio.file.Files.readAllBytes(f.toPath), "UTF-8"))
-      case None => Left(s"no script $name: `sbt -Dplatforms=js examplesJS/fullLinkJS examplesRemoteJS/fullLinkJS` links it")
-    }
 }
