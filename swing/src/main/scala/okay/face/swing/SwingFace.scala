@@ -106,9 +106,11 @@ object Views {
       val p = new JPanel(new GridLayout(0, 2, 8, 2))
       rows.foreach { case (k, x) => p.add(named(new JLabel(k + ":"), Role.Label.cls)); p.add(component(x, ref)) }
       named(p, Role.Fields.cls)
-    case View.Table(_, rows) if ref.isDefined && rows.exists(_.exists(hasRef)) =>
-      val p = new JPanel(new GridLayout(rows.size, rows.headOption.fold(1)(_.size), 4, 4))
-      rows.foreach(_.foreach(c => p.add(cell(c, ref)))); named(p, Role.Table.cls)
+    // a table with no column names is a GRID of cells — a board — square, not stretched; so is one of live refs
+    case View.Table(columns, rows) if columns.forall(_.isEmpty) || (ref.isDefined && rows.exists(_.exists(hasRef))) =>
+      val grid = new JPanel(new GridLayout(rows.size, rows.headOption.fold(1)(_.size), 4, 4))
+      rows.foreach(_.foreach(c => grid.add(cell(c, ref)))); grid.setName(Role.Table.cls)
+      val holder = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0)); holder.setOpaque(false); holder.add(grid); holder
     case View.Table(columns, rows) =>
       val model = new DefaultTableModel(rows.map(_.map(c => text(c): AnyRef).toArray).toArray, columns.map(c => c: AnyRef).toArray) {
         override def isCellEditable(r: Int, c: Int): Boolean = false
@@ -130,12 +132,18 @@ object Views {
     case View.Marked(mark, x) => val c = component(x, ref); c.setName(Role.Mark(mark).cls); c   // the mark's rule dresses it, not its own
   }
   private def hasRef(v: View): Boolean = v match { case View.Ref(_, _) => true; case View.Marked(_, x) => hasRef(x); case _ => false }
-  /** a cell of a grid: a live Ref its button, anything else a label in the middle — the mark's name kept for the look */
+  /** a cell of a grid: a live Ref its button, a Ref not live its label, anything else a label — in the middle, square;
+   * the mark's name kept for the look */
   private def cell(v: View, ref: Option[String => Unit]): JComponent = v match {
     case View.Marked(mark, x) => val c = cell(x, ref); c.setName(Role.Mark(mark).cls); c
-    case View.Ref(_, _) => component(v, ref)
-    case other => val l = new JLabel(text(other), SwingConstants.CENTER); named(l, Role.Text.cls)
+    case View.Ref(key, l) if ref.isDefined =>
+      val b = new JButton(l) { override def getPreferredSize: java.awt.Dimension = square(super.getPreferredSize) }
+      b.setName(Role.Ref.cls); b.setToolTipText(key); b.setHorizontalAlignment(SwingConstants.CENTER); b.addActionListener((_: java.awt.event.ActionEvent) => ref.get(key)); b
+    case other =>
+      val l = new JLabel(other match { case View.Ref(_, lbl) => lbl; case _ => text(other) }, SwingConstants.CENTER) { override def getPreferredSize: java.awt.Dimension = square(super.getPreferredSize) }
+      named(l, other match { case View.Ref(_, _) => Role.Ref.cls; case _ => Role.Text.cls })
   }
+  private def square(d: java.awt.Dimension): java.awt.Dimension = { val s = math.max(d.width, d.height); new java.awt.Dimension(s, s) }
   /** a view in one line */
   def text(v: View): String = v match {
     case View.Empty => ""
