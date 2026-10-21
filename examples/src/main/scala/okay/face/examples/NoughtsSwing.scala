@@ -1,8 +1,7 @@
 package okay.face.examples
 
-import okay.effects.Sum
 import okay.effects.machine.Machine
-import okay.effects.machine.Machine.Pure
+import okay.effects.machine.Machine._
 import okay.effects.machine.implicits._
 import okay.face.Face
 import okay.face.swing.SwingFace
@@ -12,7 +11,7 @@ import okay.face.swing.SwingFace
 object NoughtsSwing {
   val game = new Noughts[Machine.type]()
   val face = new SwingFace[Machine.type]()
-  type F[X] = Sum[Pure, Face, X]   // Scala 3 alone would say `type F = Pure + Face`; this is the one spelling both compilers read
+  type F[X] = Row[*[Pure] + *[Face], X]   // the row by its name, the one spelling both compilers read
   def main(args: Array[String]): Unit =
     face.window("Noughts and crosses", face.faces.steps[game.Outcome, F, Pure](game.games[F]), (_: game.Outcome) => (), look = Some(game.look), back = false)
 }
