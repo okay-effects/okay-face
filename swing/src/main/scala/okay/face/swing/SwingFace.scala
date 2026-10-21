@@ -6,7 +6,7 @@ import javax.swing.table.DefaultTableModel
 import okay.effects.Runner
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
-import okay.face.{Action, Chosen, Faces, Look, Rejected, Role, Step, View}
+import okay.face.{Action, Chosen, Faces, Look, Rejected, Role, Scenario, Step, View}
 import scala.collection.mutable
 
 /**
@@ -69,11 +69,13 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   /** the face in a window, on the event dispatch thread; with `pages` (core's `Navigation` in memory) the window's title
    * follows the program's current page */
   def window[A](title: String, first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (),
-                pages: Option[(okay.face.Pages[_], Any => String)] = None, look: Option[Look] = None, back: Boolean = true): Unit =
+                pages: Option[(okay.face.Pages[_], Any => String)] = None, look: Option[Look] = None, back: Boolean = true,
+                closed: () => Unit = () => sys.exit(0)): Unit =
     SwingUtilities.invokeLater(new Runnable { def run(): Unit = {
       val frame = new JFrame(title)
       pages.foreach { case (ps, name) => ps.asInstanceOf[okay.face.Pages[Any]].onChange(p => frame.setTitle(s"$title — ${name(p)}")) }
-      frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
+      frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+      frame.addWindowListener(new java.awt.event.WindowAdapter { override def windowClosed(e: java.awt.event.WindowEvent): Unit = closed() })
       frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, look, back)), ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER))
       // the window sized to its content, within the screen; it grows no further — a longer dialogue scrolls
       frame.pack()
@@ -112,6 +114,22 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
 }
 
 /** a `View` as Swing components */
+object SwingFace {
+  /** A SCENARIO IN A WINDOW, whole: `run(SwingFace.handle(game))` — the window titled, dressed and backed as the scenario
+   * says; the program ends with the dialogue's result, or with `None` when the window is closed first */
+  def handle[F <: Runner with Singleton, A](s: Scenario[F, A]): s.faces.fx.![Option[A], s.faces.fx.Pure] = {
+    import s.faces.fx._
+    val face = new SwingFace[F]()(s.faces)
+    // the scenario's steps are over `s.faces`, the face's over `face.faces`: one value, two paths the checker cannot join
+    val first = s.steps.asInstanceOf[face.M[Step[A, face.M]]]
+    pure(()).flatMap { _ =>
+      val outcome = new java.util.concurrent.LinkedBlockingQueue[Option[A]](1)
+      face.window(s.title, first, (a: A) => outcome.offer(Some(a)), look = s.look, back = s.back, closed = () => outcome.offer(None))
+      pure[Option[A], Pure](outcome.take())
+    }
+  }
+}
+
 object Views {
   /** the face in a scroll pane: as wide as the window, scrolling down only */
   def fitting(c: JComponent): JComponent = {

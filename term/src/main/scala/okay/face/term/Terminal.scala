@@ -3,7 +3,7 @@ package okay.face.term
 import okay.effects.json.Json
 import okay.effects.shape.{Fields, Problem, Problems, Reading, Schema}
 import okay.effects.world.{Console, Io}
-import okay.face.{Action, Chosen, Faces, Paint, Rejected, Role, Step, View}
+import okay.face.{Action, Chosen, Face, Faces, Paint, Rejected, Role, Scenario, Step, View}
 
 /**
  * THE TERMINAL FACE: a line dialogue — a program in okay-effects-io's `Console`, so it runs under `realConsole`, and
@@ -162,6 +162,19 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
 }
 
 object Terminal {
+  /** A SCENARIO AT THE TERMINAL, whole: `run(io.realConsole(Terminal.handle(game)))` — `Console` left in the row for a
+   * console handler; the result the dialogue's, or `None` when the person quits */
+  def handle[F <: okay.effects.Effects with Singleton, A](s: Scenario[F, A], paint: Paint = Paint.none, width: Int = 80): s.faces.fx.![Option[A], ({ type L[X] = okay.effects.Sum[s.faces.fx.Pure, Console, X] })#L] = {
+    import s.faces.fx._
+    type C[X] = okay.effects.Sum[Pure, Console, X]
+    type CF[X] = okay.effects.Sum[C, Face, X]
+    val steps = s.faces.steps[A, CF, C](s.program[CF])
+    val term = new Terminal[F](paint, width)(s.faces)
+    // the scenario's program is over `s.faces`, the terminal's words over `term.faces`: one value, two paths the checker cannot join
+    val in: term.faces.fx.In[Console, C] = term.faces.fx.splitLast[Pure, Console].asInstanceOf[term.faces.fx.In[Console, C]]
+    term.terminal[A, C](steps.asInstanceOf[term.faces.fx.![Step[A, ({ type L[X] = term.faces.fx.![X, C] })#L], C]], back = s.back)(in)
+      .asInstanceOf[Option[A] ! C]
+  }
   /** words onto lines of at most `width` columns, lines after the first indented by `indent`; a word longer than the room stands alone */
   def wrap(text: String, width: Int, indent: Int = 0): List[String] = {
     val pad = " " * indent

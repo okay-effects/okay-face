@@ -2,12 +2,22 @@ package okay.face.examples
 
 import okay.effects.Effects
 import okay.effects.shape.Shape
-import okay.face.{Action, Face, Faces, Look, Marks, Rule, Style, Theme, Tone, View}
+import okay.face.{Action, Face, Faces, Look, Marks, Rule, Scenario, Style, Theme, Tone, View}
 
 /** NOUGHTS AND CROSSES: the person is X, the program O. A loop of offers — the board shown, the free cells the one
  * action's choices — branching on the outcome, a `Tell` at the end; back is the face's and undoes a move. The same
  * program plays in a terminal, over MCP against an agent, and in a test by script */
-class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) {
+/** the outcome, named outside the class: a scenario's result type is said once for every instance */
+object Noughts {
+  sealed trait Outcome
+  final case class Won(by: Char) extends Outcome
+  case object Draw extends Outcome
+}
+class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) extends Scenario[F, Noughts.Outcome] {
+  type Outcome = Noughts.Outcome
+  type Won = Noughts.Won
+  val Won = Noughts.Won
+  val Draw = Noughts.Draw
   import faces.fx._
   import faces.{offer, show}
 
@@ -21,9 +31,6 @@ class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) {
     def replied: Board = if (outcome.isDefined) this else { val i = if (cells(4).isEmpty) 4 else free.head; played(i, 'O') }
   }
   object Board { val empty: Board = Board(Vector.fill(9)(None)) }
-  sealed trait Outcome
-  final case class Won(by: Char) extends Outcome
-  case object Draw extends Outcome
   /** THE GAME'S OWN MARKS, typed: the result line is marked `result`; a style may dress it, an agent is told what it is */
   sealed trait Mark
   case object Result extends Mark
@@ -33,7 +40,7 @@ class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) {
   val style: Style = Style.default.set(marks.role(Cell), Rule(size = 1.6, pad = 1, border = Some(Tone.Border), flow = okay.face.Flow.Row, centered = true))
     .set(marks.role(Result), Rule(bold = true, color = Some(Tone.Accent), centered = true))
     .adjust(okay.face.Role.Heading(1))(_.copy(centered = true)).adjust(okay.face.Role.Table)(_.copy(centered = true)).adjust(okay.face.Role.Actions)(_.copy(centered = true))
-  val look: Look = Look(Theme.light, style)
+  val light: Look = Look(Theme.light, style)
   val dark: Look = Look(Theme.dark, style)
 
   /** the rules, where a face explains an action: the terminal's `?`, an agent's tool description, a title on the web */
@@ -56,4 +63,9 @@ class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) {
   }
   /** games without end, one after another: what a window or a page runs */
   def games[R[_]](implicit in: In[Face, R]): Outcome ! R = game[R](Board.empty).flatMap(_ => games[R])
+  /** as a scenario: the games, titled and dressed, no back — `SwingFace.handle(game)`, `Terminal.handle(game)` */
+  def program[R[_]](implicit in: In[Face, R]): Outcome ! R = games[R]
+  override def title: String = "Noughts and crosses"
+  override def look: Option[Look] = Some(light)
+  override def back: Boolean = false
 }

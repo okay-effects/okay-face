@@ -37,7 +37,7 @@ object NoughtsWeb {
     val service: Request => Response ! H = req => (req.method, req.path) match {
       case ("GET", "/") => pure[Response, H](Response.html(page("remote")))
       case ("GET", "/local") => pure[Response, H](Response.html(page("local")))
-      case ("GET", "/okay.css") => pure[Response, H](Response.ok(Css(game.look, game.dark), "text/css; charset=utf-8"))
+      case ("GET", "/okay.css") => pure[Response, H](Response.ok(Css(game.light, game.dark), "text/css; charset=utf-8"))
       case ("GET", "/app.js") => pure[Response, H](script.fold(e => Response.text(e, 503), js => Response.ok(js, "application/javascript; charset=utf-8")))
       case _ => sessions(req)
     }

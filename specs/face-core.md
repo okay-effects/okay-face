@@ -483,6 +483,13 @@ After step 4 the model holds or it does not, before any web platform is paid for
   attempts each screen and begins at the place jumped to; the screens are unwound as an error unwinds them, the
   world's handlers outside keep their state. DECIDED over a history jump by the face: the jump is the program's own,
   so every face has it the same way.
+- A SCENARIO WHOLE — DONE 2026-10-21: `Scenario[F, A]` in core, the program over any row with `Face` plus what a face
+  needs to know of it — `title`, `look`, `back` — and its `steps` with `Face` handled alone. An application's class
+  extends it over the faces in scope (`class Noughts(implicit val faces: Faces[F]) extends Scenario[F, Outcome]`), and
+  a face handles it whole, nothing else said: `run(SwingFace.handle(game))` — a window titled, dressed and backed as
+  the scenario says, the program's result the dialogue's or `None` when the window is closed; `run(io.realConsole(
+  Terminal.handle(game)))` — `Console` left in the row for a console handler. The faces are handlers of `Face`, and
+  from the user's side that is all they are; what a window or a terminal needs beyond the program, the scenario says.
 - A `Ref` as a live link — DONE 2026-10-21 by a convention: when a step offers the action `ref` (one parameter, `key`),
   a face makes every `Ref` in the view choose it with its key — the HTML page links `base/{id}/ref/{key}`, Laminar and
   the remote face on a click, the terminal by typing `ref` then the key as ever; a step without `ref` shows a `Ref` as

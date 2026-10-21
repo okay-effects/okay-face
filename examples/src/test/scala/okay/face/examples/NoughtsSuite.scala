@@ -57,13 +57,15 @@ class NoughtsSuite extends munit.FunSuite {
   }
 }
 
-/** the same game at the terminal, under a scripted console */
+/** the same game at the terminal, the scenario handled whole, under a scripted console; a quit is None */
 class NoughtsTerminalSuite extends munit.FunSuite {
-  import NoughtsTerminal._
-  test("X wins down the left at the terminal: the boards printed, the cell asked as a menu") {
-    val (printed, result) = Machine.run(term.io.console(List("1", "4", "7", "again"))(
-      term.terminal[game.Outcome, C](term.faces.steps[game.Outcome, CF, C](game.game[CF](game.Board.empty)))))
-    assertEquals(result, Some(game.Won('X')))
+  import NoughtsTerminal.game
+  import okay.effects.machine.Machine._
+  val io = new okay.effects.world.Io()
+  test("X wins down the left at the terminal: the boards printed, a cell by its key; the games go on until quit") {
+    val played = okay.face.term.Terminal.handle(game)
+    val (printed, result) = run(io.console(List("1", "4", "7", "again", "q"))(played))
+    assertEquals(result, None)
     assert(printed.contains("NOUGHTS AND CROSSES"))
     assert(printed.contains("X won"), printed.mkString("\n"))
     assert(printed.exists(_.contains("a [key]")), printed.mkString("\n"))   // the free cells by their keys
