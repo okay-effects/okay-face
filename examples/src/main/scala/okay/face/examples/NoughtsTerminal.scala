@@ -16,7 +16,7 @@ object NoughtsTerminal {
   type CF[X] = Sum[C, Face, X]
 
   def main(args: Array[String]): Unit = {
-    val played = Machine.run(term.io.realConsole(term.terminal[game.Outcome, C](faces.steps[game.Outcome, CF, C](game.game[CF](game.Board.empty)))))
-    println(played.fold("bye")(o => s"the game ended: $o"))
+    val played = Machine.run(term.io.realConsole(term.terminal[game.Outcome, C](faces.steps[game.Outcome, CF, C](game.games[CF]))))
+    println("bye")
   }
 }

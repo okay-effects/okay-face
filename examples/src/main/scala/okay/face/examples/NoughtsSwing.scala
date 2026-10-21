@@ -12,5 +12,5 @@ object NoughtsSwing {
   val game = new Noughts[Machine.type](faces)
   type F[X] = Sum[Void, Face, X]
   def main(args: Array[String]): Unit =
-    face.window("Noughts and crosses", faces.steps[game.Outcome, F, Void](game.game[F](game.Board.empty)), (o: game.Outcome) => println(s"the game ended: $o"), look = Some(game.look))
+    face.window("Noughts and crosses", faces.steps[game.Outcome, F, Void](game.games[F]), (_: game.Outcome) => (), look = Some(game.look))
 }

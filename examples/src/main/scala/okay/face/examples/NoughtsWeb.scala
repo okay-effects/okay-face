@@ -35,7 +35,7 @@ object NoughtsWeb {
     import Machine._
     val https = new Https[Machine.type]()(Machine)
     val jdk = new JdkHttp[Machine.type]()(Machine)
-    val sessions = RestFace(faces).sessions[game.Outcome, H](() => faces.dialogue[game.Outcome, H](faces.steps[game.Outcome, HF, H](game.game[HF](game.Board.empty))), vocabulary = game.marks.vocabulary).service
+    val sessions = RestFace(faces).sessions[game.Outcome, H](() => faces.dialogue[game.Outcome, H](faces.steps[game.Outcome, HF, H](game.games[HF])), vocabulary = game.marks.vocabulary).service
     val service: Request => Response ! H = req => (req.method, req.path) match {
       case ("GET", "/") => pure[Response, H](Response.html(page("remote")))
       case ("GET", "/local") => pure[Response, H](Response.html(page("local")))

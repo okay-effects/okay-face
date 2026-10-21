@@ -29,7 +29,7 @@ class AgreementSuite extends munit.FunSuite {
   def cell(n: Int): Chosen = Chosen("play", obj("cell" -> Str(n.toString)))
 
   /** the reference: the views the program shows, and how it ends */
-  val (views, outcome) = plays.play(faces.steps[Outcome, F, Void](game.game[F](Board.empty)), plays.Script.of(moves.map(cell) :+ Chosen.plain("done"): _*)) match {
+  val (views, outcome) = plays.play(faces.steps[Outcome, F, Void](game.game[F](Board.empty)), plays.Script.of(moves.map(cell) :+ Chosen.plain("again"): _*)) match {
     case plays.Played.Finished(vs, o) => (vs, o)
     case other => fail(s"the reference did not finish: $other")
   }
@@ -52,7 +52,7 @@ class AgreementSuite extends munit.FunSuite {
     type C[X] = Sum[Void, Console, X]
     type CF[X] = Sum[C, Face, X]
     val term = new Terminal[Machine.type](faces)
-    val inputs = moves.flatMap(n => List("play", n.toString)) :+ "done"
+    val inputs = moves.flatMap(n => List("play", n.toString)) :+ "again"
     val (printed, ended) = Machine.run(term.io.console(inputs)(term.terminal[Outcome, C](faces.steps[Outcome, CF, C](game.game[CF](Board.empty)))))
     assertEquals(ended, Some(outcome))
     val text = printed.mkString("\n")
@@ -70,7 +70,7 @@ class AgreementSuite extends munit.FunSuite {
     def shown: String = all(root).collect { case l: javax.swing.JLabel => l.getText; case t: javax.swing.table.JTableHeader => ""; case a: javax.swing.JTextArea => a.getText }.mkString("\n")
     val seen = scala.collection.mutable.ListBuffer(shown)
     moves.foreach { n => byName[JComboBox[String]]("f-cell").setSelectedItem(n.toString); byName[JButton]("submit:play").doClick(); seen += shown }
-    byName[JButton]("action:done").doClick(); seen += shown
+    byName[JButton]("action:again").doClick(); seen += shown
     assertEquals(result, Some(outcome))
     views.zip(seen.toList).foreach { case (v, s) => assert(s.contains(okay.face.swing.Views.text(View.Heading(1, "Noughts and crosses"))) || s.contains("won"), s) }
     assert(seen.init.last.contains("X won") && seen.last.contains("done: Won(X)"), seen.takeRight(2).mkString("\n---\n"))
@@ -83,7 +83,7 @@ class AgreementSuite extends munit.FunSuite {
     val pages = HtmlFace(faces).pages[Outcome, H](() => faces.dialogue[Outcome, H](faces.steps[Outcome, HF, H](game.game[HF](Board.empty))), "Noughts")
     val requests = Request.get("/") :: Request.get("/s/s1") :: (moves.flatMap(n => List(
       Request.post("/s/s1/act/play", Query.print(Map("cell" -> List(n.toString))), "application/x-www-form-urlencoded"), Request.get("/s/s1"))) ++
-      List(Request.post("/s/s1/act/done", "", "application/x-www-form-urlencoded"), Request.get("/s/s1")))
+      List(Request.post("/s/s1/act/again", "", "application/x-www-form-urlencoded"), Request.get("/s/s1")))
     val responses = Machine.run(https.scripted(requests)(https.serve[H](pages.service)))._1
     val gets = responses.filter(_.status == 200).map(_.body)
     assertEquals(gets.size, 5)
@@ -98,10 +98,10 @@ class AgreementSuite extends munit.FunSuite {
     type HF[X] = Sum[H, Face, X]
     val https: Https[Machine.type] = new Https[Machine.type]()(Machine)
     val sessions = RestFace(faces).sessions[Outcome, H](() => faces.dialogue[Outcome, H](faces.steps[Outcome, HF, H](game.game[HF](Board.empty))))
-    val requests = Request.post("/sessions", "", "application/json") :: (moves.map(n => Request.json("POST", "/sessions/s1/act/play", obj("cell" -> Str(n.toString)))) :+ Request.json("POST", "/sessions/s1/act/done", obj()))
+    val requests = Request.post("/sessions", "", "application/json") :: (moves.map(n => Request.json("POST", "/sessions/s1/act/play", obj("cell" -> Str(n.toString)))) :+ Request.json("POST", "/sessions/s1/act/again", obj()))
     val responses = Machine.run(https.scripted(requests)(https.serve[H](sessions.service)))._1
     assertEquals(responses.map(_.status), List(201, 200, 200, 200, 200))
-    // a resource's view is what was told since the last step and the step's own view; at the end, the told and "done"
+    // a resource's view is what was told since the last step and the step's own view; at the end, the told and "done" once "again" is taken
     val shown = responses.map(r => okay.effects.json.Descent.parse(r.body).toOption.flatMap {
       case o: Json.Obj => o.get("data").collect { case d: Json.Obj => d }.flatMap(_.get("view")).collect { case v: Json.Obj => v.get("children") }.flatten.collect { case Json.Arr(cs) => cs.toList }
       case _ => None

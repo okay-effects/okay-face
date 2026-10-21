@@ -21,7 +21,7 @@ object NoughtsPage {
         val face = new LaminarFace[Machine.type](faces)
         val game = new Noughts[Machine.type](faces)
         type F[X] = Sum[Void, Face, X]
-        face.element[game.Outcome](faces.steps[game.Outcome, F, Void](game.game[F](game.Board.empty)), (o: game.Outcome) => dom.console.log(s"the game ended: $o"))
+        face.element[game.Outcome](faces.steps[game.Outcome, F, Void](game.games[F]), (_: game.Outcome) => ())
       case _ => RemoteFace(Browser.fetch()).element("/sessions")
     }
     renderOnDomContentLoaded(root, element)
