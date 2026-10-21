@@ -511,6 +511,11 @@ in its own `told` section before the step's.
 
 After step 4 the model holds or it does not, before any web platform is paid for.
 
+State on 2026-10-21, evening: all six steps done, verity on every face, two examples (the game, the list) on every
+face, the README's code checked by `docsCheck`, a CI workflow written (`.github/workflows/ci.yml`: okay-simple,
+okay-http and okay-mcp built first, formatting checked, every test on both compilers, the JVM and Scala.js). Left:
+okay-simple 0.1.1 released, so okay-faces can depend on a release and be published itself.
+
 ## Open
 
 - External events (a timer, a server push) while a step waits — DONE 2026-10-21 as `Meanwhile`: the program offers an
