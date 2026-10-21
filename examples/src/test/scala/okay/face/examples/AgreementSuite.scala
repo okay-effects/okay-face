@@ -21,7 +21,7 @@ class AgreementSuite extends munit.FunSuite {
   System.setProperty("java.awt.headless", "true")
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
   val plays: Plays[Machine.type] = new Plays[Machine.type]()(Machine)
-  val game = new Noughts[Machine.type](faces)
+  val game = new Noughts[Machine.type]()(faces)
   import game._
   import Machine._
   type F[X] = Sum[Void, Face, X]
@@ -62,7 +62,7 @@ class AgreementSuite extends munit.FunSuite {
   }
 
   test("the Swing panel shows every view's text, and ends the same") {
-    val face = new SwingFace[Machine.type](faces)
+    val face = new SwingFace[Machine.type]()(faces)
     var result = Option.empty[Outcome]
     val root = face.panel[Outcome](faces.steps[Outcome, F, Void](game.game[F](Board.empty)), (o: Outcome) => result = Some(o))
     def all(c: java.awt.Component): List[java.awt.Component] = c match { case p: java.awt.Container => c :: p.getComponents.toList.flatMap(all); case _ => List(c) }

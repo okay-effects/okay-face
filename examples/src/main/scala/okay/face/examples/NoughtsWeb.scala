@@ -11,8 +11,9 @@ import okay.http.{Http, Https, JdkHttp, JdkServer, Request, Response}
  * the browser; `/okay.css` the look. The page's script is `examples/web`, linked by `sbt -Dplatforms=js examplesWeb/fullLinkJS`
  * (or `-Dnoughts.js=path`). The host `0.0.0.0` opens it to the network */
 object NoughtsWeb {
-  val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
-  val game = new Noughts[Machine.type](faces)
+  import okay.effects.machine.implicits._
+  implicit val faces: Faces[Machine.type] = new Faces()
+  val game = new Noughts[Machine.type]()
   type H[X] = Sum[Void, Http, X]
   type HF[X] = Sum[H, Face, X]
 

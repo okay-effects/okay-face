@@ -16,7 +16,7 @@ import scala.collection.mutable
  * The rest of a step runs by the `Runner`: the row is done before the face. With a `Look`, the components are dressed
  * by their roles (`Looks`) after each rebuild; without one, the platform's look and feel stands.
  */
-class SwingFace[F <: Runner](val faces: Faces[F]) {
+class SwingFace[F <: Runner](implicit val faces: Faces[F]) {
   import faces.fx._
   type M[X] = X ! okay.effects.Void
 

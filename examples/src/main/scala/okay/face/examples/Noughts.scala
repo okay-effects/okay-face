@@ -7,7 +7,7 @@ import okay.face.{Action, Face, Faces, Look, Marks, Rule, Style, Theme, Tone, Vi
 /** NOUGHTS AND CROSSES: the person is X, the program O. A loop of offers — the board shown, the free cells the one
  * action's choices — branching on the outcome, a `Tell` at the end; back is the face's and undoes a move. The same
  * program plays in a terminal, over MCP against an agent, and in a test by script */
-class Noughts[F <: Effects](val faces: Faces[F]) {
+class Noughts[F <: Effects](implicit val faces: Faces[F]) {
   import faces.fx._
   import faces.{offer, show}
 

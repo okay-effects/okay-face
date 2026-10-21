@@ -9,9 +9,10 @@ import okay.face.term.Terminal
 /** NOUGHTS AND CROSSES AT THE TERMINAL: `sbt "examples/runMain okay.face.examples.NoughtsTerminal"` — the same program
  * the test face plays by script and the MCP face will serve to an agent */
 object NoughtsTerminal {
-  val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
+  import okay.effects.machine.implicits._
+  implicit val faces: Faces[Machine.type] = new Faces()
   val term: Terminal[Machine.type] = new Terminal[Machine.type](faces)
-  val game = new Noughts[Machine.type](faces)
+  val game = new Noughts[Machine.type]()
   type C[X] = Sum[Void, Console, X]
   type CF[X] = Sum[C, Face, X]
 

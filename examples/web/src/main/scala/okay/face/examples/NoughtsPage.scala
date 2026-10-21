@@ -19,7 +19,7 @@ object NoughtsPage {
       case Some("local") =>
         val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
         val face = new LaminarFace[Machine.type](faces)
-        val game = new Noughts[Machine.type](faces)
+        val game = new Noughts[Machine.type]()(faces)
         type F[X] = Sum[Void, Face, X]
         face.element[game.Outcome](faces.steps[game.Outcome, F, Void](game.games[F]), (_: game.Outcome) => (), back = false)
       case _ => RemoteFace(Browser.fetch()).element("/sessions")

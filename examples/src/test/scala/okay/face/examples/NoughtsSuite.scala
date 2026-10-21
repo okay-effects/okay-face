@@ -10,7 +10,7 @@ import okay.face.test.Plays
 class NoughtsSuite extends munit.FunSuite {
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
   val plays: Plays[Machine.type] = new Plays[Machine.type]()(Machine)
-  val game = new Noughts[Machine.type](faces)
+  val game = new Noughts[Machine.type]()(faces)
   import game._
   import plays._
   type F[X] = Sum[Void, Face, X]
