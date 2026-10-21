@@ -7,7 +7,7 @@ import okay.http.{Http, JdkHttp, Request, Response}
 
 /** NOUGHTS AND CROSSES SERVED: `sbt "examples/runMain okay.face.examples.NoughtsWeb [port] [host]"` — the REST face at
  * `/sessions` and the HTML face at `/s` handle the game, each whole; `/` is the thin page over the REST face, `/local`
- * the game in the browser, the page's script from `examples/web` (`sbt -Dplatforms=js examplesWeb/fullLinkJS`) */
+ * the game in the browser, the page's script the examples' own Scala.js (`sbt -Dplatforms=js examplesJS/fullLinkJS`) */
 object NoughtsWeb {
   val game = new Noughts()
   val rest = RestFace.handle(game)
@@ -36,10 +36,10 @@ object Shell {
        |<title>$title</title><link rel="stylesheet" href="/okay.css"/></head>
        |<body><div id="app" data-mode="$mode"></div><script src="/app.js"></script></body></html>""".stripMargin
   def script: Either[String, String] = {
-    val candidates = sys.props.get("noughts.js").toList ++ List("examples/web/target/scala-3.3.8/okay-faces-examples-web-opt/main.js", "examples/web/target/scala-3.3.8/okay-faces-examples-web-fastopt/main.js")
+    val candidates = sys.props.get("noughts.js").toList ++ List("examples/.js/target/scala-3.3.8/okay-faces-examples-opt/main.js", "examples/.js/target/scala-3.3.8/okay-faces-examples-fastopt/main.js")
     candidates.map(new java.io.File(_)).find(_.isFile) match {
       case Some(f) => Right(new String(java.nio.file.Files.readAllBytes(f.toPath), "UTF-8"))
-      case None => Left(s"no page script: `sbt -Dplatforms=js examplesWeb/fullLinkJS` makes it, or -Dnoughts.js=path names it (looked at ${candidates.mkString(", ")})")
+      case None => Left(s"no page script: `sbt -Dplatforms=js examplesJS/fullLinkJS` makes it, or -Dnoughts.js=path names it (looked at ${candidates.mkString(", ")})")
     }
   }
 }
