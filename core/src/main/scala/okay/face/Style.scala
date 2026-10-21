@@ -212,7 +212,7 @@ object Css {
       if (r.mono) Some("font-family:var(--okay-mono)") else None,
       if (r.pad > 0) Some(s"padding:calc(${r.pad} * var(--okay-space))") else None,
       if (r.gap > 0 || r.flow == Flow.Row) Some((if (r.flow == Flow.Row) "display:flex;flex-wrap:wrap;align-items:center" else "display:flex;flex-direction:column") + s";gap:calc(${r.gap} * var(--okay-space))") else None,
-      if (r.centered) Some("justify-content:center;align-items:center;text-align:center") else None
+      if (r.centered) Some("justify-content:center;align-items:center;text-align:center;margin-left:auto;margin-right:auto") else None
     ).flatten
     ds.mkString(";")
   }
