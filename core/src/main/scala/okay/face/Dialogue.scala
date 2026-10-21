@@ -12,7 +12,8 @@ class Dialogues[F <: Effects](implicit implementation: F) {
   val fx: F = implementation
   import fx._
 
-  final class Dialogue[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R) {
+  /** `back`: whether the dialogue offers going back at all — a game of its own rules says no */
+  final class Dialogue[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R, val allowsBack: Boolean = true) {
     type M[X] = X ! R
     private var told: Vector[View] = Vector.empty
     private var history: List[Step.Waiting[A, M]] = Nil
@@ -44,7 +45,7 @@ class Dialogues[F <: Effects](implicit implementation: F) {
     }
     def actions: List[Action[_]] ! R = current.map { case w: Step.Waiting[A, M] @unchecked => w.actions; case _ => Nil }
     def done: Boolean ! R = current.map { case Step.Done(_) => true; case _ => false }
-    def canGoBack: Boolean = history.nonEmpty
+    def canGoBack: Boolean = allowsBack && history.nonEmpty
     /** the choice taken: the view after, or the problems, the step unchanged */
     def choose(chosen: Chosen): Either[Rejected, View] ! R = current.flatMap {
       case w: Step.Waiting[A, M] @unchecked => w.resume(chosen) match {
@@ -54,9 +55,9 @@ class Dialogues[F <: Effects](implicit implementation: F) {
       case _ => pure[Either[Rejected, View], R](Left(Rejected(List(okay.effects.shape.Problem(Nil, "the dialogue is over")))))
     }
     def back(): Boolean = history match {
-      case previous :: older => told = Vector.empty; step = Some(previous); history = older; true
-      case Nil => false
+      case previous :: older if allowsBack => told = Vector.empty; step = Some(previous); history = older; true
+      case _ => false
     }
   }
-  def dialogue[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R): Dialogue[A, R] = new Dialogue[A, R](first)
+  def dialogue[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true): Dialogue[A, R] = new Dialogue[A, R](first, back)
 }

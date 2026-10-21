@@ -29,11 +29,11 @@ class NoughtsSuite extends munit.FunSuite {
       case Played.Stuck(views, at, Some(Rejected(problems))) =>
         assertEquals(views.size, 2)
         assertEquals(problems, List(Problem(List("key"), "one of 2, 3, 4, 6, 7, 8, 9")))
-        assertEquals(at.actions.map(_.name), List("ref", "restart"))
+        assertEquals(at.actions.map(_.name), List("ref"))
       case other => fail(s"$other")
     }
   }
-  test("back undoes a move; restart clears the board") {
+  test("back, by the test face, undoes a move; a game won and played again starts clear") {
     val undone = play(start, Script(Pick(cell(1)), Back, Pick(cell(5))))
     undone match {
       case Played.Stuck(views, at, None) =>
@@ -42,7 +42,7 @@ class NoughtsSuite extends munit.FunSuite {
         assert(views(1) != views(3))
       case other => fail(s"$other")
     }
-    play(start, Script.of(cell(1), Chosen.plain("restart"))) match {
+    play(faces.steps[Outcome, F, Void](game.games[F]), Script.of(cell(1), cell(4), cell(7), Chosen.plain("again"))) match {
       case Played.Stuck(views, _, None) => assertEquals(views.last, views.head)
       case other => fail(s"$other")
     }

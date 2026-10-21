@@ -24,9 +24,6 @@ class Noughts[F <: Effects](val faces: Faces[F]) {
   sealed trait Outcome
   final case class Won(by: Char) extends Outcome
   case object Draw extends Outcome
-  sealed trait Move
-  final case class Play(cell: Int) extends Move
-  case object Restart extends Move
   /** THE GAME'S OWN MARKS, typed: the result line is marked `result`; a style may dress it, an agent is told what it is */
   sealed trait Mark
   case object Result extends Mark
@@ -50,13 +47,8 @@ class Noughts[F <: Effects](val faces: Faces[F]) {
     case None =>
       // the one move is `ref`: a free cell clicked where a face clicks, its number given where one types or calls
       val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*).described("Cell", Some("1 to 9, left to right, top to bottom"))
-      offer[Move, R](picture(board), List(
-        Action[Int, Move]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell"))(Play(_)),
-        Action.plain[Move]("restart", "Start over")(Restart)))
-        .flatMap {
-          case Play(i) => game[R](board.played(i, 'X').replied)
-          case Restart => game[R](Board.empty)
-        }
+      offer[Int, R](picture(board), List(Action[Int, Int]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell"))(c => c)))
+        .flatMap(i => game[R](board.played(i, 'X').replied))
   }
   /** games without end, one after another: what a window or a page runs */
   def games[R[_]](implicit in: In[Face, R]): Outcome ! R = game[R](Board.empty).flatMap(_ => games[R])

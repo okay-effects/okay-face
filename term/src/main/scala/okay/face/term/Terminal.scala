@@ -94,11 +94,11 @@ class Terminal[F <: okay.effects.Effects](val faces: Faces[F], paint: Paint = Pa
 
   // ---- THE STEP LOOP
   /** the face: shows, reads, resumes; `None` when the person quits. The row holds `Console` and whatever the steps need */
-  def terminal[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R)(implicit c: In[Console, R]): Option[A] ! R = {
+  def terminal[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true)(implicit c: In[Console, R]): Option[A] ! R = {
     type M[X] = X ! R
     type RF[X] = okay.effects.Sum[R, Fields, X]
     def menuOf(w: Step.Waiting[A, M]): List[String] =
-      List(w.actions.zipWithIndex.map { case (a, i) => paint(Role.Action, s"${i + 1}) ${a.label}") }.mkString("  ") + paint(Role.Doc, "   (< back, ? help, q quit)"))
+      List(w.actions.zipWithIndex.map { case (a, i) => paint(Role.Action, s"${i + 1}) ${a.label}") }.mkString("  ") + paint(Role.Doc, if (back) "   (< back, ? help, q quit)" else "   (? help, q quit)"))
     def docs(w: Step.Waiting[A, M]): List[String] = w.actions.map(a => s"${a.name}: ${a.doc.getOrElse(a.label)}")
     def pick(w: Step.Waiting[A, M], line: String): Option[Action[_]] = {
       val t = line.trim
@@ -117,8 +117,8 @@ class Terminal[F <: okay.effects.Effects](val faces: Faces[F], paint: Paint = Pa
           case None => pure[Option[A], R](None)
           case Some(l) if l.trim == "q" => pure[Option[A], R](None)
           case Some(l) if l.trim == "<" => history match {
-            case previous :: older => loop(previous, older)
-            case Nil => loop(w, Nil)
+            case previous :: older if back => loop(previous, older)
+            case _ => loop(w, history)
           }
           case Some(l) if l.trim == "?" => say[R](docs(w)).flatMap(_ => loop(w, history))
           case Some(l) => pick(w, l) match {

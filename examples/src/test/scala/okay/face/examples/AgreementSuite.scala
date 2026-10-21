@@ -91,6 +91,9 @@ class AgreementSuite extends munit.FunSuite {
     // a waiting step's refs are links to play; the ended board's are names
     views.zip(gets).foreach { case (v, page) => assert(page.contains(Html.view(v, Some("/s/s1"))) || page.contains(Html.view(v)), s"the page does not show the view:\n${Html.view(v, Some("/s/s1"))}\n$page") }
     assert(gets(1).contains("""href="/s/s1/ref/2""""), "a free cell is a link to play it")
+    val noBack = HtmlFace(faces).pages[Outcome, H](() => faces.dialogue[Outcome, H](faces.steps[Outcome, HF, H](game.game[HF](Board.empty)), back = false), "Noughts")
+    val after = Machine.run(https.scripted(requests)(https.serve[H](noBack.service)))._1.filter(_.status == 200).map(_.body)
+    assert(after.size == 5 && after.forall(!_.contains("okay-back")), "a dialogue without back offers none")
     assert(gets.last.contains("done: Won(X)"))
   }
 

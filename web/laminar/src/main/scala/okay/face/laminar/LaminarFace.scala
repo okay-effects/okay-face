@@ -26,23 +26,23 @@ class LaminarFace[F <: Runner](val faces: Faces[F]) {
 
   /** the row done: the rest run at once */
   def element[A](first: Step[A, ({ type L[X] = X ! okay.effects.Void })#L] ! okay.effects.Void, done: A => Unit = (_: A) => (),
-                 browserHistory: Boolean = false): HtmlElement = {
+                 browserHistory: Boolean = false, back: Boolean = true): HtmlElement = {
     type M[X] = X ! okay.effects.Void
-    new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = k(run(m)) }, done, browserHistory).element(first)
+    new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = k(run(m)) }, done, browserHistory, back).element(first)
   }
 
   /** `Async` remaining: the rest run to a `Future` — a program that waits (a fetch, a timer) between steps */
   def elementAsync[A](first: Step[A, ({ type L[X] = X ! Async })#L] ! Async, done: A => Unit = (_: A) => (),
-                      browserHistory: Boolean = false)(implicit ec: ExecutionContext): HtmlElement = {
+                      browserHistory: Boolean = false, back: Boolean = true)(implicit ec: ExecutionContext): HtmlElement = {
     type M[X] = X ! Async
     val asynchrony = new Asynchrony[faces.fx.type]()(faces.fx, ec)
-    new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = asynchrony.toFuture(m).foreach(k) }, done, browserHistory).element(first)
+    new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = asynchrony.toFuture(m).foreach(k) }, done, browserHistory, back).element(first)
   }
 
   final case class Shown[A, M[_]](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]], problems: Problems, busy: Boolean)
 
   /** one machine per element: its state, how it runs a rest, what it does at the end */
-  final class Machine[A, M[_]](lower: Lower[M], done: A => Unit, browserHistory: Boolean) {
+  final class Machine[A, M[_]](lower: Lower[M], done: A => Unit, browserHistory: Boolean, allowsBack: Boolean = true) {
     val state: Var[Shown[A, M]] = Var(Shown(Vector.empty, Step.Told(View.Empty, null.asInstanceOf[M[Step[A, M]]]), Nil, Nil, busy = true))
 
     def element(first: M[Step[A, M]]): HtmlElement = {
@@ -83,7 +83,7 @@ class LaminarFace[F <: Runner](val faces: Faces[F]) {
         case Step.Told(_, _) => div(notices, div(cls := "okay-busy", "…"))
         case w: Step.Waiting[A, M] @unchecked =>
           val problems = if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
-          val backButton = if (s.history.isEmpty) emptyNode else button(typ := "button", cls := Role.Back.classes, "Back", onClick --> Observer[dom.MouseEvent](_ => back()))
+          val backButton = if (!allowsBack || s.history.isEmpty) emptyNode else button(typ := "button", cls := Role.Back.classes, "Back", onClick --> Observer[dom.MouseEvent](_ => back()))
           val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref")) Some(key => choose(w, Chosen("ref", Json.obj("key" -> Json.Str(key))))) else None
           div(notices, sectionTag(cls := Role.View.classes, Views.element(w.view, ref)), problems,
             navTag(cls := Role.Actions.classes, w.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(w, _), s.busy)), backButton))

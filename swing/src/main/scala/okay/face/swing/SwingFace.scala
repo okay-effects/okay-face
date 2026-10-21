@@ -23,7 +23,7 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
   final case class Shown[A](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]], problems: Problems)
 
   /** the face as a panel, rebuilt at each step; `done` with the value at the end */
-  def panel[A](first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (), look: Option[Look] = None): JPanel = {
+  def panel[A](first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (), look: Option[Look] = None, back: Boolean = true): JPanel = {
     val root = new JPanel(new BorderLayout)
     root.setName(Role.Face.cls)
     def settle(step: Step[A, M], told: Vector[View], history: List[Step.Waiting[A, M]]): Shown[A] = step match {
@@ -46,7 +46,7 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
     def show(s: Shown[A]): Unit = {
       current = Some(s.step)
       root.removeAll()
-      root.add(render(s, show, settle), BorderLayout.CENTER)
+      root.add(render(s, show, settle, back), BorderLayout.CENTER)
       look.foreach(l => Looks(l)(root))
       root.revalidate(); root.repaint()
       grow()
@@ -66,12 +66,12 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
   /** the face in a window, on the event dispatch thread; with `pages` (core's `Navigation` in memory) the window's title
    * follows the program's current page */
   def window[A](title: String, first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (),
-                pages: Option[(okay.face.Pages[_], Any => String)] = None, look: Option[Look] = None): Unit =
+                pages: Option[(okay.face.Pages[_], Any => String)] = None, look: Option[Look] = None, back: Boolean = true): Unit =
     SwingUtilities.invokeLater(new Runnable { def run(): Unit = {
       val frame = new JFrame(title)
       pages.foreach { case (ps, name) => ps.asInstanceOf[okay.face.Pages[Any]].onChange(p => frame.setTitle(s"$title — ${name(p)}")) }
       frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
-      frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, look)), ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER))
+      frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, look, back)), ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER))
       // the window sized to its content, within the screen; it grows no further — a longer dialogue scrolls
       frame.pack()
       val screen = java.awt.Toolkit.getDefaultToolkit.getScreenSize
@@ -79,7 +79,7 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
       frame.setLocationRelativeTo(null); frame.setVisible(true)
     } })
 
-  private def render[A](s: Shown[A], show: Shown[A] => Unit, settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A]): JComponent = {
+  private def render[A](s: Shown[A], show: Shown[A] => Unit, settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A], back: Boolean): JComponent = {
     val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS))
     s.told.foreach(v => box.add(named(Views.component(v), Role.Told.cls)))
     s.step match {
@@ -95,10 +95,10 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
         if (s.problems.nonEmpty) { val p = new JPanel(new GridLayout(0, 1)); p.setName(Role.Problems.cls); s.problems.foreach(pr => p.add(label(pr.render, Role.Problems.cls))); box.add(p) }
         val actions = new JPanel; actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS)); actions.setName(Role.Actions.cls)
         w.actions.filterNot(_.name == "ref").foreach(a => actions.add(Forms.action(a, choose)))
-        if (s.history.nonEmpty) {
-          val back = new JButton("Back"); back.setName(Role.Back.cls)
-          back.addActionListener(_ => show(Shown(Vector.empty, s.history.head, s.history.tail, Nil)))
-          actions.add(back)
+        if (back && s.history.nonEmpty) {
+          val b = new JButton("Back"); b.setName(Role.Back.cls)
+          b.addActionListener(_ => show(Shown(Vector.empty, s.history.head, s.history.tail, Nil)))
+          actions.add(b)
         }
         box.add(actions)
     }

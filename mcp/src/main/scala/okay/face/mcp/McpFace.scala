@@ -28,8 +28,8 @@ class McpFace[F <: Runner, Fs <: Faces[F]](val faces: Fs) {
   def tools[A, R[_]](d: Dialogue[A, R], vocabulary: Vocabulary = Vocabulary.empty): servers.Tools[R] = new servers.Tools[R] {
     def list: List[ToolSpec] ! R = d.actions.map(as =>
       as.map(a => ToolSpec(a.name, a.doc.getOrElse(a.label), JsonSchema.of(a.params.erased))) ++ List(
-        ToolSpec("look", "the current view, as it stands", Json.obj("type" -> Json.Str("object"))),
-        ToolSpec("back", "one step back: the previous view and its actions", Json.obj("type" -> Json.Str("object")))))
+        ToolSpec("look", "the current view, as it stands", Json.obj("type" -> Json.Str("object")))) ++
+        (if (d.allowsBack) List(ToolSpec("back", "one step back: the previous view and its actions", Json.obj("type" -> Json.Str("object")))) else Nil))
     def call(c: ToolCall): ToolResult ! R = c.name match {
       case "look" => d.view.flatMap(v => d.actions.map(as => shown(v, as, vocabulary)))
       case "back" => if (d.back()) d.view.flatMap(v => d.actions.map(as => shown(v, as, vocabulary))) else pure[ToolResult, R](ToolResult.error("nothing to go back to"))
@@ -50,8 +50,8 @@ class McpFace[F <: Runner, Fs <: Faces[F]](val faces: Fs) {
     def list: List[ToolSpec] ! R = pure[List[ToolSpec], R](List(
       ToolSpec("act", "one of the current actions, with its arguments — `look` says which, and every result does", Json.obj("type" -> Json.Str("object"),
         "properties" -> Json.obj("action" -> Json.obj("type" -> Json.Str("string")), "arguments" -> Json.obj("type" -> Json.Str("object"))), "required" -> Json.arr(Json.Str("action")))),
-      ToolSpec("look", "the current view and the actions, as they stand", Json.obj("type" -> Json.Str("object"))),
-      ToolSpec("back", "one step back", Json.obj("type" -> Json.Str("object")))))
+      ToolSpec("look", "the current view and the actions, as they stand", Json.obj("type" -> Json.Str("object")))) ++
+      (if (d.allowsBack) List(ToolSpec("back", "one step back", Json.obj("type" -> Json.Str("object")))) else Nil))
     def call(c: ToolCall): ToolResult ! R = c.name match {
       case "look" => d.view.flatMap(v => d.actions.map(as => told(v, as)))
       case "back" => if (d.back()) d.view.flatMap(v => d.actions.map(as => told(v, as))) else pure[ToolResult, R](ToolResult.error("nothing to go back to"))
@@ -105,8 +105,8 @@ class McpFace[F <: Runner, Fs <: Faces[F]](val faces: Fs) {
   /** a server of the dialogue, named; `first` the steps over the server's own row; the `vocabulary` of the application's
    * marks is told in the instructions, served at `face://marks`, and shown in the Markdown */
   def server[A, R[_]](name: String, version: String, first: Step[A, ({ type L[X] = X ! R })#L] ! R, instructions: Option[String] = None, elicitation: Boolean = false,
-                      singleTool: Boolean = false, vocabulary: Vocabulary = Vocabulary.empty): servers.Server[R] = {
-    val d = faces.dialogue[A, R](first)
+                      singleTool: Boolean = false, vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true): servers.Server[R] = {
+    val d = faces.dialogue[A, R](first, back)
     val told = if (vocabulary.isEmpty) instructions else Some((instructions.toList :+ ("Marks on views, and what they mean:\n" + vocabulary.markdown)).mkString("\n\n"))
     servers.Server[R](name, version, if (singleTool) single[A, R](d, vocabulary) else tools[A, R](d, vocabulary), Some(resources[A, R](d, vocabulary)), told, elicitation)
   }
