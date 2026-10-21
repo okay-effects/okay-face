@@ -36,6 +36,9 @@ class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) {
   val look: Look = Look(Theme.light, style)
   val dark: Look = Look(Theme.dark, style)
 
+  /** the rules, where a face explains an action: the terminal's `?`, an agent's tool description, a title on the web */
+  val rules: String = "you are X, the program is O. A free cell is a [number]: choose one and X goes there, then O answers. " +
+    "Three in a row — across, down or diagonally — wins; a full board with no row is a draw"
   /** the board: a taken cell its mark, a free one a `Ref` by its number — live, since `ref` is offered: a face that can
    * click plays by a click; the terminal and an agent give the number */
   def picture(board: Board): View = View.stack(View.heading("Noughts and crosses"),
@@ -44,11 +47,11 @@ class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) {
 
   /** one game: the outcome, once the end is seen and "Play again" taken */
   def game[R[_]](board: Board)(implicit in: In[Face, R]): Outcome ! R = board.outcome match {
-    case Some(o) => offer[Unit, R](ended(board, o), List(Action.plain[Unit]("again", "Play again")(()))).map(_ => o)
+    case Some(o) => offer[Unit, R](ended(board, o), List(Action.plain[Unit]("again", "Play again", Some("a new game, the board clear; you are X and begin"))(()))).map(_ => o)
     case None =>
       // the one move is `ref`: a free cell clicked where a face clicks, its number given where one types or calls
       val cells = Shape.choice[Int](board.free.map(i => (i + 1).toString -> i): _*).described("Cell", Some("1 to 9, left to right, top to bottom"))
-      offer[Int, R](picture(board), List(Action[Int, Int]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some("a free cell, X goes there"))(c => c)))
+      offer[Int, R](picture(board), List(Action[Int, Int]("ref", "Play", Shape.record(Shape.field("key", cells))(c => c)(c => c), Some(rules))(c => c)))
         .flatMap(i => game[R](board.played(i, 'X').replied))
   }
   /** games without end, one after another: what a window or a page runs */
