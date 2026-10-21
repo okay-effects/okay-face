@@ -59,7 +59,7 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
       val frame = new JFrame(title)
       pages.foreach { case (ps, name) => ps.asInstanceOf[okay.face.Pages[Any]].onChange(p => frame.setTitle(s"$title — ${name(p)}")) }
       frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
-      frame.getContentPane.add(new JScrollPane(panel(first, done, look)))
+      frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, look)), ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER))
       frame.setSize(640, 480); frame.setLocationRelativeTo(null); frame.setVisible(true)
     } })
 
@@ -94,6 +94,17 @@ class SwingFace[F <: Runner](val faces: Faces[F]) {
 
 /** a `View` as Swing components */
 object Views {
+  /** the face in a scroll pane: as wide as the window, scrolling down only */
+  def fitting(c: JComponent): JComponent = {
+    val p = new JPanel(new BorderLayout) with Scrollable {
+      def getPreferredScrollableViewportSize: java.awt.Dimension = getPreferredSize
+      def getScrollableUnitIncrement(r: java.awt.Rectangle, o: Int, d: Int): Int = 16
+      def getScrollableBlockIncrement(r: java.awt.Rectangle, o: Int, d: Int): Int = r.height
+      def getScrollableTracksViewportWidth: Boolean = true
+      def getScrollableTracksViewportHeight: Boolean = false
+    }
+    p.add(c, BorderLayout.NORTH); p
+  }
   def component(v: View): JComponent = component(v, None)
   /** `ref`: what a `Ref` does when the step offers the action `ref` — a button, and a table of such a grid of them */
   def component(v: View, ref: Option[String => Unit]): JComponent = v match {
@@ -106,11 +117,23 @@ object Views {
       val p = new JPanel(new GridLayout(0, 2, 8, 2))
       rows.foreach { case (k, x) => p.add(named(new JLabel(k + ":"), Role.Label.cls)); p.add(component(x, ref)) }
       named(p, Role.Fields.cls)
-    // a table with no column names is a GRID of cells — a board — square, not stretched; so is one of live refs
+    // a table with no column names is a GRID of cells — a board — in the middle, its cells square: as wide as the window
+    // allows, up to one and a half times a cell's own height; so is one of live refs
     case View.Table(columns, rows) if columns.forall(_.isEmpty) || (ref.isDefined && rows.exists(_.exists(hasRef))) =>
-      val grid = new JPanel(new GridLayout(rows.size, rows.headOption.fold(1)(_.size), 4, 4))
-      rows.foreach(_.foreach(c => grid.add(cell(c, ref)))); grid.setName(Role.Table.cls)
-      val holder = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0)); holder.setOpaque(false); holder.add(grid); holder
+      val cols = rows.headOption.fold(1)(_.size) max 1
+      val holder = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 0, 0)); holder.setOpaque(false)
+      val grid = new JPanel(new GridLayout(rows.size, cols, 4, 4)) {
+        override def getPreferredSize: java.awt.Dimension = {
+          val own = super.getPreferredSize
+          val cap = (own.height.toDouble / rows.size * 1.5).toInt
+          val fit = if (holder.getWidth > 0) holder.getWidth / cols else cap
+          val side = math.max(own.width / cols, math.min(fit, cap))
+          new java.awt.Dimension(side * cols, side * rows.size)
+        }
+      }
+      holder.addComponentListener(new java.awt.event.ComponentAdapter { override def componentResized(e: java.awt.event.ComponentEvent): Unit = grid.revalidate() })
+      rows.foreach(_.foreach(c => grid.add(cell(c, ref)))); named(grid, Role.Table.cls)
+      holder.add(grid); holder
     case View.Table(columns, rows) =>
       val model = new DefaultTableModel(rows.map(_.map(c => text(c): AnyRef).toArray).toArray, columns.map(c => c: AnyRef).toArray) {
         override def isCellEditable(r: Int, c: Int): Boolean = false
@@ -137,13 +160,12 @@ object Views {
   private def cell(v: View, ref: Option[String => Unit]): JComponent = v match {
     case View.Marked(mark, x) => val c = cell(x, ref); c.setName(Role.Mark(mark).cls); c
     case View.Ref(key, l) if ref.isDefined =>
-      val b = new JButton(l) { override def getPreferredSize: java.awt.Dimension = square(super.getPreferredSize) }
+      val b = new JButton(l)
       b.setName(Role.Ref.cls); b.setToolTipText(key); b.setHorizontalAlignment(SwingConstants.CENTER); b.addActionListener((_: java.awt.event.ActionEvent) => ref.get(key)); b
     case other =>
-      val l = new JLabel(other match { case View.Ref(_, lbl) => lbl; case _ => text(other) }, SwingConstants.CENTER) { override def getPreferredSize: java.awt.Dimension = square(super.getPreferredSize) }
+      val l = new JLabel(other match { case View.Ref(_, lbl) => lbl; case _ => text(other) }, SwingConstants.CENTER)
       named(l, other match { case View.Ref(_, _) => Role.Ref.cls; case _ => Role.Text.cls })
   }
-  private def square(d: java.awt.Dimension): java.awt.Dimension = { val s = math.max(d.width, d.height); new java.awt.Dimension(s, s) }
   /** a view in one line */
   def text(v: View): String = v match {
     case View.Empty => ""
