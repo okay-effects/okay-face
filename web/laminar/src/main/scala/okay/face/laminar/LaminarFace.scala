@@ -6,7 +6,7 @@ import okay.effects.Runner
 import okay.effects.async.{Async, Asynchrony}
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
-import okay.face.{Action, Chosen, Css, Faces, Look, Rejected, Role, Scenario, Step, View}
+import okay.face.{Action, Chosen, Css, Faces, Look, Rejected, Role, Step, View}
 import org.scalajs.dom
 import scala.concurrent.ExecutionContext
 
@@ -18,7 +18,7 @@ import scala.concurrent.ExecutionContext
  * runs by the `Runner` when the row is done (`element`), or to a `Future` when `Async` remains (`elementAsync`).
  * Every element carries its `Role`'s classes; `LaminarFace.stylesheet(look)` is the `<style>` that dresses them.
  */
-class LaminarFace[F <: Runner with Singleton](val faces: Faces[F]) {
+class LaminarFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   import faces.fx._
 
   /** how the rest of a step is run: at once, or when its future completes */
@@ -29,6 +29,15 @@ class LaminarFace[F <: Runner with Singleton](val faces: Faces[F]) {
                  browserHistory: Boolean = false, back: Boolean = true): HtmlElement = {
     type M[X] = X ! okay.effects.Void
     new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = k(run(m)) }, done, browserHistory, back).element(first)
+  }
+
+  /** THE HANDLER: a program of the face as an element — the dialogue run here, in the browser, with its look as a `<style>`
+   * when one is given; `mount` puts it into `#app` or the body: `new LaminarFace().mount(Noughts.game)` */
+  def handle[A](p: A ! faces.Only, look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true): HtmlElement =
+    div(look.map(LaminarFace.stylesheet).toList, element[A](faces.steps[A, faces.Only, Pure](p), done, back = back))
+  def mount[A](p: A ! faces.Only, look: Option[Look] = None, done: A => Unit = (_: A) => (), back: Boolean = true): Unit = {
+    val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
+    renderOnDomContentLoaded(root, handle[A](p, look, done, back))
   }
 
   /** `Async` remaining: the rest run to a `Future` — a program that waits (a fetch, a timer) between steps */
@@ -64,7 +73,7 @@ class LaminarFace[F <: Runner with Singleton](val faces: Faces[F]) {
         state.set(Shown(told, w, history, Nil, busy = false))
         if (browserHistory && history.nonEmpty) dom.window.history.pushState(null, "")
         // the step's event: when it fires and this is still the step, the rest runs as a choice's would
-        unlisten(); unlisten = w.listen { next => val s = state.now(); if ((s.step eq w) && !s.busy) { state.set(s.copy(busy = true)); lower(next)(settle(_, Vector.empty, w :: s.history)) } }
+        unlisten(); unlisten = w.listen { next => val s = state.now(); if ((s.step eq w) && !s.busy) { state.set(s.copy(busy = true)); lower(next)(settle(_, Vector.empty, if (w.back) w :: s.history else s.history)) } }
       case Step.Done(a) =>
         state.set(Shown(told, step, history, Nil, busy = false)); done(a)
     }
@@ -73,7 +82,7 @@ class LaminarFace[F <: Runner with Singleton](val faces: Faces[F]) {
     /** a choice: rejected, the same step with the problems; taken, the rest run */
     def choose(w: Step.Waiting[A, M], chosen: Chosen): Unit = { val s = state.now(); if (!s.busy) w.resume(chosen) match {
       case Left(Rejected(ps)) => state.set(s.copy(problems = ps))
-      case Right(next) => unlisten(); state.set(s.copy(busy = true)); lower(next)(settle(_, Vector.empty, w :: s.history))
+      case Right(next) => unlisten(); state.set(s.copy(busy = true)); lower(next)(settle(_, Vector.empty, if (w.back) w :: s.history else s.history))
     } }
 
     def render(s: Shown[A, M]): HtmlElement = {
@@ -219,17 +228,9 @@ object Forms {
 }
 
 object LaminarFace {
+  /** over the faces in scope: `LaminarFace().mount(Noughts.games)` */
+  def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): LaminarFace[F] = new LaminarFace[F]()(faces)
   /** the look as a `<style>` for the document: the same stylesheet the HTML face serves */
   def stylesheet(look: Look = Look.default): HtmlElement = styleTag(Css(look))
-  /** A SCENARIO IN THE PAGE, whole: `LaminarFace.handle(game)` is the element — the dialogue run here, in the browser,
-   * backed as the scenario says, with its look as a `<style>` when it has one; `mount(game)` puts it into `#app` or the body */
-  def handle[F <: Runner with Singleton, A](s: Scenario[F, A], done: A => Unit = (_: A) => ()): HtmlElement = {
-    val face = new LaminarFace[F](s.faces)
-    val first = s.steps.asInstanceOf[face.faces.fx.![Step[A, ({ type L[X] = face.faces.fx.![X, okay.effects.Void] })#L], okay.effects.Void]]
-    div(s.look.map(stylesheet).toList, face.element[A](first, done, back = s.back))
-  }
-  def mount[F <: Runner with Singleton, A](s: Scenario[F, A], done: A => Unit = (_: A) => ()): Unit = {
-    val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
-    renderOnDomContentLoaded(root, handle(s, done))
-  }
+
 }

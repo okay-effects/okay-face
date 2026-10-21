@@ -1,7 +1,7 @@
 package okay.face.test
 
 import okay.effects.Runner
-import okay.face.{Scenario, Chosen, Rejected, Step, View}
+import okay.face.{Chosen, Faces, Rejected, Step, View}
 
 /**
  * THE TEST FACE: a step machine driven by a SCRIPT of choices, every view shown collected, BACK as a script entry — the
@@ -32,6 +32,11 @@ class Plays[F <: Runner with Singleton](implicit implementation: F) {
     final case class Stuck[A](views: List[View], at: Step.Waiting[A, M], rejected: Option[Rejected]) extends Played[A]
   }
 
+  /** THE HANDLER: a program of the face played by a script — what the test face shows and how it ends */
+  def handle[A](p: faces.fx.![A, faces.Only])(script: Script): Played[A] =
+    // the faces' words are over `faces.fx`, this face's over `fx`: one value, two paths the checker cannot join
+    play[A](faces.steps[A, faces.Only, faces.fx.Pure](p)(faces.fx.splitLast[faces.fx.Pure, okay.face.Face]).asInstanceOf[fx.![Step[A, M], okay.effects.Void]], script)
+  val faces: Faces[F] = new Faces[F]()(fx)
   def play[A](first: Step[A, M] ! okay.effects.Void, script: Script): Played[A] = {
     // `Told`s run through; `history` the Waitings passed, latest first, for Back
     def settle(step: Step[A, M], views: List[View]): (Step[A, M], List[View]) = step match {
@@ -49,7 +54,7 @@ class Plays[F <: Runner with Singleton](implicit implementation: F) {
           case Fire(trigger) :: rest =>
             trigger(); cancel()
             pending match {
-              case Some(next) => val (settled, more) = settle(run(next), shown); loop(settled, more, w :: history, rest)
+              case Some(next) => val (settled, more) = settle(run(next), shown); loop(settled, more, if (w.back) w :: history else history, rest)
               case None => Played.Stuck(shown.reverse, w, None)
             }
           case Back :: rest => cancel(); history match {
@@ -60,7 +65,7 @@ class Plays[F <: Runner with Singleton](implicit implementation: F) {
             case Left(rejected) => Played.Stuck(shown.reverse, w, Some(rejected))
             case Right(next) =>
               val (settled, more) = settle(run(next), shown)
-              loop(settled, more, w :: history, rest)
+              loop(settled, more, if (w.back) w :: history else history, rest)
           }
         }
       case Step.Told(_, _) =>
@@ -72,12 +77,6 @@ class Plays[F <: Runner with Singleton](implicit implementation: F) {
 }
 
 object Plays {
-  /** A SCENARIO PLAYED BY A SCRIPT, whole: `Plays.handle(game)(script)` — what the test face shows and how it ends */
-  def handle[F <: Runner with Singleton, A](s: Scenario[F, A]): Handling[F, A] = new Handling[F, A](s)
-  final class Handling[F <: Runner with Singleton, A](s: Scenario[F, A]) {
-    val plays: Plays[F] = new Plays[F]()(s.faces.fx)
-    def apply(script: plays.Script): plays.Played[A] = plays.play[A](s.steps.asInstanceOf[plays.M[Step[A, plays.M]]], script)
-  }
   def apply()(implicit fx: Runner): Plays[fx.type] = {
     implicit val exact: fx.type = fx
     new Plays[fx.type]

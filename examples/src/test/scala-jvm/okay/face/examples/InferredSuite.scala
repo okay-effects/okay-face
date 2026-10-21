@@ -1,28 +1,23 @@
 package okay.face.examples
 
-import okay.face.examples.Noughts._
-
 import okay.effects.machine.Machine
 import okay.effects.machine.Machine._
-import okay.face.Face
+import okay.face.examples.Noughts._
 import okay.face.swing.SwingFace
-import okay.effects.world.Console
 import okay.face.term.Terminal
 
-/** THE IMPLEMENTATION SAID ONCE, by the import of its implicit: the game, the window and the terminal find their faces
- * and the implementation's type — on both compilers, shared source, no `Machine.type` written */
+/** THE IMPLEMENTATION SAID ONCE, by the import: the faces find it and their faces, the program is written over them — on
+ * both compilers, shared source, no `Machine.type` written */
 class InferredSuite extends munit.FunSuite {
-  test("new Noughts(), new SwingFace(), new Terminal(): over the implicit implementation, agreeing on `!`") {
-    val game = new Noughts()
-    val face = new SwingFace()
-    val term = new Terminal()
-    type F[X] = Row[*[Pure] + *[Face], X]
-    assert(game.faces.fx eq Machine); assert(face.faces.fx eq Machine); assert(term.faces.fx eq Machine)
-    val panel = face.panel(face.faces.steps[Outcome, F, Pure](game.games[F]))
+  test("SwingFace() and Terminal() over the implicit implementation; the program handled by each") {
+    val face = SwingFace()
+    val term = Terminal()
+    assert(face.faces.fx eq Machine); assert(term.faces.fx eq Machine)
+    val panel = face.panel(face.faces.steps[Outcome, face.faces.Only, Pure](Noughts.game))
     assert(panel.getComponentCount > 0)
-    type C[X] = Row[*[Pure] + *[Console], X]
-    type CF[X] = Row[*[Pure] + *[Console] + *[Face], X]
-    val (printed, _) = run(term.io.console(List("1", "4", "7"))(term.terminal[Outcome, C](term.faces.steps[Outcome, CF, C](game.game[CF](Board.empty)))))
-    assert(printed.exists(_.contains("X won")), printed.mkString("\n"))
+    val io = new okay.effects.world.Io()
+    val played = term.handle(Noughts.game)
+    val (printed, result) = run(io.console(List("1", "4", "7", "again"))(played))
+    assertEquals(result, Some(Won('X'))); assert(printed.exists(_.contains("X won")), printed.mkString("\n"))
   }
 }

@@ -13,7 +13,7 @@ import okay.mcp.{Link, Rpc, ToolCall, ToolResult, ToolSpec}
  * own messages, and an elicitation parks the loop until the client's answer arrives in a later POST */
 class McpHttpSuite extends munit.FunSuite {
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
-  val face = McpFace(faces)
+  val face = McpFace.over(faces)
   val https: Https[Machine.type] = new Https[Machine.type]()(Machine)
   import Machine._
   import faces._

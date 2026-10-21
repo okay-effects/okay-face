@@ -14,7 +14,7 @@ import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
 /** THE LAMINAR FACE under jsdom: the view drawn, a form filled and submitted, a problem shown, a button pressed, back */
 class LaminarFaceSuite extends munit.FunSuite {
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
-  val face = new LaminarFace[Machine.type](faces)
+  val face = new LaminarFace[Machine.type]()(faces)
   import Machine._
   import faces._
   type F[X] = Sum[Void, Face, X]

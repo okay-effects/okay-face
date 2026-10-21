@@ -483,29 +483,21 @@ After step 4 the model holds or it does not, before any web platform is paid for
   attempts each screen and begins at the place jumped to; the screens are unwound as an error unwinds them, the
   world's handlers outside keep their state. DECIDED over a history jump by the face: the jump is the program's own,
   so every face has it the same way.
-- A SCENARIO WHOLE — DONE 2026-10-21: `Scenario[F, A]` in core, the program over any row with `Face` plus what a face
-  needs to know of it — `title`, `look`, `back` — and its `steps` with `Face` handled alone. An application's class
-  extends it over the faces in scope (`class Noughts(implicit val faces: Faces[F]) extends Scenario[F, Outcome]`), and
-  a face handles it whole, nothing else said: `run(SwingFace.handle(game))` — a window titled, dressed and backed as
-  the scenario says, the program's result the dialogue's or `None` when the window is closed; `run(io.realConsole(
-  Terminal.handle(game)))` — `Console` left in the row for a console handler. The faces are handlers of `Face`, and
-  from the user's side that is all they are; what a window or a terminal needs beyond the program, the scenario says.
-  EVERY FACE handles a scenario whole (2026-10-21): `HtmlFace.handle(game)` and `RestFace.handle(game)` are services
-  over `Http` for `new JdkHttp().serve(port)(…)` (the HTML face's door at `/` and at its `base`, beside other
-  services); `McpFace.handle(game)` the server's loop over `Link` for `new Links().stdio(…)`, named, instructed and
-  marked by the scenario's `title`, `instructions`, `vocabulary`; `LaminarFace.mount(game)` the dialogue in the page,
-  `RemoteFace.mount(fetch)` the thin page; `Plays.handle(game)(script)` the test face. One scenario, seven mains of a line.
-  AN EFFECT AND ITS HANDLER, nothing else to know: on the web too, each face has `serve(game, port, host)` with the
-  server inside (`okay.face.rest.Web.serve`, the JDK's server on the scenario's implementation, mounts by path prefix):
-  `run(HtmlFace.serve(game, port, host))` the pages; `run(RestFace.serve(game, port, host, page = Some(Linked(…))))`
-  the sessions and, with a page, the thin page at `/` — the LIBRARY's script, `okay.face.laminar.RemotePage`, which a
-  Scala.js project links by naming it its main, no source of its own; `run(Shell.serve(game, port, host, Linked(…)))`
-  the game in the browser, the page and the application's own script. `Shell.handle` and `Web.serve` compose when one
-  port is to carry several. `Linked(dir, name)` is a script where sbt links it (any Scala version, full first), read
-  when asked; in the browser these words are told impossible. With the transport inside, a line: `run(McpFace.stdio(game))`, `run(Terminal.console(game))` — the `handle` words keep
-  the transport's effect in the row for a scripted one. Scala 3 wants a handled program bound to a value, and a handler
-  (`new Links()`, `new JdkHttp()`) too, before the one is given to the other: the dependent types resolve on names, not
-  inside an argument (Scala 2 takes the nesting); the words with the transport inside do that binding themselves.
+- AN EFFECT AND ITS HANDLER, nothing else — DONE 2026-10-21, after a `Scenario` that was tried and dropped. The effect
+  is `Face`; a program of a face is `A ! faces.Only` (`Only` = `Pure + Face`), written over the faces given, since the
+  words are theirs: `Noughts.game(implicit faces: Faces[F]): faces.fx.![Outcome, faces.Only]`. A handler is a face's
+  method: `SwingFace().handle(Noughts.games, look)` (a window; `None` when closed), `Terminal().handle(p)` (Console left
+  in the row) and `.console(p)` (the real one), `McpFace().handle(p, vocabulary)` (the loop over Link) and `.stdio(p)`,
+  `RestFace().handle(p)` and `HtmlFace().handle(p)` (services over Http) and `.serve(p, port, host)`, `LaminarFace().mount(p)`,
+  `Plays().handle(p)(script)`; `Shell().serve(title, port, host, Linked(…))` the page of an application's own script, the
+  thin page the library's `RemotePage`. Everything a face wants to know of a program it learns from what the program
+  shows: the first level-1 heading is a window's title, a page's, an agent's server's name; what is told before the first
+  offer is the agent's instructions (`Step.opening`). What is the face's own — a look, the vocabulary of marks, a port —
+  is the handler's parameter. `Offer(…, back = false)` says a step may not be returned to: no face keeps it in its
+  history, so none offers a way back to it; the agent's `back` tool stays listed and answers "nothing to go back to".
+  Scala 2 cannot infer `F` for the `Fs <: Faces[F]` faces from an implicit, so `X()` is a companion `apply()(implicit faces)`
+  on every face and `X.over(faces)` the path-kept one; Scala 3's compiler trips on `LaminarFace().mount(…)` in one
+  expression, so the page binds the face first.
 - A `Ref` as a live link — DONE 2026-10-21 by a convention: when a step offers the action `ref` (one parameter, `key`),
   a face makes every `Ref` in the view choose it with its key — the HTML page links `base/{id}/ref/{key}`, Laminar and
   the remote face on a click, the terminal by typing `ref` then the key as ever; a step without `ref` shows a `Ref` as

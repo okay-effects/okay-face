@@ -4,9 +4,9 @@ import okay.effects.machine.Machine._
 import okay.face.html.HtmlFace
 
 /** THE GAME AS PAGES FROM THE SERVER: `sbt "examples/runMain okay.face.examples.NoughtsHtml [port] [host]"` — the HTML
- * face handles the game: structural pages, no script, a cell a link */
+ * face handles the program: structural pages, no script, a cell a link */
 object NoughtsHtml {
-  def main(args: Array[String]): Unit = run(HtmlFace.serve(new Noughts(), Args.port(args), Args.host(args)))
+  def main(args: Array[String]): Unit = run(HtmlFace().serve(Noughts.games, Args.port(args), Args.host(args), look = Some(Noughts.light)))
 }
 
 /** the port and the host from the arguments: `[port] [host]`, `8090` and the loopback by default; `0.0.0.0` opens to the network */

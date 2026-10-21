@@ -3,7 +3,7 @@ package okay.face.term
 import okay.effects.json.Json
 import okay.effects.shape.{Fields, Problem, Problems, Reading, Schema}
 import okay.effects.world.{Console, Io}
-import okay.face.{Action, Chosen, Face, Faces, Paint, Rejected, Role, Scenario, Step, View}
+import okay.face.{Action, Chosen, Face, Faces, Paint, Rejected, Role, Step, View}
 
 /**
  * THE TERMINAL FACE: a line dialogue — a program in okay-effects-io's `Console`, so it runs under `realConsole`, and
@@ -70,7 +70,7 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
   }
 
   def prompting[R[_], Rest[_], A](p: A ! R)(implicit sp: Split[Fields, R, Rest], c: In[Console, Rest]): A ! Rest =
-    handle[Fields, R, Rest, A, A](p, new Handler[Fields, Rest, A, A] {
+    faces.fx.handle[Fields, R, Rest, A, A](p, new Handler[Fields, Rest, A, A] {
       def ret(a: A) = pure(a)
       def op[X](op: Fields[X], k: X => A ! Rest) = op match {
         case Fields.Get(path, f, answer) => prompt[Rest](path, f).flatMap(j => k(answer(j)))
@@ -92,6 +92,14 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
       }
     })
 
+  /** THE HANDLER: a program of the face at a terminal, `Console` left in the row for a console handler — a scripted one in a
+   * test, the real one by `console`; `None` when the person quits */
+  def handle[A](p: A ! faces.Only, back: Boolean = true): Option[A] ! C = terminal[A, C](faces.steps[A, CF, C](p.into[CF]), back)
+  /** the same at the real console: `run(new Terminal().console(Noughts.game))` */
+  def console[A](p: A ! faces.Only, back: Boolean = true): Option[A] ! Pure = io.realConsole[C, Pure, Option[A]](handle[A](p, back))
+  type C[X] = okay.effects.Sum[Pure, Console, X]
+  type CF[X] = okay.effects.Sum[C, Face, X]
+
   // ---- THE STEP LOOP
   /** the face: shows, reads, resumes; `None` when the person quits. The row holds `Console` and whatever the steps need */
   def terminal[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true)(implicit c: In[Console, R]): Option[A] ! R = {
@@ -110,9 +118,9 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
       case _ => Nil
     }
     def menu(w: Step.Waiting[A, M]): List[Action[_]] = if (live(w)) w.actions.filterNot(_.name == "ref") else w.actions
-    def menuOf(w: Step.Waiting[A, M]): List[String] = {
+    def menuOf(w: Step.Waiting[A, M], canGoBack: Boolean): List[String] = {
       val entries = menu(w).zipWithIndex.map { case (a, i) => paint(Role.Action, s"${i + 1}) ${a.label}") }
-      val hint = (if (live(w) && keys(w.view).nonEmpty) List("a [key]") else Nil) ++ (if (back) List("< back") else Nil) ++ List("? help", "q quit")
+      val hint = (if (live(w) && keys(w.view).nonEmpty) List("a [key]") else Nil) ++ (if (canGoBack) List("< back") else Nil) ++ List("? help", "q quit")
       List(entries.mkString("  ") + paint(Role.Doc, hint.mkString("   (", ", ", ")")))
     }
     /** the help: each action's line, wrapped at `width`, its continuation indented under the text */
@@ -133,7 +141,7 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
       case Step.Done(a) => pure[Option[A], R](Some(a))
       case Step.Told(view, next) => say[R](Render.view(view, paint) :+ "").flatMap(_ => next).flatMap(loop(_, history))
       case w: Step.Waiting[A, M] @unchecked =>
-        say[R](Render.view(w.view, paint) :+ "" ).flatMap(_ => say[R](menuOf(w))).flatMap(_ => printLine[R]("> ")).flatMap(_ => readLine[R]).flatMap {
+        say[R](Render.view(w.view, paint) :+ "" ).flatMap(_ => say[R](menuOf(w, back && history.nonEmpty))).flatMap(_ => printLine[R]("> ")).flatMap(_ => readLine[R]).flatMap {
           case None => pure[Option[A], R](None)
           case Some(l) if l.trim == "q" => pure[Option[A], R](None)
           case Some(l) if l.trim == "<" => history match {
@@ -143,7 +151,7 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
           case Some(l) if l.trim == "?" => say[R](docs(w)).flatMap(_ => loop(w, history))
           case Some(l) if live(w) && keys(w.view).contains(l.trim) => w.resume(Chosen("ref", Json.obj("key" -> Json.Str(l.trim)))) match {
             case Left(Rejected(ps)) => problems[R](ps).flatMap(_ => loop(w, history))
-            case Right(next) => next.flatMap(loop(_, w :: history))
+            case Right(next) => next.flatMap(loop(_, if (w.back) w :: history else history))
           }
           case Some(l) => pick(w, l) match {
             case None => printLine[R](s"problem: one of ${(menu(w).map(_.name) ++ (if (live(w)) keys(w.view).map("[" + _ + "]") else Nil)).mkString(", ")}").flatMap(_ => loop(w, history))
@@ -151,7 +159,7 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
               case Left(ps) => problems[R](ps).flatMap(_ => loop(w, history))
               case Right(args) => w.resume(Chosen(a.name, args)) match {
                 case Left(Rejected(ps)) => problems[R](ps).flatMap(_ => loop(w, history))
-                case Right(next) => next.flatMap(loop(_, w :: history))
+                case Right(next) => next.flatMap(loop(_, if (w.back) w :: history else history))
               }
             }
           }
@@ -162,29 +170,6 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
 }
 
 object Terminal {
-  /** A SCENARIO AT THE TERMINAL, whole: `run(io.realConsole(Terminal.handle(game)))` — `Console` left in the row for a
-   * console handler; the result the dialogue's, or `None` when the person quits */
-  def handle[F <: okay.effects.Effects with Singleton, A](s: Scenario[F, A], paint: Paint = Paint.none, width: Int = 80): s.faces.fx.![Option[A], ({ type L[X] = okay.effects.Sum[s.faces.fx.Pure, Console, X] })#L] = {
-    import s.faces.fx._
-    type C[X] = okay.effects.Sum[Pure, Console, X]
-    type CF[X] = okay.effects.Sum[C, Face, X]
-    val steps = s.faces.steps[A, CF, C](s.program[CF])
-    val term = new Terminal[F](paint, width)(s.faces)
-    // the scenario's program is over `s.faces`, the terminal's words over `term.faces`: one value, two paths the checker cannot join
-    val in: term.faces.fx.In[Console, C] = term.faces.fx.splitLast[Pure, Console].asInstanceOf[term.faces.fx.In[Console, C]]
-    term.terminal[A, C](steps.asInstanceOf[term.faces.fx.![Step[A, ({ type L[X] = term.faces.fx.![X, C] })#L], C]], back = s.back)(in)
-      .asInstanceOf[Option[A] ! C]
-  }
-  /** the same at the real console: `run(Terminal.console(game))` — `None` when the person quits */
-  def console[F <: okay.effects.Effects with Singleton, A](s: Scenario[F, A], paint: Paint = Paint.none, width: Int = 80): s.faces.fx.![Option[A], s.faces.fx.Pure] = {
-    import s.faces.fx._
-    type C[X] = okay.effects.Sum[Pure, Console, X]
-    val played: Option[A] ! C = Terminal.handle[F, A](s, paint, width)
-    val io = new Io[F]()(s.faces.fx)
-    type CC[X] = okay.effects.Sum[io.fx.Pure, Console, X]
-    val sp: io.fx.Split[Console, CC, io.fx.Pure] = io.fx.splitLast[io.fx.Pure, Console]
-    io.realConsole[CC, io.fx.Pure, Option[A]](played.asInstanceOf[io.fx.![Option[A], CC]])(sp).asInstanceOf[Option[A] ! Pure]
-  }
   /** words onto lines of at most `width` columns, lines after the first indented by `indent`; a word longer than the room stands alone */
   def wrap(text: String, width: Int, indent: Int = 0): List[String] = {
     val pad = " " * indent
@@ -193,5 +178,7 @@ object Terminal {
       case (line :: done, word) => if (line.length + 1 + word.length <= width) (line + " " + word) :: done else (pad + word) :: line :: done
     }.reverse
   }
-  def apply[F <: okay.effects.Effects with Singleton](faces: Faces[F], paint: Paint = Paint.none): Terminal[F] = new Terminal[F](paint)(faces)
+  def over[F <: okay.effects.Effects with Singleton](faces: Faces[F], paint: Paint = Paint.none): Terminal[F] = new Terminal[F](paint)(faces)
+  /** over the faces in scope: `run(Terminal().console(Noughts.games))` */
+  def apply[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80)(implicit faces: Faces[F]): Terminal[F] = new Terminal[F](paint, width)(faces)
 }

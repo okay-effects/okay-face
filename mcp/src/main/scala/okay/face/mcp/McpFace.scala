@@ -4,7 +4,7 @@ import okay.effects.Runner
 import okay.effects.json.Json
 import okay.effects.shape.{JsonSchema, Schema}
 import okay.effects.describe.{Describe, Domains}
-import okay.face.{Action, Chosen, Face, Faces, Rejected, Scenario, Step, View, ViewJson, Vocabulary}
+import okay.face.{Action, Chosen, Face, Faces, Rejected, Step, View, ViewJson, Vocabulary}
 import okay.mcp.{Content, Link, ResourceContent, ResourceSpec, Servers, ToolCall, ToolResult, ToolSpec}
 
 /**
@@ -102,6 +102,20 @@ class McpFace[F <: Runner with Singleton, Fs <: Faces[F]](val faces: Fs) {
     })
   }
 
+  /** THE HANDLER: a program of the face served to an agent — the server's loop over `Link`, for a link handler: a scripted
+   * one in a test, standard input and output by `stdio`. Named by the first level-1 heading the program shows, instructed
+   * by what it shows before its first offer and by the `vocabulary` of its marks */
+  def handle[A](p: A ! faces.Only, vocabulary: Vocabulary = Vocabulary.empty, version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true): Unit ! L = {
+    val opening = Step.opening[A, ({ type M[X] = X ! Pure })#M](faces.steps[A, faces.Only, Pure](p), run)
+    val instructions = Some(opening.intro.map(Markdown.view(_, vocabulary)).filter(_.nonEmpty).mkString("\n\n")).filter(_.nonEmpty)
+    servers.serve[L](server[A, L](opening.title.getOrElse("okay"), version, faces.steps[A, LF, L](p.into[LF]), instructions, elicitation, singleTool, vocabulary, back))
+  }
+  /** the same over standard input and output, the transport an agent's client starts a server with: `run(new McpFace().stdio(Noughts.game))` */
+  def stdio[A](p: A ! faces.Only, vocabulary: Vocabulary = Vocabulary.empty, version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true): Unit ! Pure =
+    servers.links.stdio[L, Pure, Unit](handle[A](p, vocabulary, version, elicitation, singleTool, back))
+  type L[X] = okay.effects.Sum[Pure, Link, X]
+  type LF[X] = okay.effects.Sum[L, Face, X]
+
   /** a server of the dialogue, named; `first` the steps over the server's own row; the `vocabulary` of the application's
    * marks is told in the instructions, served at `face://marks`, and shown in the Markdown */
   def server[A, R[_]](name: String, version: String, first: Step[A, ({ type L[X] = X ! R })#L] ! R, instructions: Option[String] = None, elicitation: Boolean = false,
@@ -156,26 +170,8 @@ object Markdown {
 }
 
 object McpFace {
-  /** A SCENARIO SERVED TO AN AGENT, whole: `McpFace.handle(game)` is the server's loop over `Link` — the dialogue's
-   * actions as tools, named, instructed and marked as the scenario says — for `new Links().stdio(…)` */
-  def handle[F <: Runner with Singleton, A](s: Scenario[F, A], version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false): s.faces.fx.![Unit, ({ type L[X] = okay.effects.Sum[s.faces.fx.Pure, Link, X] })#L] = {
-    import s.faces.fx._
-    type L[X] = okay.effects.Sum[Pure, Link, X]
-    type LF[X] = okay.effects.Sum[L, Face, X]
-    val face = new McpFace[F, s.faces.type](s.faces)
-    val server = face.server[A, L](s.title, version, s.faces.steps[A, LF, L](s.program[LF]), s.instructions, elicitation, singleTool, s.vocabulary, s.back)
-    face.servers.serve[L](server)
-  }
-  /** the same over standard input and output, the transport an agent's client starts a server with: `run(McpFace.stdio(game))` */
-  def stdio[F <: Runner with Singleton, A](s: Scenario[F, A], version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false): s.faces.fx.![Unit, s.faces.fx.Pure] = {
-    import s.faces.fx._
-    type L[X] = okay.effects.Sum[Pure, Link, X]
-    val served: Unit ! L = McpFace.handle[F, A](s, version, elicitation, singleTool)
-    val links = new okay.mcp.Links[F]()(s.faces.fx)
-    type LL[X] = okay.effects.Sum[links.fx.Pure, Link, X]
-    val sp: links.fx.Split[Link, LL, links.fx.Pure] = links.fx.splitLast[links.fx.Pure, Link]
-    links.stdio[LL, links.fx.Pure, Unit](served.asInstanceOf[links.fx.![Unit, LL]])(sp).asInstanceOf[Unit ! Pure]
-  }
-  /** over these faces, their path kept: `McpFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
-  def apply[F <: Runner with Singleton](faces: Faces[F]): McpFace[F, faces.type] = new McpFace[F, faces.type](faces)
+  /** over these faces, their path kept: `McpFace.over(faces)` — so a `Dialogue` made by `faces` is one this face takes */
+  def over[F <: Runner with Singleton](faces: Faces[F]): McpFace[F, faces.type] = new McpFace[F, faces.type](faces)
+  /** over the faces in scope — by default, the ones over the implicit implementation: `McpFace().stdio(Noughts.games)` */
+  def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): McpFace[F, faces.type] = new McpFace[F, faces.type](faces)
 }

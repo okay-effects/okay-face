@@ -49,4 +49,12 @@ object View {
   def group(title: String)(children: View*): View = Group(Some(title), children.toVector)
   def stack(children: View*): View = Group(None, children.toVector)
   def marked(mark: String, view: View): View = Marked(mark, view)
+  /** the title of what is shown: the first level-1 heading, depth first — a window's, a page's, a server's name */
+  def title(views: Seq[View]): Option[String] = views.iterator.map(title).collectFirst { case Some(t) => t }
+  def title(v: View): Option[String] = v match {
+    case Heading(1, s) => Some(s)
+    case Group(_, cs) => title(cs)
+    case Marked(_, x) => title(x)
+    case _ => None
+  }
 }

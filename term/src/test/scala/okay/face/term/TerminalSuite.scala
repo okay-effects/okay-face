@@ -27,14 +27,14 @@ abstract class TerminalChecks(val fx0: Runner, name: String) extends munit.FunSu
         if (yes) show[CF](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, CF]("left")
       }
     }
-  def talk(inputs: String*): (List[String], Option[String]) = fx0.run(console(inputs.toList)(term.terminal[String, C](steps[String, CF, C](greeting))))
+  def talk(inputs: String*): (List[String], Option[String]) = fx0.run(term.io.console(inputs.toList)(term.terminal[String, C](steps[String, CF, C](greeting))))
 
   test(s"$name: the dialogue — a view, a menu, the fields asked with their labels, a confirmation, the word at the end") {
     val (printed, result) = talk("1", "Ann", "41", "yes")
     assertEquals(result, Some("greeted Ann"))
     assertEquals(printed, List(
       "WHO ARE YOU?", "============", "",
-      "1) Submit   (< back, ? help, q quit)", "> ",
+      "1) Submit   (? help, q quit)", "> ",
       "Name: ", "age (a whole number, in years): ",
       "Greet Ann, 41?", "",
       "1) Yes  2) No   (< back, ? help, q quit)", "> ",
@@ -61,7 +61,7 @@ abstract class TerminalChecks(val fx0: Runner, name: String) extends munit.FunSu
     val login: Shape[Login] = record(field("user", text), field("pin", text).asSecret)(Login(_, _))(l => (l.user, l.pin))
     type LF[X] = Sum[C, Face, X]
     val p: Login ! LF = fill[Login, LF](View.text("Log in"), login)
-    val (printed, result) = fx0.run(console(List("1", "ann", "1234"))(term.terminal[Login, C](steps[Login, LF, C](p))))
+    val (printed, result) = fx0.run(term.io.console(List("1", "ann", "1234"))(term.terminal[Login, C](steps[Login, LF, C](p))))
     assertEquals(result, Some(Login("ann", "1234")))
     assert(printed.contains("pin (hidden): "), printed.mkString("\n"))
   }

@@ -29,7 +29,7 @@ class Dialogues[F <: Effects with Singleton](implicit implementation: F) {
     def current: Step[A, M] ! R = fired match {
       case Some((w, next)) if step.contains(w) =>
         fired = None; told = Vector.empty
-        next.flatMap(settle).map { s => history = w :: history; step = Some(s); s }
+        next.flatMap(settle).map { s => history = if (w.back) w :: history else history; step = Some(s); s }
       case _ => step match {
         case Some(s) => pure[Step[A, M], R](s)
         case None => first.flatMap(settle).map { s => step = Some(s); s }
@@ -50,12 +50,12 @@ class Dialogues[F <: Effects with Singleton](implicit implementation: F) {
     def choose(chosen: Chosen): Either[Rejected, View] ! R = current.flatMap {
       case w: Step.Waiting[A, M] @unchecked => w.resume(chosen) match {
         case Left(r) => pure[Either[Rejected, View], R](Left(r))
-        case Right(next) => { told = Vector.empty; next.flatMap(settle).flatMap { s => history = w :: history; step = Some(s); view.map(Right(_)) } }
+        case Right(next) => { told = Vector.empty; next.flatMap(settle).flatMap { s => history = if (w.back) w :: history else history; step = Some(s); view.map(Right(_)) } }
       }
       case _ => pure[Either[Rejected, View], R](Left(Rejected(List(okay.effects.shape.Problem(Nil, "the dialogue is over")))))
     }
     def back(): Boolean = history match {
-      case previous :: older if allowsBack => told = Vector.empty; step = Some(previous); history = older; true
+      case previous :: older if canGoBack => told = Vector.empty; step = Some(previous); history = older; true
       case _ => false
     }
   }

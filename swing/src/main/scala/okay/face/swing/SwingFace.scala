@@ -6,7 +6,7 @@ import javax.swing.table.DefaultTableModel
 import okay.effects.Runner
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
-import okay.face.{Action, Chosen, Faces, Look, Rejected, Role, Scenario, Step, View}
+import okay.face.{Action, Chosen, Faces, Look, Rejected, Role, Step, View}
 import scala.collection.mutable
 
 /**
@@ -66,6 +66,18 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
     root
   }
 
+  /** THE HANDLER: a program of the face in a window — titled by the first level-1 heading it shows, dressed by `look`;
+   * the result the dialogue's, or `None` when the window is closed first: `run(new SwingFace().handle(Noughts.game))` */
+  def handle[A](p: A ! faces.Only, look: Option[Look] = None, back: Boolean = true): Option[A] ! Pure = {
+    val steps = faces.steps[A, faces.Only, Pure](p)
+    pure(()).flatMap { _ =>
+      val title = Step.opening[A, M](steps, run).title.getOrElse("okay")
+      val outcome = new java.util.concurrent.LinkedBlockingQueue[Option[A]](1)
+      window(title, steps, (a: A) => outcome.offer(Some(a)), look = look, back = back, closed = () => outcome.offer(None))
+      pure[Option[A], Pure](outcome.take())
+    }
+  }
+
   /** the face in a window, on the event dispatch thread; with `pages` (core's `Navigation` in memory) the window's title
    * follows the program's current page */
   def window[A](title: String, first: Step[A, M] ! okay.effects.Void, done: A => Unit = (_: A) => (),
@@ -93,7 +105,7 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
       case w: Step.Waiting[A, M] @unchecked =>
         def choose(chosen: Chosen): Unit = w.resume(chosen) match {
           case Left(Rejected(ps)) => show(s.copy(problems = ps))
-          case Right(next) => show(settle(run(next), Vector.empty, w :: s.history))
+          case Right(next) => show(settle(run(next), Vector.empty, if (w.back) w :: s.history else s.history))
         }
         val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref")) Some(key => choose(Chosen("ref", Json.obj("key" -> Json.Str(key))))) else None
         box.add(Views.component(w.view, ref))
@@ -115,19 +127,8 @@ class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
 
 /** a `View` as Swing components */
 object SwingFace {
-  /** A SCENARIO IN A WINDOW, whole: `run(SwingFace.handle(game))` — the window titled, dressed and backed as the scenario
-   * says; the program ends with the dialogue's result, or with `None` when the window is closed first */
-  def handle[F <: Runner with Singleton, A](s: Scenario[F, A]): s.faces.fx.![Option[A], s.faces.fx.Pure] = {
-    import s.faces.fx._
-    val face = new SwingFace[F]()(s.faces)
-    // the scenario's steps are over `s.faces`, the face's over `face.faces`: one value, two paths the checker cannot join
-    val first = s.steps.asInstanceOf[face.M[Step[A, face.M]]]
-    pure(()).flatMap { _ =>
-      val outcome = new java.util.concurrent.LinkedBlockingQueue[Option[A]](1)
-      face.window(s.title, first, (a: A) => outcome.offer(Some(a)), look = s.look, back = s.back, closed = () => outcome.offer(None))
-      pure[Option[A], Pure](outcome.take())
-    }
-  }
+  /** over the faces in scope: `run(SwingFace().handle(Noughts.games))` */
+  def apply[F <: Runner with Singleton]()(implicit faces: Faces[F]): SwingFace[F] = new SwingFace[F]()(faces)
 }
 
 object Views {
