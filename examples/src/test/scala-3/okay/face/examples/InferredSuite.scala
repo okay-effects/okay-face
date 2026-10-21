@@ -1,7 +1,7 @@
 package okay.face.examples
 
-import okay.effects.{Sum, Void}
 import okay.effects.machine.Machine
+import okay.effects.machine.Machine.*
 import okay.effects.machine.implicits.*
 import okay.face.Face
 import okay.face.swing.SwingFace
@@ -12,7 +12,7 @@ class InferredSuite extends munit.FunSuite:
   test("the game and the face over the implicit implementation, no type written; they agree on `!`"):
     val game = new Noughts()
     val face = new SwingFace()
-    type F[X] = Sum[Void, Face, X]
-    val panel = face.panel(face.faces.steps[game.Outcome, F, Void](game.games[F]))
+    type F[X] = (Pure + Face)[X]   // Scala 3.3 wants the alias applied; 3.4+ takes `type F = Pure + Face`
+    val panel = face.panel(face.faces.steps[game.Outcome, F, Pure](game.games[F]))
     assert(game.faces.fx eq Machine)
     assert(panel.getComponentCount > 0)
