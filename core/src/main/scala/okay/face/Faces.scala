@@ -62,11 +62,10 @@ object Faces {
     new Faces[fx.type]
   }
   /** THE FACES BY DEFAULT, from the implementation in scope: with `import okay.effects.machine.implicits._`, a
-   * `new SwingFace[Machine.type]()` or a scenario taking its faces implicitly finds them here — one instance per
-   * implementation, so every taker shares it, and `Faces.of[Machine.type]` is that instance by name */
-  implicit def default[F <: Effects](implicit fx: F): Faces[F] = shared.synchronized {
-    shared.getOrElseUpdate(fx, new Faces[F]()(fx)).asInstanceOf[Faces[F]]
-  }
-  def of[F <: Effects](implicit fx: F): Faces[F] = default[F](fx)
-  private val shared = scala.collection.mutable.Map.empty[Effects, Faces[_]]
+   * `new SwingFace[Machine.type]()` or a scenario taking its faces implicitly finds them here. A fresh value each time,
+   * and that is fine: `Faces` holds no state, only words over `fx`, so any two over one implementation are the same
+   * faces — what a step machine makes on one runs on another. Only a `Dialogue` is one instance's own by type, and the
+   * faces that keep dialogues (`McpFace(faces)`, `RestFace(faces)`, `HtmlFace(faces)`) are given their faces by name */
+  implicit def default[F <: Effects](implicit fx: F): Faces[F] = new Faces[F]()(fx)
+  def of[F <: Effects](implicit fx: F): Faces[F] = new Faces[F]()(fx)
 }
