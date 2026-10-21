@@ -1,7 +1,7 @@
 package okay.face.test
 
 import okay.effects.Runner
-import okay.face.{Chosen, Rejected, Step, View}
+import okay.face.{Scenario, Chosen, Rejected, Step, View}
 
 /**
  * THE TEST FACE: a step machine driven by a SCRIPT of choices, every view shown collected, BACK as a script entry — the
@@ -72,6 +72,12 @@ class Plays[F <: Runner with Singleton](implicit implementation: F) {
 }
 
 object Plays {
+  /** A SCENARIO PLAYED BY A SCRIPT, whole: `Plays.handle(game)(script)` — what the test face shows and how it ends */
+  def handle[F <: Runner with Singleton, A](s: Scenario[F, A]): Handling[F, A] = new Handling[F, A](s)
+  final class Handling[F <: Runner with Singleton, A](s: Scenario[F, A]) {
+    val plays: Plays[F] = new Plays[F]()(s.faces.fx)
+    def apply(script: plays.Script): plays.Played[A] = plays.play[A](s.steps.asInstanceOf[plays.M[Step[A, plays.M]]], script)
+  }
   def apply()(implicit fx: Runner): Plays[fx.type] = {
     implicit val exact: fx.type = fx
     new Plays[fx.type]

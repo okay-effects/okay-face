@@ -3,7 +3,7 @@ package okay.face.rest
 import okay.effects.Effects
 import okay.effects.json.Json
 import okay.effects.shape.JsonSchema
-import okay.face.{Action, Chosen, Faces, Rejected, View, ViewJson, Vocabulary}
+import okay.face.{Action, Chosen, Face, Faces, Rejected, Scenario, View, ViewJson, Vocabulary}
 import okay.http.{Http, Https, Request, Response}
 import okay.http.rest.{Link, Resource, Rests, Trouble}
 
@@ -58,6 +58,15 @@ class RestFace[F <: Effects with Singleton, Fs <: Faces[F]](val faces: Fs) {
 }
 
 object RestFace {
+  /** A SCENARIO AS A JSON API, whole: `RestFace.handle(game)` is a service over `Http` — `POST base` opens a session, the
+   * resource at `base/{id}` with its links, the marks at `base/marks` — for `new JdkHttp().serve(port)(…)` or the remote face */
+  def handle[F <: Effects with Singleton, A](s: Scenario[F, A], base: String = "/sessions"): Request => s.faces.fx.![Response, ({ type L[X] = okay.effects.Sum[s.faces.fx.Pure, Http, X] })#L] = {
+    import s.faces.fx._
+    type H[X] = okay.effects.Sum[Pure, Http, X]
+    type HF[X] = okay.effects.Sum[H, Face, X]
+    val face = new RestFace[F, s.faces.type](s.faces)
+    face.sessions[A, H](() => s.faces.dialogue[A, H](s.faces.steps[A, HF, H](s.program[HF]), back = s.back), base, s.vocabulary).service
+  }
   /** over these faces, their path kept: `RestFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
   def apply[F <: Effects with Singleton](faces: Faces[F]): RestFace[F, faces.type] = new RestFace[F, faces.type](faces)
   /** over the faces in scope — by default, the ones over the implicit implementation: `RestFace.default[Machine.type]` */

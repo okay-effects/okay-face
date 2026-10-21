@@ -6,7 +6,7 @@ import okay.effects.Runner
 import okay.effects.async.{Async, Asynchrony}
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
-import okay.face.{Action, Chosen, Css, Faces, Look, Rejected, Role, Step, View}
+import okay.face.{Action, Chosen, Css, Faces, Look, Rejected, Role, Scenario, Step, View}
 import org.scalajs.dom
 import scala.concurrent.ExecutionContext
 
@@ -221,4 +221,15 @@ object Forms {
 object LaminarFace {
   /** the look as a `<style>` for the document: the same stylesheet the HTML face serves */
   def stylesheet(look: Look = Look.default): HtmlElement = styleTag(Css(look))
+  /** A SCENARIO IN THE PAGE, whole: `LaminarFace.handle(game)` is the element — the dialogue run here, in the browser,
+   * backed as the scenario says, with its look as a `<style>` when it has one; `mount(game)` puts it into `#app` or the body */
+  def handle[F <: Runner with Singleton, A](s: Scenario[F, A], done: A => Unit = (_: A) => ()): HtmlElement = {
+    val face = new LaminarFace[F](s.faces)
+    val first = s.steps.asInstanceOf[face.faces.fx.![Step[A, ({ type L[X] = face.faces.fx.![X, okay.effects.Void] })#L], okay.effects.Void]]
+    div(s.look.map(stylesheet).toList, face.element[A](first, done, back = s.back))
+  }
+  def mount[F <: Runner with Singleton, A](s: Scenario[F, A], done: A => Unit = (_: A) => ()): Unit = {
+    val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
+    renderOnDomContentLoaded(root, handle(s, done))
+  }
 }

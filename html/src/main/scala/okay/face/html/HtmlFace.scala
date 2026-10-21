@@ -3,8 +3,8 @@ package okay.face.html
 import okay.effects.Effects
 import okay.effects.json.Json
 import okay.effects.shape.Schema
-import okay.face.{Action, Chosen, Css, Faces, Look, Rejected, Role, View}
-import okay.http.{Query, Request, Response}
+import okay.face.{Action, Chosen, Css, Face, Faces, Look, Rejected, Role, Scenario, View}
+import okay.http.{Http, Query, Request, Response}
 import okay.http.rest.{Rests, Trouble}
 
 /**
@@ -31,6 +31,8 @@ class HtmlFace[F <: Effects with Singleton, Fs <: Faces[F]](val faces: Fs) {
 
     def routes: List[Route[R]] = List(
       get[R]("/") { (_, _) => val id = fresh(); sessions(id) = (open(), Nil); pure[Response, R](Response.redirect(s"$base/$id")) },
+      // the base itself opens a session too: a service beside others, with `/` taken, has its door at `base`
+      get[R](base) { (_, _) => val id = fresh(); sessions(id) = (open(), Nil); pure[Response, R](Response.redirect(s"$base/$id")) },
       get[R](Html.stylesheetPath) { (_, _) => pure[Response, R](Response.ok(stylesheet, "text/css; charset=utf-8")) },
       get[R](s"$base/:id") { (ps, _) => sessions.get(ps("id")) match {
         case None => pure[Response, R](Response.html(Html.lost(title, base), 404))
@@ -156,6 +158,15 @@ object Forms {
 }
 
 object HtmlFace {
+  /** A SCENARIO AS PAGES, whole: `HtmlFace.handle(game)` is a service over `Http` — `/` opens a session, the pages at
+   * `base/{id}`, the look at `/okay.css` — for `new JdkHttp().serve(port)(…)`; titled, dressed and backed as the scenario says */
+  def handle[F <: Effects with Singleton, A](s: Scenario[F, A], base: String = "/s"): Request => s.faces.fx.![Response, ({ type L[X] = okay.effects.Sum[s.faces.fx.Pure, Http, X] })#L] = {
+    import s.faces.fx._
+    type H[X] = okay.effects.Sum[Pure, Http, X]
+    type HF[X] = okay.effects.Sum[H, Face, X]
+    val face = new HtmlFace[F, s.faces.type](s.faces)
+    face.pages[A, H](() => s.faces.dialogue[A, H](s.faces.steps[A, HF, H](s.program[HF]), back = s.back), s.title, base, s.look.getOrElse(Look.default)).service
+  }
   /** over these faces, their path kept: `HtmlFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
   def apply[F <: Effects with Singleton](faces: Faces[F]): HtmlFace[F, faces.type] = new HtmlFace[F, faces.type](faces)
 }

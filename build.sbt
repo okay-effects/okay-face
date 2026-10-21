@@ -79,7 +79,7 @@ lazy val html = crossBoth("html", "html").dependsOn(core).settings(name := "okay
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
 /** EXAMPLES: noughts and crosses — one program, every face */
-lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, term.jvm, swing, rest.jvm, html.jvm)
+lazy val examples = (project in file("examples")).dependsOn(core.jvm, test.jvm, term.jvm, swing, rest.jvm, html.jvm, mcp.jvm)
   .settings(crossBuilt, name := "okay-faces-examples", publish / skip := true,
     libraryDependencies ++= Seq("io.github.okay-effects" %% "okay-effects-machine" % okayEffects, "io.github.okay-effects" %% "okay-effects-free" % okayEffects))
 

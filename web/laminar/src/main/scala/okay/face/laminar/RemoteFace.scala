@@ -56,6 +56,12 @@ class RemoteFace(transport: Request => Future[Response], poll: Int = 1000)(impli
 }
 
 object RemoteFace {
+  /** THE THIN PAGE, whole: `RemoteFace.mount()` — the dialogue on the server behind its REST face at `base`, this page
+   * knowing no application; into `#app` or the body */
+  def mount(transport: Request => Future[Response], base: String = "/sessions", poll: Int = 1000)(implicit ec: ExecutionContext): Unit = {
+    val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
+    renderOnDomContentLoaded(root, new RemoteFace(transport, poll).element(base))
+  }
   def apply(transport: Request => Future[Response], poll: Int = 1000)(implicit ec: ExecutionContext): RemoteFace = new RemoteFace(transport, poll)
   /** what the page shows: the session's URL, the step as it came, the problems of the last choice, whether a call is out */
   final case class Shown(self: String, view: View, actions: List[Action[Json]], back: Boolean, done: Boolean, problems: Problems, busy: Boolean, listening: Boolean = false)

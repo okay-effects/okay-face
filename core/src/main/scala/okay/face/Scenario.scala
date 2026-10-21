@@ -16,6 +16,10 @@ trait Scenario[F <: Effects with Singleton, A] {
   def look: Option[Look] = None
   /** whether the dialogue offers going back; a game of its own rules says no */
   def back: Boolean = true
+  /** what an agent is told at the start, beside the tools */
+  def instructions: Option[String] = None
+  /** the application's marks on views, told to an agent and served by REST */
+  def vocabulary: Vocabulary = Vocabulary.empty
 
   /** `Face` alone in the row: what a face of one person runs */
   type Only[X] = Sum[faces.fx.Pure, Face, X]

@@ -68,4 +68,6 @@ class Noughts[F <: Effects with Singleton](implicit val faces: Faces[F]) extends
   override def title: String = "Noughts and crosses"
   override def look: Option[Look] = Some(light)
   override def back: Boolean = false
+  override def vocabulary: okay.face.Vocabulary = marks.vocabulary
+  override def instructions: Option[String] = Some(rules)
 }

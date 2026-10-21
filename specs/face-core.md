@@ -490,6 +490,13 @@ After step 4 the model holds or it does not, before any web platform is paid for
   the scenario says, the program's result the dialogue's or `None` when the window is closed; `run(io.realConsole(
   Terminal.handle(game)))` — `Console` left in the row for a console handler. The faces are handlers of `Face`, and
   from the user's side that is all they are; what a window or a terminal needs beyond the program, the scenario says.
+  EVERY FACE handles a scenario whole (2026-10-21): `HtmlFace.handle(game)` and `RestFace.handle(game)` are services
+  over `Http` for `new JdkHttp().serve(port)(…)` (the HTML face's door at `/` and at its `base`, beside other
+  services); `McpFace.handle(game)` the server's loop over `Link` for `new Links().stdio(…)`, named, instructed and
+  marked by the scenario's `title`, `instructions`, `vocabulary`; `LaminarFace.mount(game)` the dialogue in the page,
+  `RemoteFace.mount(fetch)` the thin page; `Plays.handle(game)(script)` the test face. One scenario, seven mains of a line.
+  Scala 3 wants the handled program bound to a value, and a handler (`new Links()`, `new JdkHttp()`) too, before the one
+  is given to the other: the dependent types resolve on names, not inside an argument.
 - A `Ref` as a live link — DONE 2026-10-21 by a convention: when a step offers the action `ref` (one parameter, `key`),
   a face makes every `Ref` in the view choose it with its key — the HTML page links `base/{id}/ref/{key}`, Laminar and
   the remote face on a click, the terminal by typing `ref` then the key as ever; a step without `ref` shows a `Ref` as

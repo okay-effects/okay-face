@@ -4,8 +4,8 @@ import okay.effects.Runner
 import okay.effects.json.Json
 import okay.effects.shape.{JsonSchema, Schema}
 import okay.effects.describe.{Describe, Domains}
-import okay.face.{Action, Chosen, Faces, Rejected, Step, View, ViewJson, Vocabulary}
-import okay.mcp.{Content, ResourceContent, ResourceSpec, Servers, ToolCall, ToolResult, ToolSpec}
+import okay.face.{Action, Chosen, Face, Faces, Rejected, Scenario, Step, View, ViewJson, Vocabulary}
+import okay.mcp.{Content, Link, ResourceContent, ResourceSpec, Servers, ToolCall, ToolResult, ToolSpec}
 
 /**
  * THE MCP FACE: the dialogue projection. The agent sees, at each step, exactly the actions a person would — as tools,
@@ -156,6 +156,16 @@ object Markdown {
 }
 
 object McpFace {
+  /** A SCENARIO SERVED TO AN AGENT, whole: `McpFace.handle(game)` is the server's loop over `Link` — the dialogue's
+   * actions as tools, named, instructed and marked as the scenario says — for `new Links().stdio(…)` */
+  def handle[F <: Runner with Singleton, A](s: Scenario[F, A], version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false): s.faces.fx.![Unit, ({ type L[X] = okay.effects.Sum[s.faces.fx.Pure, Link, X] })#L] = {
+    import s.faces.fx._
+    type L[X] = okay.effects.Sum[Pure, Link, X]
+    type LF[X] = okay.effects.Sum[L, Face, X]
+    val face = new McpFace[F, s.faces.type](s.faces)
+    val server = face.server[A, L](s.title, version, s.faces.steps[A, LF, L](s.program[LF]), s.instructions, elicitation, singleTool, s.vocabulary, s.back)
+    face.servers.serve[L](server)
+  }
   /** over these faces, their path kept: `McpFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
   def apply[F <: Runner with Singleton](faces: Faces[F]): McpFace[F, faces.type] = new McpFace[F, faces.type](faces)
 }
