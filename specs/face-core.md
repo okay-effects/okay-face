@@ -340,8 +340,9 @@ abstract class Describe[F[_]](val name: String) {
 `make` is the operation with the identity answer, as `perform` makes it: the SERVING direction. `split` is the other:
 an operation value taken apart into which, with what, and how its answer is read back — the REMOTE direction. Both
 are needed, and `split` is one `match` over the effect, so a description is the effect's cases written twice: once
-as shapes, once as a match. Derivation from the GADT by `Mirror` stays a Scala 3 module for later; nothing here
-needs it.
+as shapes, once as a match. Derivation of a `Describe` from the GADT is not done and not planned: the shapes of a
+field's types derive (`Shape.derived`, both compilers), an effect's operations are written by hand, eleven lines for
+eleven operations.
 
 `Domains` holds the words: `serve(d)(name, args)` decodes the parameters, performs `make(p)` under the handler in the
 row, encodes the result, or answers the problems; `remote(d)(transport)(program)` is a handler of the effect whose
@@ -357,10 +358,11 @@ The projections, each a few lines over `Domains`:
   runs the server's own program, its state kept between requests, as a server's is.
 - MCP (`mcp/McpFace.domain`): the operations as tools `{domain}_{op}` with input and output schemas; `both(a, b)` puts
   a dialogue's tools and a domain's in one server.
-- verity (`Describes.store`): the eleven operations of `Store`; `RemoteStoreSuite` runs one program with `Store`
-  handled by the vault and with `Store` performed over REST against a server's vault, and gets the same answers.
-  That is the mechanism of the other cut of a monolith — the dialogue in the browser, the domain on the server —
-  proven; the browser build of verity's dialogue is not done, and verity does not serve `Store` on its `api` port:
+- verity (okay-store's `Stores.describe`): the eleven operations of `Store`; `RemoteStoreSuite` runs one program with
+  `Store` handled by the vault and with `Store` performed over REST against a server's vault, and gets the same
+  answers. That is the other cut of a monolith — the dialogue in the browser, the domain on the server — and
+  `verity browser` is it, the whole scenario in the page over `/store` and `/files` (specs/web.md). verity does
+  not serve `Store` on its `api` port:
   a raw `Store` has no policy over `Reveal`, so it would hand an agent the secrets the dialogue guards. A domain served
   to others is the effect UNDER its interceptors, which is a smaller effect described on its own.
 
