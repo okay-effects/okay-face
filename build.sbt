@@ -79,17 +79,22 @@ lazy val html = crossBoth("html", "html").dependsOn(core).settings(name := "okay
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
 /** EXAMPLES: noughts and crosses — one program, every face. The game is shared source; the JVM's mains (a window, the
- * terminal, an agent, a server) in `scala-jvm`, the page in `scala-js` (`examplesJS`, when js is asked:
- * `sbt -Dplatforms=js examplesJS/fullLinkJS` links it, `sbt "examples/runMain okay.face.examples.NoughtsWeb"` serves it) */
+ * terminal, an agent, a server) in `scala-jvm`, the page with the game in it in `scala-js` (`examplesJS`, when js is asked:
+ * `sbt -Dplatforms=js examplesJS/fullLinkJS` links it); the THIN page, knowing no game, is its own script, `examplesRemoteJS`
+ * (`examples/remote`); `sbt "examples/runMain okay.face.examples.NoughtsWeb"` serves both */
 lazy val examples = crossBoth("examples", "examples", can = Set("js"))
   .settings(name := "okay-faces-examples", publish / skip := true,
     libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects-machine" % okayEffects, "io.github.okay-effects" %%% "okay-effects-free" % okayEffects))
   .jvmConfigure(_.dependsOn(core.jvm, test.jvm, term.jvm, swing, rest.jvm, html.jvm, mcp.jvm).settings(
     Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-jvm",
     Test / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "test" / "scala-jvm"))
-  .jsConfigure(p => if (platformsAsked("js")) p.dependsOn(core.js, laminar.js).settings(scalaJSUseMainModuleInitializer := true,
+  .onJS(_.dependsOn(core.js, laminar.js).settings(scalaJSUseMainModuleInitializer := true,
     Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-js",
-    libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1", "io.github.okay-effects" %%% "okay-http" % okayHttp)) else p)
+    libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1", "io.github.okay-effects" %%% "okay-http" % okayHttp)))
+lazy val examplesRemote = CrossProject("examplesRemote", file("examples/remote"))(JSPlatform).crossType(CrossType.Pure)
+  .settings(crossBuilt, name := "okay-faces-examples-remote", publish / skip := true, scalaJSUseMainModuleInitializer := true,
+    libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1", "io.github.okay-effects" %%% "okay-http" % okayHttp))
+  .jsConfigure(p => if (platformsAsked("js")) p.withId("examplesRemoteJS").dependsOn(laminar.js) else p.withId("examplesRemoteJS"))
 
 /** THE LAMINAR FACE, Scala.js only: a Step machine as a Laminar element — the view drawn, the actions buttons and forms,
  * a click is `resume`; and THE REMOTE FACE, the same page over a dialogue behind the REST face, through okay-http's `Browser.fetch`. Built and tested when js is asked: `sbt -Dplatforms=js laminarJS/test`, under jsdom */
@@ -125,4 +130,4 @@ lazy val waypoint = CrossProject("waypoint", file("web/waypoint"))(JSPlatform).c
   .jsConfigure(p => if (platformsAsked("js")) p.withId("waypointJS").dependsOn(core.js) else p.withId("waypointJS")).dependsOn(airstream)
 
 lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, mcp.jvm, rest.jvm, html.jvm, examples.jvm) ++
-  ((if (platformsAsked("js")) Seq[ProjectReference](laminar.js, airstream.js, waypoint.js, examples.js) else Nil))): _*).settings(name := "okay-faces-root", publish / skip := true)
+  ((if (platformsAsked("js")) Seq[ProjectReference](laminar.js, airstream.js, waypoint.js, examples.js, examplesRemote.js) else Nil))): _*).settings(name := "okay-faces-root", publish / skip := true)
