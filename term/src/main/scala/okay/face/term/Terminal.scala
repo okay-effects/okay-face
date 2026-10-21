@@ -13,7 +13,7 @@ import okay.face.{Action, Chosen, Faces, Paint, Rejected, Role, Step, View}
  * actions' docs, `q` quits. Plain text unless a `Paint` is given: `Ansi(look)` colours by role for a terminal, and a
  * pipe gets none.
  */
-class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none)(implicit val faces: Faces[F]) {
+class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80)(implicit val faces: Faces[F]) {
   import faces.fx._
   val io: Io[faces.fx.type] = new Io[faces.fx.type]()(faces.fx)
   val reading: Reading[faces.fx.type] = new Reading[faces.fx.type]()(faces.fx)
@@ -115,8 +115,10 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
       val hint = (if (live(w) && keys(w.view).nonEmpty) List("a [key]") else Nil) ++ (if (back) List("< back") else Nil) ++ List("? help", "q quit")
       List(entries.mkString("  ") + paint(Role.Doc, hint.mkString("   (", ", ", ")")))
     }
+    /** the help: each action's line, wrapped at `width`, its continuation indented under the text */
     def docs(w: Step.Waiting[A, M]): List[String] =
-      (if (live(w)) w.actions.find(_.name == "ref").map(a => s"type a [key]: ${a.doc.getOrElse(a.label)}").toList else Nil) ++ menu(w).map(a => s"${a.name}: ${a.doc.getOrElse(a.label)}")
+      ((if (live(w)) w.actions.find(_.name == "ref").map(a => "type a [key]" -> a.doc.getOrElse(a.label)).toList else Nil) ++ menu(w).map(a => a.name -> a.doc.getOrElse(a.label)))
+        .flatMap { case (head, text) => Terminal.wrap(s"$head: $text", width, head.length + 2) }
     def pick(w: Step.Waiting[A, M], line: String): Option[Action[_]] = {
       val t = line.trim
       val m = menu(w)
@@ -160,5 +162,13 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
 }
 
 object Terminal {
+  /** words onto lines of at most `width` columns, lines after the first indented by `indent`; a word longer than the room stands alone */
+  def wrap(text: String, width: Int, indent: Int = 0): List[String] = {
+    val pad = " " * indent
+    text.split("\\s+").filter(_.nonEmpty).foldLeft(List.empty[String]) {
+      case (Nil, word) => List(word)
+      case (line :: done, word) => if (line.length + 1 + word.length <= width) (line + " " + word) :: done else (pad + word) :: line :: done
+    }.reverse
+  }
   def apply[F <: okay.effects.Effects with Singleton](faces: Faces[F], paint: Paint = Paint.none): Terminal[F] = new Terminal[F](paint)(faces)
 }

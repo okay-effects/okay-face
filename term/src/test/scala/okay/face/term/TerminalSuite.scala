@@ -80,3 +80,14 @@ abstract class TerminalChecks(val fx0: Runner, name: String) extends munit.FunSu
 
 class TerminalOnMachine extends TerminalChecks(Machine, "machine")
 class TerminalOnFree extends TerminalChecks(Free, "free")
+
+/** the help wrapped: lines of at most the width, the rest indented under the text */
+class WrapSuite extends munit.FunSuite {
+  test("words onto lines of at most the width; continuation indented; a long word alone") {
+    val lines = Terminal.wrap("ref: " + ("word " * 30).trim, 40, 5)
+    assert(lines.forall(_.length <= 40), lines.mkString("\n"))
+    assert(lines.head.startsWith("ref: word") && lines.tail.forall(_.startsWith("     word")), lines.mkString("\n"))
+    assertEquals(Terminal.wrap("a " + "x" * 50 + " b", 20), List("a", "x" * 50, "b"))
+    assertEquals(Terminal.wrap("short", 80), List("short"))
+  }
+}
