@@ -61,4 +61,12 @@ object Faces {
     implicit val exact: fx.type = fx
     new Faces[fx.type]
   }
+  /** THE FACES BY DEFAULT, from the implementation in scope: with `import okay.effects.machine.implicits._`, a
+   * `new SwingFace[Machine.type]()` or a scenario taking its faces implicitly finds them here — one instance per
+   * implementation, so every taker shares it, and `Faces.of[Machine.type]` is that instance by name */
+  implicit def default[F <: Effects](implicit fx: F): Faces[F] = shared.synchronized {
+    shared.getOrElseUpdate(fx, new Faces[F]()(fx)).asInstanceOf[Faces[F]]
+  }
+  def of[F <: Effects](implicit fx: F): Faces[F] = default[F](fx)
+  private val shared = scala.collection.mutable.Map.empty[Effects, Faces[_]]
 }
