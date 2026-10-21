@@ -1,6 +1,5 @@
 package okay.face.examples
 
-import okay.effects.machine.Machine
 import okay.effects.machine.Machine._
 import okay.effects.machine.implicits._
 import okay.face.{Css, Face}
@@ -12,8 +11,8 @@ import okay.http.{Http, Https, JdkHttp, JdkServer, Request, Response}
  * the browser; `/okay.css` the look. The page's script is `examples/web`, linked by `sbt -Dplatforms=js examplesWeb/fullLinkJS`
  * (or `-Dnoughts.js=path`). The host `0.0.0.0` opens it to the network */
 object NoughtsWeb {
-  val game = new Noughts[Machine.type]()
-  val rest = RestFace.default[Machine.type]
+  val game = new Noughts()
+  val rest = RestFace.default
   type H[X] = Row[*[Pure] + *[Http], X]
   type HF[X] = Row[*[Pure] + *[Http] + *[Face], X]
 
@@ -33,8 +32,8 @@ object NoughtsWeb {
   def main(args: Array[String]): Unit = {
     val port = args.headOption.filter(_.forall(_.isDigit)).map(_.toInt).getOrElse(8090)
     val host = args.drop(1).headOption.getOrElse("127.0.0.1")
-    val https = new Https[Machine.type]()
-    val jdk = new JdkHttp[Machine.type]()
+    val https = new Https()
+    val jdk = new JdkHttp()
     val sessions = rest.sessions[game.Outcome, H](() => rest.faces.dialogue[game.Outcome, H](rest.faces.steps[game.Outcome, HF, H](game.games[HF]), back = false), vocabulary = game.marks.vocabulary).service
     val service: Request => Response ! H = req => (req.method, req.path) match {
       case ("GET", "/") => pure[Response, H](Response.html(page("remote")))
@@ -46,6 +45,6 @@ object NoughtsWeb {
     val server = JdkServer.start(port, host)
     System.err.println(s"noughts at http://$host:${server.port}/ (the game on the server, the remote face), /local (the game in the browser)")
     script.left.foreach(System.err.println)
-    Machine.run(jdk.jdk(server)(https.serve[H](service)))
+    run(jdk.jdk(server)(https.serve[H](service)))
   }
 }

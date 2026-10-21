@@ -56,16 +56,19 @@ class Faces[F <: Effects](implicit implementation: F) {
   }
 }
 
-object Faces {
+/** THE FACES BY DEFAULT, from the implementation in scope: with `import okay.effects.machine.implicits._` and nothing
+ * else said, `new SwingFace()`, `new Terminal()`, `new Noughts()` find their faces here, and the implementation's type
+ * with them — `F` inferred as the implicit's singleton type. The implicit is written per compiler (`FacesDefault`):
+ * Scala 3 infers `F` from `default[F](implicit fx: F)` under a `Singleton` bound; Scala 2 cannot search for an
+ * implicit of a type still unknown, but takes `F` from a dependent result, `default(implicit fx: Effects): Faces[fx.type]`.
+ * A fresh value each time, and that is fine: `Faces` holds no state, only words over `fx`, so any two over one
+ * implementation are the same faces — what a step machine makes on one runs on another. Only a `Dialogue` is one
+ * instance's own by type, and the faces that keep dialogues (`McpFace(faces)`, `RestFace(faces)`, `HtmlFace(faces)`)
+ * are given their faces by name */
+object Faces extends FacesDefault {
   def apply()(implicit fx: Effects): Faces[fx.type] = {
     implicit val exact: fx.type = fx
     new Faces[fx.type]
   }
-  /** THE FACES BY DEFAULT, from the implementation in scope: with `import okay.effects.machine.implicits._`, a
-   * `new SwingFace[Machine.type]()` or a scenario taking its faces implicitly finds them here. A fresh value each time,
-   * and that is fine: `Faces` holds no state, only words over `fx`, so any two over one implementation are the same
-   * faces — what a step machine makes on one runs on another. Only a `Dialogue` is one instance's own by type, and the
-   * faces that keep dialogues (`McpFace(faces)`, `RestFace(faces)`, `HtmlFace(faces)`) are given their faces by name */
-  implicit def default[F <: Effects](implicit fx: F): Faces[F] = new Faces[F]()(fx)
   def of[F <: Effects](implicit fx: F): Faces[F] = new Faces[F]()(fx)
 }
