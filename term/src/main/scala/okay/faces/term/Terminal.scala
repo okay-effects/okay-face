@@ -4,7 +4,7 @@ import okay.effects.json.Json
 import okay.effects.shape.{Fields, Problem, Problems, Reading, Schema}
 import okay.effects.tagless.{Program, Tagless}
 import okay.effects.world.{Console, Io}
-import okay.faces.{Action, Chosen, Face, Faces, Paint, Rejected, Role, Step, View}
+import okay.faces.{Action, Chosen, Face, Faces, Paint, Rejected, Role, Step, View, Words}
 
 /**
  * THE TERMINAL FACE: a line dialogue — a program in okay-effects-io's `Console`, so it runs under `realConsole`, and
@@ -14,8 +14,8 @@ import okay.faces.{Action, Chosen, Face, Faces, Paint, Rejected, Role, Step, Vie
  * actions' docs, `q` quits. Plain text unless a `Paint` is given: `Ansi(look)` colours by role for a terminal, and a
  * pipe gets none.
  */
-class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80)(
-  implicit val fx: F) {
+class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80,
+  words: Words = Words.english)(implicit val fx: F) {
   import fx._
   val faces: Faces[fx.type] = new Faces[fx.type]()(fx)
   val io: Io[fx.type] = new Io[fx.type]()(fx)
@@ -25,7 +25,7 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
   private def say[R[_]](lines: List[String])(implicit c: In[Console, R]): Unit ! R =
     lines.foldLeft(pure[Unit, R](()))((acc, l) => acc.flatMap(_ => printLine[R](l)))
   private def problems[R[_]](ps: Problems)(implicit c: In[Console, R]): Unit ! R =
-    say[R](ps.map(p => paint(Role.Problems, "problem: " + p.render)))
+    say[R](ps.map(p => paint(Role.Problems, s"${words.problem}: " + p.render)))
 
   // ---- THE PERSON AS A HANDLER OF Fields
   /** a field's words: its label, else its name, else what it is */
@@ -61,14 +61,17 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
         t.toIntOption.filter(i => i >= 1 && i <= options.size).map(i => options(i - 1)._1))
     })
   }
-  /** one leaf asked: the label, the hint and the default; an empty line is nothing entered */
+  /** one leaf asked: the label, the hint and the default; an empty line is nothing entered. An OPTIONAL leaf is asked
+   * as the leaf, with "empty for none" in the hint */
   private def prompt[R[_]](path: List[String], f: Schema.Field)(implicit c: In[Console, R]): Option[Json] ! R =
-    stripped(f.schema) match {
+    (stripped(f.schema) match { case Schema.Optional(of) => stripped(of); case s => s }) match {
       case Schema.Choice(options) =>
         printLine[R](labelOf(path, f) + ":").flatMap(_ => menu[R](options.map(o => (o, o)))).map(_.map(Json.Str(_)))
       case other =>
+        val optional = stripped(f.schema) match { case Schema.Optional(_) => List(words.optional); case _ => Nil }
         val hint = (hintOf(other).toList ++ f.default.map(d =>
-          "default " + Json.print(d)).toList ++ f.doc.toList ++ (if (f.secret) List("hidden") else Nil)).mkString(", ")
+          s"${words.default} " + Json.print(d)).toList ++ f.doc.toList ++ optional ++
+          (if (f.secret) List(words.hidden) else Nil)).mkString(", ")
         val label = labelOf(path, f) + (if (hint.isEmpty) "" else s" ($hint)") + ": "
         // a secret is typed without echo, where the console can hide it
         printLine[R](label).flatMap(_ => if (f.secret) readSecret[R] else readLine[R]).map {
@@ -78,18 +81,29 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
         }
     }
 
-  def prompting[R[_], Rest[_], A](p: A ! R)(implicit sp: Split[Fields, R, Rest], c: In[Console, Rest]): A ! Rest =
+  def prompting[R[_], Rest[_], A](p: A ! R)(implicit sp: Split[Fields, R, Rest], c: In[Console, Rest]): A ! Rest = {
+    // an optional leaf is asked when its presence is: what was typed then answers the question for its value
+    val entered = scala.collection.mutable.Map.empty[List[String], Json]
     fx.handle[Fields, R, Rest, A, A](p,
       new Handler[Fields, Rest, A, A] {
         def ret(a: A) = pure(a)
         def op[X](op: Fields[X], k: X => A ! Rest) = op match {
-          case Fields.Get(path, f, answer) => prompt[Rest](path, f).flatMap(j => k(answer(j)))
+          case Fields.Get(path, f, answer) => entered.remove(path) match {
+              case Some(j) => k(answer(Some(j)))
+              case None => prompt[Rest](path, f).flatMap(j => k(answer(j)))
+            }
           case Fields.Retry(path, f, ps, answer) =>
             problems[Rest](ps).flatMap(_ => prompt[Rest](path, f)).flatMap(j => k(answer(j)))
           case Fields.Has(path, f, answer) => stripped(f.schema) match {
               // a person is asked whether there is something only where it is OPTIONAL; a record, a sum or a list that
               // is
               // asked for is there — its fields, its case, its size are the questions
+              case Schema.Optional(of) if okay.faces.FormJson.leafish(of) =>
+                // a leaf that may be absent: asked at once, an empty line is none
+                prompt[Rest](path, f).flatMap {
+                  case None => k(answer(Fields.Presence.Absent))
+                  case Some(j) => entered(path) = j; k(answer(Fields.Presence.Present))
+                }
               case Schema.Optional(_) =>
                 printLine[Rest](s"${labelOf(path, f)}? (y/n): ").flatMap(_ => readLine[Rest]).flatMap { l =>
                   val yes = l.exists(x => Set("y", "yes", "true").contains(x.trim.toLowerCase))
@@ -98,13 +112,14 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
               case _ => k(answer(Fields.Presence.Present))
             }
           case Fields.Size(path, f, answer) =>
-            printLine[Rest](s"how many ${labelOf(path, f)}? ").flatMap(_ => readLine[Rest]).flatMap(l =>
+            printLine[Rest](s"${words.howMany} ${labelOf(path, f)}? ").flatMap(_ => readLine[Rest]).flatMap(l =>
               k(answer(l.flatMap(_.trim.toIntOption).filter(_ >= 0))))
           case Fields.Which(path, cases, answer) =>
             printLine[Rest](s"${path.lastOption.getOrElse("which")}:").flatMap(_ =>
               menu[Rest](cases.map(x => (x, x)))).flatMap(w => k(answer(w)))
         }
       })
+  }
 
   /** THE HANDLER: a program of the face at a terminal, `Console` left in the row for a console handler — a scripted one
    * in a
@@ -139,14 +154,13 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
     def menu(w: Step.Waiting[A, M]): List[Action[_]] = if (live(w)) w.actions.filterNot(_.name == "ref") else w.actions
     def menuOf(w: Step.Waiting[A, M], canGoBack: Boolean): List[String] = {
       val entries = menu(w).zipWithIndex.map { case (a, i) => paint(Role.Action, s"${i + 1}) ${a.label}") }
-      val hint = (if (live(w) && keys(w.view).nonEmpty) List("a [key]") else Nil) ++ (if (canGoBack) List("< back")
-                                                                                      else
-                                                                                        Nil) ++ List("? help", "q quit")
+      val hint = (if (live(w) && keys(w.view).nonEmpty) List(words.keyHint) else Nil) ++
+        (if (canGoBack) List(words.backHint) else Nil) ++ List(words.helpHint, words.quitHint)
       List(entries.mkString("  ") + paint(Role.Doc, hint.mkString("   (", ", ", ")")))
     }
     /** the help: each action's line, wrapped at `width`, its continuation indented under the text */
     def docs(w: Step.Waiting[A, M]): List[String] =
-      ((if (live(w)) w.actions.find(_.name == "ref").map(a => "type a [key]" -> a.doc.getOrElse(a.label)).toList
+      ((if (live(w)) w.actions.find(_.name == "ref").map(a => words.typeAKey -> a.doc.getOrElse(a.label)).toList
         else Nil) ++ menu(w).map(a => a.name -> a.doc.getOrElse(a.label)))
         .flatMap { case (head, text) => Terminal.wrap(s"$head: $text", width, head.length + 2) }
     def pick(w: Step.Waiting[A, M], line: String): Option[Action[_]] = {
@@ -182,7 +196,7 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
           case Some(l) => pick(w, l) match {
               case None =>
                 val choices = menu(w).map(_.name) ++ (if (live(w)) keys(w.view).map("[" + _ + "]") else Nil)
-                printLine[R](s"problem: one of ${choices.mkString(", ")}").flatMap(_ => loop(w, history))
+                printLine[R](s"${words.oneOf} ${choices.mkString(", ")}").flatMap(_ => loop(w, history))
               case Some(a) => arguments(a).flatMap {
                   case Left(ps) => problems[R](ps).flatMap(_ => loop(w, history))
                   case Right(args) => w.resume(Chosen(a.name, args)) match {
@@ -209,12 +223,13 @@ object Terminal {
     }.reverse
   }
   /** over the implementation in scope */
-  def apply[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80)(
-    implicit fx: F): Terminal[F] = new Terminal[F](paint, width)(fx)
+  def apply[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80,
+    words: Words = Words.english)(implicit fx: F): Terminal[F] = new Terminal[F](paint, width, words)(fx)
   /** THE HANDLER, whole, at the real console: `run(Terminal.console(Noughts.games))` */
   def console[F <: okay.effects.Runner with Singleton, A](p: Program[A, okay.faces.Face], paint: Paint = Paint.none,
-    width: Int = 80, back: Boolean = true)(implicit fx: F): Program[Option[A], Tagless.Pure] = {
-    val term = new Terminal[F](paint, width)(fx)
+    width: Int = 80, back: Boolean = true, words: Words = Words.english)(
+    implicit fx: F): Program[Option[A], Tagless.Pure] = {
+    val term = new Terminal[F](paint, width, words)(fx)
     Faces.running(term.fx.run[Option[A]](term.console[A](p, back)))
   }
 }

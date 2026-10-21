@@ -4,7 +4,7 @@ import okay.effects.Effects
 import okay.effects.tagless.{Program, Tagless}
 import okay.effects.json.Json
 import okay.effects.shape.Schema
-import okay.faces.{Action, Chosen, Css, Face, Faces, Look, Rejected, Role, View}
+import okay.faces.{Action, Chosen, Css, Face, Faces, Look, Rejected, Role, Sessions, View, Words}
 import okay.http.{Http, Query, Request, Response}
 import okay.http.rest.{Rests, Trouble}
 
@@ -25,45 +25,44 @@ class HtmlFace[F <: Effects with Singleton](implicit val fx: F) {
   import rests.{Route, dispatch, get, post}
 
   final class Pages[A, R[_]](open: () => faces.Dialogue[A, R], title: String, base: String = "/s",
-    look: Look = Look.default) {
-    private val sessions =
-      scala.collection.mutable.Map.empty[String, (faces.Dialogue[A, R], List[okay.effects.shape.Problem])]
-    private var count = 0
-    private def fresh(): String = { count += 1; s"s$count" }
+    look: Look = Look.default, ids: () => String = Sessions.random) {
+    // the sessions, by id: random ids, forgotten when idle an hour, at most a thousand (`Sessions`)
+    private val sessions = new Sessions[(faces.Dialogue[A, R], List[okay.effects.shape.Problem])](ids)
+    private val words = look.words
     val stylesheet: String = Css(look)
 
     def page(id: String, d: faces.Dialogue[A, R], problems: List[okay.effects.shape.Problem]): String ! R =
       d.shown.flatMap { case (told, v) =>
         d.actions.map(as =>
-          Html.page(View.title(told :+ v).getOrElse(title), told, v, as, problems, s"$base/$id", d.canGoBack))
+          Html.page(View.title(told :+ v).getOrElse(title), told, v, as, problems, s"$base/$id", d.canGoBack, words))
       }
 
     def routes: List[Route[R]] = List(
       get[R]("/") { (_, _) =>
-        val id = fresh(); sessions(id) = (open(), Nil); pure[Response, R](Response.redirect(s"$base/$id"))
+        val id = sessions.open((open(), Nil)); pure[Response, R](Response.redirect(s"$base/$id"))
       },
       // the base itself opens a session too: a service beside others, with `/` taken, has its door at `base`
       get[R](base) { (_, _) =>
-        val id = fresh(); sessions(id) = (open(), Nil); pure[Response, R](Response.redirect(s"$base/$id"))
+        val id = sessions.open((open(), Nil)); pure[Response, R](Response.redirect(s"$base/$id"))
       },
       get[R](Html.stylesheetPath) { (_, _) => pure[Response, R](Response.ok(stylesheet, "text/css; charset=utf-8")) },
       get[R](s"$base/:id") { (ps, _) =>
         sessions.get(ps("id")) match {
-          case None => pure[Response, R](Response.html(Html.lost(title, base), 404))
+          case None => pure[Response, R](Response.html(Html.lost(title, base, words), 404))
           case Some((d, problems)) => page(ps("id"), d, problems).map(Response.html(_))
         }
       },
       post[R](s"$base/:id/act/:name") { (ps, req) =>
         sessions.get(ps("id")) match {
-          case None => pure[Response, R](Response.html(Html.lost(title, base), 404))
+          case None => pure[Response, R](Response.html(Html.lost(title, base, words), 404))
           case Some((d, _)) => d.actions.flatMap { as =>
               val args =
                 as.find(_.name == ps("name")).map(a => Forms.collect(a.params.erased, Query.parse(req.body))).getOrElse(
                   Json.Obj.empty)
               d.choose(Chosen(ps("name"), args)).map {
-                case Right(_) => sessions(ps("id")) = (d, Nil); Response.redirect(s"$base/${ps("id")}")
+                case Right(_) => sessions.update(ps("id"), (d, Nil)); Response.redirect(s"$base/${ps("id")}")
                 case Left(Rejected(problems)) =>
-                  sessions(ps("id")) = (d, problems); Response.redirect(s"$base/${ps("id")}")
+                  sessions.update(ps("id"), (d, problems)); Response.redirect(s"$base/${ps("id")}")
               }
             }
         }
@@ -71,12 +70,12 @@ class HtmlFace[F <: Effects with Singleton](implicit val fx: F) {
       // a `Ref` followed: the action `ref` with the key, when the step offers one; else back to the page
       get[R](s"$base/:id/ref/:key") { (ps, _) =>
         sessions.get(ps("id")) match {
-          case None => pure[Response, R](Response.html(Html.lost(title, base), 404))
+          case None => pure[Response, R](Response.html(Html.lost(title, base, words), 404))
           case Some((d, _)) => d.actions.flatMap { as =>
               if (as.exists(_.name == "ref")) d.choose(Chosen("ref", Json.obj("key" -> Json.Str(ps("key"))))).map {
-                case Right(_) => sessions(ps("id")) = (d, Nil); Response.redirect(s"$base/${ps("id")}")
+                case Right(_) => sessions.update(ps("id"), (d, Nil)); Response.redirect(s"$base/${ps("id")}")
                 case Left(Rejected(problems)) =>
-                  sessions(ps("id")) = (d, problems); Response.redirect(s"$base/${ps("id")}")
+                  sessions.update(ps("id"), (d, problems)); Response.redirect(s"$base/${ps("id")}")
               }
               else pure[Response, R](Response.redirect(s"$base/${ps("id")}"))
             }
@@ -84,23 +83,25 @@ class HtmlFace[F <: Effects with Singleton](implicit val fx: F) {
       },
       post[R](s"$base/:id/back") { (ps, _) =>
         sessions.get(ps("id")) match {
-          case None => pure[Response, R](Response.html(Html.lost(title, base), 404))
+          case None => pure[Response, R](Response.html(Html.lost(title, base, words), 404))
           case Some((d, _)) =>
-            d.back(); sessions(ps("id")) = (d, Nil); pure[Response, R](Response.redirect(s"$base/${ps("id")}"))
+            d.back(); sessions.update(ps("id"), (d, Nil)); pure[Response, R](Response.redirect(s"$base/${ps("id")}"))
         }
       })
     def service: Request => Response ! R = dispatch[R](routes)
   }
-  def pages[A, R[_]](open: () => faces.Dialogue[A, R], title: String, base: String = "/s", look: Look = Look.default)
-    : Pages[A, R] =
-    new Pages[A, R](open, title, base, look)
+  def pages[A, R[_]](open: () => faces.Dialogue[A, R], title: String, base: String = "/s", look: Look = Look.default,
+    ids: () => String = Sessions.random): Pages[A, R] =
+    new Pages[A, R](open, title, base, look, ids)
 
   /** THE HANDLER: a program of the face as pages, a service over `Http` — `/` and `base` open a session, the pages at
    * `base/{id}`, titled by the level-1 heading shown, the look at `/okay.css` */
-  def handle[A](p: Program[A, okay.faces.Face], base: String = "/s", look: Option[Look] = None, back: Boolean = true)
-    : Request => Response ! H =
-    pages[A, H](() => faces.dialogue[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), back), "okay", base,
-      look.getOrElse(Look.default)).service
+  def handle[A](p: Program[A, okay.faces.Face], base: String = "/s", look: Option[Look] = None, back: Boolean = true,
+    ids: () => String = Sessions.random): Request => Response ! H = {
+    val l = look.getOrElse(Look.default)
+    pages[A, H](() => faces.dialogue[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), back, l.words.over), "okay",
+      base, l, ids).service
+  }
   /** the same served: `run(new HtmlFace().serve(Noughts.games, port, host))` */
   def serve[A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1", look: Option[Look] = None,
     base: String = "/s", back: Boolean = true): Unit ! Pure =
@@ -123,7 +124,7 @@ object Html {
   /** the page: what was told since the last step, each in its own `told` section, then the step's view; the refs live
    * when the step offers `ref` */
   def page(title: String, told: Vector[View], v: View, actions: List[Action[_]],
-    problems: List[okay.effects.shape.Problem], here: String, back: Boolean): String =
+    problems: List[okay.effects.shape.Problem], here: String, back: Boolean, words: Words = Words.english): String =
     document(title,
       s"""<main ${cls(Role.Face)}>
          |<section ${cls(Role.View)}>${told.map(t =>
@@ -132,13 +133,13 @@ object Html {
          |${if (problems.isEmpty) ""
         else s"<ul ${cls(Role.Problems)}>" + problems.map(p => s"<li>${esc(p.render)}</li>").mkString + "</ul>"}
          |<nav ${cls(Role.Actions)}>${actions.filterNot(_.name == "ref").map(a => Forms.action(a, here)).mkString("\n")}
-         |${if (back) s"""<form method="post" action="$here/back"><button ${cls(Role.Back)}>Back</button></form>"""
+         |${if (back) s"""<form method="post" action="$here/back"><button ${cls(Role.Back)}>${esc(words.back)}</button></form>"""
         else ""}</nav>
          |</main>""".stripMargin)
-  def lost(title: String, base: String): String =
+  def lost(title: String, base: String, words: Words = Words.english): String =
     document(title,
-      s"""<main ${cls(Role.Face)}><p ${cls(Role.Notice(View.Notice.Problem))}>No such session.</p><nav ${cls(
-          Role.Actions)}><a ${cls(Role.Ref)} href="/">Start again</a></nav></main>""")
+      s"""<main ${cls(Role.Face)}><p ${cls(Role.Notice(View.Notice.Problem))}>${esc(words.noSuchSession)}</p><nav ${cls(
+          Role.Actions)}><a ${cls(Role.Ref)} href="/">${esc(words.startAgain)}</a></nav></main>""")
 
   def document(title: String, body: String): String =
     s"""<!DOCTYPE html>

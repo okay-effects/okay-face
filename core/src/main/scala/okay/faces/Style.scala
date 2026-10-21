@@ -171,10 +171,25 @@ object Style {
 }
 
 /** a theme and a style: what a face is given */
-final case class Look(theme: Theme, style: Style)
+final case class Look(theme: Theme, style: Style, words: Words = Words.english)
 object Look {
   val default: Look = Look(Theme.light, Style.default)
   val dark: Look = Look(Theme.dark, Style.default)
+}
+
+/** THE FACES' OWN WORDS to a person — a button's, a hint's, a message's; what a program says is the program's, these
+ * are what a face adds. English by default; an application gives its own in its `Look` */
+final case class Words(back: String = "Back", help: String = "Help", done: String = "done", add: String = "Add",
+  remove: String = "Remove", startAgain: String = "Start again", noSuchSession: String = "No such session.",
+  keyHint: String = "a [key]", backHint: String = "< back", helpHint: String = "? help", quitHint: String = "q quit",
+  typeAKey: String = "type a [key]", oneOf: String = "problem: one of", howMany: String = "how many",
+  optional: String = "empty for none", default: String = "default", hidden: String = "hidden",
+  problem: String = "problem", onePerLine: String = "one per line") {
+  /** the notice a face shows when the dialogue is over */
+  def over: View = View.info(done)
+}
+object Words {
+  val english: Words = Words()
 }
 
 /** THE WEB'S INTERPRETER: a look as a stylesheet. The tokens as custom properties on `:root`, so a page may override

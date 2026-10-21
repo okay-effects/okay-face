@@ -7,7 +7,7 @@ import okay.effects.Runner
 import okay.effects.tagless.{Program, Tagless}
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
-import okay.faces.{Face, Action, Chosen, Faces, Look, Rejected, Role, Step, View}
+import okay.faces.{Face, Action, Chosen, Faces, Look, Rejected, Role, Step, View, Words}
 import scala.collection.mutable
 
 /**
@@ -54,7 +54,7 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
     def show(s: Shown[A]): Unit = {
       current = Some(s.step)
       root.removeAll()
-      root.add(render(s, show, settle, back), BorderLayout.CENTER)
+      root.add(render(s, show, settle, back, look.map(_.words).getOrElse(Words.english)), BorderLayout.CENTER)
       look.foreach(l => Looks(l)(root))
       root.revalidate(); root.repaint()
       grow()
@@ -114,7 +114,8 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
         // the help, when there is one: a `?` at the top right, the views told before the first step in a dialog
         if (help.nonEmpty) {
           val bar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 2))
-          val button = new JButton("?"); button.setName(SwingFace.helpName); button.setToolTipText("Help")
+          val button = new JButton("?"); button.setName(SwingFace.helpName)
+        button.setToolTipText(look.map(_.words).getOrElse(Words.english).help)
           button.setMargin(new java.awt.Insets(0, 0, 0, 0)); button.setPreferredSize(new java.awt.Dimension(28, 28));
           button.setFocusable(false)
           button.addActionListener((_: java.awt.event.ActionEvent) =>
@@ -131,11 +132,11 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
     })
 
   private def render[A](s: Shown[A], show: Shown[A] => Unit,
-    settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A], back: Boolean): JComponent = {
+    settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A], back: Boolean, words: Words): JComponent = {
     val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS))
     s.told.foreach(v => box.add(named(Views.component(v), Role.Told.cls)))
     s.step match {
-      case Step.Done(_) => box.add(named(Views.component(okay.faces.Session.over), "okay-done"))
+      case Step.Done(_) => box.add(named(Views.component(words.over), "okay-done"))
       case Step.Told(_, _) => ()
       case w: Step.Waiting[A, M] @unchecked =>
         def choose(chosen: Chosen): Unit = w.resume(chosen) match {
@@ -152,9 +153,9 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
         }
         val actions = new JPanel; actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
         actions.setName(Role.Actions.cls)
-        w.actions.filterNot(_.name == "ref").foreach(a => actions.add(Forms.action(a, choose)))
+        w.actions.filterNot(_.name == "ref").foreach(a => actions.add(Forms.action(a, choose, words)))
         if (back && s.history.nonEmpty) {
-          val b = new JButton("Back"); b.setName(Role.Back.cls)
+          val b = new JButton(words.back); b.setName(Role.Back.cls)
           b.addActionListener(_ => show(Shown(Vector.empty, s.history.head, s.history.tail, Nil)))
           actions.add(b)
         }
@@ -318,12 +319,12 @@ object Views {
 /** an action as a button, or as a form drawn from its parameters' erased schema; what is typed becomes JSON the
  * action's shape decodes — the face does not validate, the shape does */
 object Forms {
-  def action[A](a: Action[A], choose: Chosen => Unit): JComponent = a.params.erased match {
+  def action[A](a: Action[A], choose: Chosen => Unit, words: Words = Words.english): JComponent = a.params.erased match {
     case Schema.Record(fields) if fields.isEmpty =>
       val b = new JButton(a.label); b.setName("action:" + a.name)
       b.addActionListener(_ => choose(Chosen.plain(a.name))); b
     case schema =>
-      val inputs = new Inputs
+      val inputs = new Inputs(words)
       val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.setName("form:" + a.name)
       p.setBorder(BorderFactory.createTitledBorder(a.label))
       a.doc.foreach(d => { val l = new JLabel(d); l.setName(Role.Doc.cls); p.add(l) })
@@ -333,7 +334,7 @@ object Forms {
       p.add(submit); p
   }
 
-  final class Inputs {
+  final class Inputs(words: Words = Words.english) {
     private val texts = mutable.Map.empty[List[String], JTextField]
     private val checks = mutable.Map.empty[List[String], JCheckBox]
     private val combos = mutable.Map.empty[List[String], JComboBox[String]]
@@ -374,20 +375,20 @@ object Forms {
           val item = new JPanel; item.setLayout(new BoxLayout(item, BoxLayout.Y_AXIS));
           item.setName(name(path :+ i.toString))
           item.add(of(path :+ i.toString, of0))
-          val remove = new JButton("Remove"); remove.setName("remove:" + name(path :+ i.toString))
+          val remove = new JButton(words.remove); remove.setName("remove:" + name(path :+ i.toString))
           remove.addActionListener(_ => {
             ids = ids.filterNot(_ == i); list.remove(item); list.revalidate(); list.repaint()
           })
           item.add(remove); list.add(item); list.revalidate(); list.repaint()
         }
         (0 until (min max 0)).foreach(_ => add())
-        val addButton = new JButton("Add"); addButton.setName("add:" + name(path));
+        val addButton = new JButton(words.add); addButton.setName("add:" + name(path));
         addButton.addActionListener(_ => add())
         val p = new JPanel; p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS))
         field.flatMap(_.label).orElse(field.map(_.name)).foreach(l => p.setBorder(BorderFactory.createTitledBorder(l)))
         p.add(list); p.add(addButton); p
       case Schema.Many(_, _, _) =>
-        val a = new JTextArea(3, 20); a.setName(name(path)); a.setToolTipText("one per line"); areas(path) = a;
+        val a = new JTextArea(3, 20); a.setName(name(path)); a.setToolTipText(words.onePerLine); areas(path) = a;
         new JScrollPane(a)
       case Schema.Bool =>
         val c = new JCheckBox(); c.setName(name(path)); checks(path) = c

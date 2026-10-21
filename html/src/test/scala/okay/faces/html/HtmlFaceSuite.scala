@@ -30,7 +30,7 @@ class HtmlFaceSuite extends munit.FunSuite {
   def form(kv: (String, String)*): Request = Request.post("/s/s1/act/submit",
     Query.print(kv.toList.groupBy(_._1).map { case (k, vs) => k -> vs.map(_._2) }), "application/x-www-form-urlencoded")
   def talk(requests: Request*): List[okay.http.Response] = {
-    val pages = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), "Greeting")
+    val pages = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), "Greeting", ids = okay.faces.Sessions.counting("s"))
     Machine.run(https.scripted(requests.toList)(https.serve[H](pages.service)))._1
   }
 
@@ -101,7 +101,7 @@ class HtmlFaceSuite extends munit.FunSuite {
       offer[String, HF](View.stack(View.text("records"), View.Ref("r1", "Ann"), View.Ref("r2", "Bo")),
         List(okay.faces.Action[String, String]("ref", "Open", record(field("key", text))(k => k)(k => k))(k =>
             k))).flatMap(k => show[HF](View.text(s"opened $k")).map(_ => k))
-    val pages = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](listing)), "Refs")
+    val pages = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](listing)), "Refs", ids = okay.faces.Sessions.counting("s"))
     val rs = Machine.run(https.scripted(List(Request.get("/"), Request.get("/s/s1"), Request.get("/s/s1/ref/r2"),
           Request.get("/s/s1")))(https.serve[H](pages.service)))._1
     assert(rs(1).body.contains("""href="/s/s1/ref/r2""""), rs(1).body)

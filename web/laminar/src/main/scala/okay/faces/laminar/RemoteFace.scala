@@ -17,7 +17,8 @@ import scala.concurrent.{ExecutionContext, Future}
  * `400` with problems leaves the step; `POST self/back`. A choice is checked against the schema before it travels.
  * The transport is a function, `Browser.fetch()` in a page, the server's own service in a test.
  */
-class RemoteFace(transport: Request => Future[Response], poll: Int = 1000)(implicit ec: ExecutionContext) {
+class RemoteFace(transport: Request => Future[Response], poll: Int = 1000, words: okay.faces.Words = okay.faces.Words.english)(
+  implicit ec: ExecutionContext) {
   import RemoteFace.Shown
   private val nothing = Shown("", View.Empty, Nil, back = false, done = false, Nil, busy = true)
 
@@ -55,13 +56,13 @@ class RemoteFace(transport: Request => Future[Response], poll: Int = 1000)(impli
         val problems =
           if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
         val backButton = if (!s.back) emptyNode
-        else button(typ := "button", cls := Role.Back.classes, "Back", disabled := s.busy,
+        else button(typ := "button", cls := Role.Back.classes, words.back, disabled := s.busy,
           onClick --> Observer[dom.MouseEvent](_ => back(s)))
         val ref: Option[String => Unit] = if (s.actions.exists(_.name == "ref"))
           Some(key => choose(s, Chosen("ref", Json.obj("key" -> Json.Str(key)))))
         else None
         div(sectionTag(cls := Role.View.classes, Views.element(s.view, ref)), problems,
-          if (s.done) div(cls := "okay-done", "done")
+          if (s.done) div(cls := "okay-done", words.done)
           else navTag(cls := Role.Actions.classes,
             s.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(s, _), s.busy)), backButton))
       })

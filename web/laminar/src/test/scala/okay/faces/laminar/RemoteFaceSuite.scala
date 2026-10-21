@@ -31,7 +31,7 @@ class RemoteFaceSuite extends munit.FunSuite {
     }
   /** the server: the REST face's sessions, each request answered on the machine; the transport, a future of it */
   val service: Request => Response ! Void = new RestFace[Machine.type]()(Machine).sessions[String, Void](() =>
-    faces.dialogue[String, Void](steps[String, F, Void](greeting))).service
+    faces.dialogue[String, Void](steps[String, F, Void](greeting)), ids = okay.faces.Sessions.counting("s")).service
   var calls: List[Request] = Nil
   val transport: Request => Future[Response] =
     req => { calls = req :: calls; Future.successful(Machine.run(service(req))) }

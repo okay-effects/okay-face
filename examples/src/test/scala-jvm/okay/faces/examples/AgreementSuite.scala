@@ -91,7 +91,7 @@ class AgreementSuite extends munit.FunSuite {
 
   test("the HTML pages show every view as the test face's, marked up, in order, and end the same") {
     val html = HtmlFace() // bound first: Scala 3 widens a word on an unbound face to Any
-    val pages = html.handle(Noughts.play(Board.empty))
+    val pages = html.handle(Noughts.play(Board.empty), ids = okay.faces.Sessions.counting("s"))
     val requests = Request.get("/") :: Request.get("/s/s1") :: (moves.flatMap(n =>
       List(Request.get(s"/s/s1/ref/$n"), Request.get("/s/s1"))) ++
       List(Request.post("/s/s1/act/again", "", "application/x-www-form-urlencoded"), Request.get("/s/s1")))
@@ -111,7 +111,7 @@ class AgreementSuite extends munit.FunSuite {
 
   test("the REST resources carry every view as the test face's, as JSON, in order, and end the same") {
     val rest = RestFace()
-    val sessions = rest.handle(Noughts.play(Board.empty))
+    val sessions = rest.handle(Noughts.play(Board.empty), ids = okay.faces.Sessions.counting("s"))
     val requests = Request.post("/sessions", "", "application/json") :: (moves.map(n =>
       Request.json("POST", "/sessions/s1/act/ref", obj("key" -> Str(n.toString)))) :+ Request.json("POST",
       "/sessions/s1/act/again", obj()))

@@ -45,9 +45,8 @@ class McpHttp[F <: Effects with Singleton, S <: Servers[F]](val servers: S) {
 
   final class Service[R[_]](open: Boolean => servers.Server[({ type L[X] = Sum[R, Link, X] })#L], path: String) {
     type RL[X] = Sum[R, Link, X]
-    private val sessions = scala.collection.mutable.Map.empty[String, (Boolean, Parked[R])]
-    private var count = 0
-    private def fresh(): String = { count += 1; s"m$count" }
+    // the sessions, by id: random ids, forgotten when idle an hour, at most a thousand (`Sessions` in core)
+    private val sessions = new okay.faces.Sessions[(Boolean, Parked[R])]()
     private def messages(body: String): Either[Rpc.Failed, List[String]] = Descent.parse(body) match {
       case Left(e) => Left(Rpc.Failed(Json.Null, Rpc.Code.Parse, e.message))
       case Right(Json.Arr(ms)) => Right(ms.toList.map(m => Json.print(m)))
@@ -86,16 +85,17 @@ class McpHttp[F <: Effects with Singleton, S <: Servers[F]](val servers: S) {
                 case Some(id) => sessions.get(id) match {
                     case None => pure[Response, R](Response.text("no such session", 404))
                     case Some((stream, parked)) => run(id, stream, parked, ms).map { case (mail, next) =>
-                        next match { case Ended() => sessions.remove(id); case _ => sessions(id) = (stream, next) }
+                        next match { case Ended() => sessions.remove(id); case _ => sessions.update(id, (stream, next)) }
                         reply(mail.out, stream, batch, id)
                       }
                   }
                 case None
                     if ms.exists(m =>
                       Rpc.decode(m).exists { case Rpc.Request(_, "initialize", _) => true; case _ => false }) =>
-                  val id = fresh(); val stream = streams(req)
+                  val stream = streams(req)
                   linked[RL, R](servers.serve[RL](open(stream)), Mail(ms, Nil)).map { case (mail, next) =>
-                    next match { case Ended() => (); case _ => sessions(id) = (stream, next) }
+                    val id = sessions.open((stream, next))
+                    next match { case Ended() => sessions.remove(id); case _ => () }
                     reply(mail.out, stream, batch, id)
                   }
                 case None => pure[Response, R](Response.json(Rpc.json(Rpc.Failed(Json.Null, Rpc.Code.InvalidRequest,

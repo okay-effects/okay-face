@@ -14,8 +14,9 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
   /** a session with a step machine, for the faces that serve many counterparts: over this implementation, so any
    * face over it takes one made here */
   type Dialogue[A, R[_]] = Session[fx.type, A, R]
-  def dialogue[A, R[_]](first0: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true): Dialogue[A, R] =
-    new Session[fx.type, A, R](fx, back) { protected def first: Step[A, M] ! R = first0 }
+  def dialogue[A, R[_]](first0: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true,
+    over: View = Session.over): Dialogue[A, R] =
+    new Session[fx.type, A, R](fx, back, over) { protected def first: Step[A, M] ! R = first0 }
 
   def offer[A, R[_]](view: View, actions: List[Action[A]])(implicit in: In[Face, R]): A ! R =
     perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a))

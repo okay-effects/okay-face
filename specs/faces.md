@@ -137,6 +137,21 @@ default); `list_changed` follows every call, so the agent sees it come and go. T
 "done" (`Session.over`, an info notice) by every face that serves sessions, by Swing and by Laminar: the program's
 value is the program's, not shown — a program shows what it wants seen before it ends.
 
+### Words, sessions — 2026-10-21
+
+THE FACES' OWN WORDS to a person — Back, Help, done, Add, Remove, the terminal's hints and prompts, the lost page's
+lines — are `Words`, carried by the `Look` (`Look(theme, style, words)`), English by default: an application gives its
+own in its look, and every face that takes a look speaks them; the terminal takes `words` beside its paint. What a
+program says is the program's. MCP's and REST's messages to a client stay English: they are for a program.
+
+SESSIONS of the faces that serve many counterparts (HTML, REST, MCP over HTTP) are kept by `Sessions` in core: random
+ids (128 bits as hex, not guessed from one another), each forgotten when idle an hour or when more than a thousand are
+held — a server that runs for long keeps no visitor forever. A test names them: `ids = Sessions.counting("s")`, on
+`pages`, `sessions` and `handle`.
+
+THE TERMINAL asks an optional leaf at once, "empty for none" in its hint, instead of "due? (y/n)" and then the value;
+an optional record or list is still asked for first.
+
 ## face-swing — a panel, a window
 
 DONE 2026-10-20 as `swing` (the JVM): `SwingFace(faces).panel(steps, done, look)` is a `JPanel` rebuilt at every step —

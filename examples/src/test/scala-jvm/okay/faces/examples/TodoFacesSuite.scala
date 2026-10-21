@@ -29,8 +29,8 @@ class TodoFacesSuite extends munit.FunSuite {
   test("the terminal: the form field by field, an optional one asked for, an item by its number; the input runs out") {
     val term = Terminal()
     val io = new okay.effects.world.Io()
-    // add: title, due? no, note? no; add: title, due? yes and the day, note? no; item 1 by its key; then nothing
-    val lines = List("add", "milk", "n", "n", "add", "bread", "y", "2026-10-25", "n", "1")
+    // add: title, no due, no note; add: title, the due day, no note; item 1 by its key; then nothing
+    val lines = List("add", "milk", "", "", "add", "bread", "2026-10-25", "", "1")
     val (printed, ended) = run(io.console(lines)(term.handle(Todo.keeping)))
     assertEquals(ended, None)   // no input left is a quit: the program has no end of its own
     assert(printed.exists(_.contains("added: milk")) && printed.exists(_.contains("due 2026-10-25")),
@@ -57,7 +57,7 @@ class TodoFacesSuite extends munit.FunSuite {
 
   test("the HTML pages: the form posted, an item a link, the list shown") {
     val html = HtmlFace()
-    val pages = html.handle(Todo.keeping)
+    val pages = html.handle(Todo.keeping, ids = okay.faces.Sessions.counting("s"))
     val form = "application/x-www-form-urlencoded"
     val requests = List(Request.get("/"), Request.get("/s/s1"), Request.post("/s/s1/act/add", "title=milk", form),
       Request.post("/s/s1/act/add", "title=bread&due=2026-10-25", form), Request.get("/s/s1"),
@@ -73,7 +73,7 @@ class TodoFacesSuite extends munit.FunSuite {
 
   test("the REST resources: the form as a tool with its schema, an item by key, a bad form a 400") {
     val rest = RestFace()
-    val sessions = rest.handle(Todo.keeping, vocabulary = marks.vocabulary)
+    val sessions = rest.handle(Todo.keeping, vocabulary = marks.vocabulary, ids = okay.faces.Sessions.counting("s"))
     val requests = List(Request.post("/sessions", "", "application/json"),
       Request.json("POST", "/sessions/s1/act/add", obj("title" -> Str("milk"))),
       Request.json("POST", "/sessions/s1/act/ref", obj("key" -> Str("1"))),

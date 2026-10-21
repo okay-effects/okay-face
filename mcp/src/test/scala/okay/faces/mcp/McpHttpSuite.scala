@@ -39,7 +39,7 @@ class McpHttpSuite extends munit.FunSuite {
     "initialize opens a session named by the header; list and call with it; a notification alone is 202; " +
       "a batch answers an array; delete ends it") {
     val first = talk(service, post(init)).head
-    assertEquals(first.status, 200); val id = first.headers("Mcp-Session-Id"); assertEquals(id, "m1")
+    assertEquals(first.status, 200); val id = first.headers("Mcp-Session-Id"); assert(id.length == 32, id)
     assert(first.body.contains("protocolVersion"), first.body)
     val rs = talk(service,
       post(msg(Rpc.Notify("notifications/initialized", Json.Obj.empty)), Some(id)),

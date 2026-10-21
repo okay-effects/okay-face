@@ -23,7 +23,7 @@ class HandlesSuite extends munit.FunSuite {
 
   test("REST: a session opened, the board as JSON, the one action ref, no back, the marks served") {
     val rest = RestFace() // bound first: Scala 3 widens a word on an unbound face to Any
-    val service = rest.handle(Noughts.games, vocabulary = marks.vocabulary)
+    val service = rest.handle(Noughts.games, vocabulary = marks.vocabulary, ids = okay.faces.Sessions.counting("s"))
     val rs = run(https.scripted(List(Request("POST", "/sessions"), Request.get("/sessions/marks")))(
         https.serve[H](service)))._1
     assertEquals(rs.map(_.status), List(201, 200))
@@ -35,7 +35,7 @@ class HandlesSuite extends munit.FunSuite {
     "HTML: the base opens a session, the page is titled by the heading shown, the cells are links, no back, " +
       "the look at /okay.css") {
     val html = HtmlFace()
-    val service = html.handle(Noughts.games, look = Some(look))
+    val service = html.handle(Noughts.games, look = Some(look), ids = okay.faces.Sessions.counting("s"))
     val rs = run(https.scripted(List(Request.get("/s"), Request.get("/s/s1"), Request.get("/okay.css")))(
         https.serve[H](service)))._1
     assertEquals(rs.map(_.status), List(303, 200, 200))

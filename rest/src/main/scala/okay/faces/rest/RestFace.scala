@@ -4,7 +4,7 @@ import okay.effects.{Effects, Runner}
 import okay.effects.tagless.{Program, Tagless}
 import okay.effects.json.Json
 import okay.effects.shape.JsonSchema
-import okay.faces.{Action, Chosen, Face, Faces, Look, Rejected, Step, View, ViewJson, Vocabulary}
+import okay.faces.{Action, Chosen, Face, Faces, Look, Rejected, Sessions => Store, Step, View, ViewJson, Vocabulary}
 import okay.http.{Http, Https, Request, Response}
 import okay.http.rest.{Link, Resource, Rests, Trouble}
 
@@ -26,10 +26,9 @@ class RestFace[F <: Runner with Singleton](implicit val fx: F) {
   import rests.{Route, dispatch, get, post}
 
   final class Sessions[A, R[_]](open: () => faces.Dialogue[A, R], base: String = "/sessions",
-    vocabulary: Vocabulary = Vocabulary.empty) {
-    private val sessions = scala.collection.mutable.Map.empty[String, faces.Dialogue[A, R]]
-    private var count = 0
-    private def fresh(): String = { count += 1; s"s$count" }
+    vocabulary: Vocabulary = Vocabulary.empty, ids: () => String = Store.random) {
+    // the sessions, by id: random ids, forgotten when idle an hour, at most a thousand (`Sessions` in core)
+    private val sessions = new Store[faces.Dialogue[A, R]](ids)
 
     def resource(id: String, d: faces.Dialogue[A, R]): Resource ! R = d.view.flatMap(v =>
       d.actions.flatMap(as =>
@@ -51,7 +50,7 @@ class RestFace[F <: Runner with Singleton](implicit val fx: F) {
         pure[Response, R](if (vocabulary.isEmpty) Trouble(404, "no marks").response else Response.json(vocabulary.json))
       },
       post[R](base) { (_, _) =>
-        val id = fresh(); val d = open(); sessions(id) = d;
+        val d = open(); val id = sessions.open(d);
         resource(id, d).map(_.response(201).header("Location", s"$base/$id"))
       },
       get[R](s"$base/:id") { (ps, _) =>
@@ -83,15 +82,16 @@ class RestFace[F <: Runner with Singleton](implicit val fx: F) {
     def service: Request => Response ! R = dispatch[R](routes)
   }
   def sessions[A, R[_]](open: () => faces.Dialogue[A, R], base: String = "/sessions",
-    vocabulary: Vocabulary = Vocabulary.empty): Sessions[A, R] = new Sessions[A, R](open, base, vocabulary)
+    vocabulary: Vocabulary = Vocabulary.empty, ids: () => String = Store.random): Sessions[A, R] =
+    new Sessions[A, R](open, base, vocabulary, ids)
 
   /** THE HANDLER: a program of the face as a JSON API, a service over `Http` — `POST base` opens a session, the
    * resource
    * at `base/{id}` with its links, the marks at `base/marks` — for a server, or the remote face */
   def handle[A](p: Program[A, okay.faces.Face], base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty,
-    back: Boolean = true): Request => Response ! H =
+    back: Boolean = true, ids: () => String = Store.random): Request => Response ! H =
     sessions[A, H](
-      () => faces.dialogue[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), back), base, vocabulary).service
+      () => faces.dialogue[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), back), base, vocabulary, ids).service
   /** the same served: `run(new RestFace().serve(Noughts.games, port, host))`; with a `page`, the thin page at `/` that
    * plays
    * the sessions from the browser — the remote face's script (`okay.faces.laminar.RemotePage`, linked), knowing no

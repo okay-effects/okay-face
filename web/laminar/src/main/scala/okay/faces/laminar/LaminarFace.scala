@@ -7,7 +7,7 @@ import okay.effects.tagless.Program
 import okay.effects.async.{Async, Asynchrony}
 import okay.effects.json.Json
 import okay.effects.shape.{Problems, Schema}
-import okay.faces.{Face, Action, Chosen, Css, Faces, Look, Rejected, Role, Step, View}
+import okay.faces.{Face, Action, Chosen, Css, Faces, Look, Rejected, Role, Step, View, Words}
 import org.scalajs.dom
 import scala.concurrent.ExecutionContext
 
@@ -29,10 +29,10 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
   /** the row done: the rest run at once */
   def element[A](first: Step[A, ({ type L[X] = X ! Pure })#L] ! Pure,
     done: A => Unit = (_: A) => (),
-    browserHistory: Boolean = false, back: Boolean = true): HtmlElement = {
+    browserHistory: Boolean = false, back: Boolean = true, words: Words = Words.english): HtmlElement = {
     type M[X] = X ! Pure
     new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = k(run(m)) }, done, browserHistory,
-      back).element(first)
+      back, words).element(first)
   }
 
   /** THE HANDLER: a program of the face as an element — the dialogue run here, in the browser, with its look as a
@@ -41,7 +41,8 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
   def handle[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (),
     back: Boolean = true): HtmlElement =
     div(look.map(LaminarFace.stylesheet).toList,
-      element[A](faces.steps[A, okay.faces.Face, Pure](faces.of(p)), done, back = back))
+      element[A](faces.steps[A, okay.faces.Face, Pure](faces.of(p)), done, back = back,
+        words = look.map(_.words).getOrElse(Words.english)))
   def mount[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (),
     back: Boolean = true): Unit = {
     val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
@@ -50,18 +51,20 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
 
   /** `Async` remaining: the rest run to a `Future` — a program that waits (a fetch, a timer) between steps */
   def elementAsync[A](first: Step[A, ({ type L[X] = X ! Async })#L] ! Async, done: A => Unit = (_: A) => (),
-    browserHistory: Boolean = false, back: Boolean = true)(implicit ec: ExecutionContext): HtmlElement = {
+    browserHistory: Boolean = false, back: Boolean = true, words: Words = Words.english)(
+    implicit ec: ExecutionContext): HtmlElement = {
     type M[X] = X ! Async
     val asynchrony = new Asynchrony[fx.type]()(fx, ec)
     new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = asynchrony.toFuture(m).foreach(k) },
-      done, browserHistory, back).element(first)
+      done, browserHistory, back, words).element(first)
   }
 
   final case class Shown[A, M[_]](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]],
     problems: Problems, busy: Boolean)
 
   /** one machine per element: its state, how it runs a rest, what it does at the end */
-  final class Machine[A, M[_]](lower: Lower[M], done: A => Unit, browserHistory: Boolean, allowsBack: Boolean = true) {
+  final class Machine[A, M[_]](lower: Lower[M], done: A => Unit, browserHistory: Boolean, allowsBack: Boolean = true,
+    words: Words = Words.english) {
     val state: Var[Shown[A, M]] =
       Var(Shown(Vector.empty, Step.Told(View.Empty, null.asInstanceOf[M[Step[A, M]]]), Nil, Nil, busy = true))
 
@@ -118,20 +121,21 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
     def render(s: Shown[A, M]): HtmlElement = {
       val notices = s.told.map(v => sectionTag(cls := Role.Told.classes, Views.element(v)))
       s.step match {
-        case Step.Done(_) => div(notices, div(cls := "okay-done", Views.element(okay.faces.Session.over)))
+        case Step.Done(_) => div(notices, div(cls := "okay-done", Views.element(words.over)))
         case Step.Told(_, _) => div(notices, div(cls := "okay-busy", "…"))
         case w: Step.Waiting[A, M] @unchecked =>
           val problems =
             if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
           val backButton = if (!allowsBack || s.history.isEmpty) emptyNode
           else
-            button(typ := "button", cls := Role.Back.classes, "Back", onClick --> Observer[dom.MouseEvent](_ => back()))
+            button(typ := "button", cls := Role.Back.classes, words.back,
+              onClick --> Observer[dom.MouseEvent](_ => back()))
           val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref"))
             Some(key => choose(w, Chosen("ref", Json.obj("key" -> Json.Str(key)))))
           else None
           div(notices, sectionTag(cls := Role.View.classes, Views.element(w.view, ref)), problems,
             navTag(cls := Role.Actions.classes,
-              w.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(w, _), s.busy)), backButton))
+              w.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(w, _), s.busy, words)), backButton))
       }
     }
   }
@@ -169,12 +173,13 @@ object Views {
  * for none, a list of leaves a textarea one per line. What is typed becomes JSON the action's shape decodes — the face
  * does not validate, the shape does, and the problems come back */
 object Forms {
-  def action[A](a: Action[A], choose: Chosen => Unit, busy: Boolean): HtmlElement = a.params.erased match {
+  def action[A](a: Action[A], choose: Chosen => Unit, busy: Boolean, words: Words = Words.english): HtmlElement =
+    a.params.erased match {
     case Schema.Record(fields) if fields.isEmpty =>
       button(typ := "button", cls := Role.Action.classes, dataAttr("action") := a.name, disabled := busy, a.label,
         onClick --> Observer[dom.MouseEvent](_ => choose(Chosen.plain(a.name))))
     case schema =>
-      val inputs = new Inputs
+      val inputs = new Inputs(words)
       val body = inputs.of(Nil, schema)
       form(cls := Role.Form.classes, dataAttr("action") := a.name, a.doc.map(d => p(cls := Role.Doc.classes, d)), body,
         button(typ := "submit", cls := Role.Action.classes, disabled := busy, a.label),
@@ -182,7 +187,7 @@ object Forms {
   }
 
   /** the inputs of a form, kept by path, read at submit */
-  final class Inputs {
+  final class Inputs(words: Words = Words.english) {
     private val inputs = scala.collection.mutable.Map.empty[List[String], ReactiveHtmlElement[dom.html.Input]]
     private val selects = scala.collection.mutable.Map.empty[List[String], ReactiveHtmlElement[dom.html.Select]]
     private val areas = scala.collection.mutable.Map.empty[List[String], ReactiveHtmlElement[dom.html.TextArea]]
@@ -219,18 +224,18 @@ object Forms {
         def add(): Unit = { ids.update(_ :+ next); next += 1 }
         (0 until (min max 0)).foreach(_ => add())
         items(path) = () => ids.now()
-        val words: String = field.flatMap(_.label).orElse(field.map(_.name)).orElse(path.lastOption).getOrElse("items")
-        fieldSet(cls := Role.Field.classes, legend(cls := Role.Label.classes, words),
+        val legendText = field.flatMap(_.label).orElse(field.map(_.name)).orElse(path.lastOption).getOrElse("items")
+        fieldSet(cls := Role.Field.classes, legend(cls := Role.Label.classes, legendText),
           children <-- ids.signal.split(identity) { (i, _, _) =>
             div(cls := "okay-item", dataAttr("item") := i.toString, of(path :+ i.toString, of0),
-              button(typ := "button", cls := Role.Back.classes, dataAttr("remove") := i.toString, "Remove",
+              button(typ := "button", cls := Role.Back.classes, dataAttr("remove") := i.toString, words.remove,
                 onClick --> Observer[dom.MouseEvent](_ => ids.update(_.filterNot(_ == i)))))
           },
           button(typ := "button", cls := Role.Action.classes, dataAttr("add") := id(path),
-            disabled <-- ids.signal.map(xs => max.exists(xs.size >= _)), "Add",
+            disabled <-- ids.signal.map(xs => max.exists(xs.size >= _)), words.add,
             onClick --> Observer[dom.MouseEvent](_ => add())))
       case Schema.Many(_, _, _) =>
-        val area = textArea(idAttr := id(path), placeholder := "one per line")
+        val area = textArea(idAttr := id(path), placeholder := words.onePerLine)
         areas(path) = area
         labelled(path, field, area)
       case leaf =>

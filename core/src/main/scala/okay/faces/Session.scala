@@ -13,7 +13,8 @@ object Session {
   /** what a face shows when the dialogue is over: that it is — the program's value is the program's, not shown */
   val over: View = View.info("done")
 }
-abstract class Session[F <: Effects with Singleton, A, R[_]](val fx: F, val allowsBack: Boolean) {
+abstract class Session[F <: Effects with Singleton, A, R[_]](val fx: F, val allowsBack: Boolean,
+  over: View = Session.over) {
   // `allowsBack`: whether the dialogue offers going back at all; `fx` the implementation, so that any face over it
   // takes a session made anywhere over it — the type is `Session[Machine.type, A, R]`, no path in it. Made by
   // `Faces.dialogue`, which gives `first`
@@ -49,7 +50,7 @@ abstract class Session[F <: Effects with Singleton, A, R[_]](val fx: F, val allo
   /** the same apart: what was told, and the step's own view — for a face that shows them differently */
   def shown: (Vector[View], View) ! R = current.map {
     case w: Step.Waiting[A, M] @unchecked => (told, w.view)
-    case Step.Done(_) => (told, Session.over)
+    case Step.Done(_) => (told, over)
     case Step.Told(v, _) => (Vector.empty, v)
   }
   def actions: List[Action[_]] ! R = current.map { case w: Step.Waiting[A, M] @unchecked => w.actions; case _ => Nil }
