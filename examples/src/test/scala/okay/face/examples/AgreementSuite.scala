@@ -35,7 +35,17 @@ class AgreementSuite extends munit.FunSuite {
   }
   test("the reference: four views — three boards offered, the end told — and X won") {
     assertEquals(views.size, 4); assertEquals(outcome, Won('X'))
-    assert(views.last match { case View.Group(_, children) => children.contains(View.text("X won")); case _ => false }, views.last.toString)
+    assert(views.last match { case View.Group(_, children) => children.contains(game.marks.mark(game.Result, View.text("X won"))); case _ => false }, views.last.toString)
+  }
+  test("the game's typed mark: named from its case, carried by HTML as a class, by REST as JSON, by Swing as a name, read back as the type") {
+    val line = game.marks.mark(game.Result, View.text("X won"))
+    assertEquals(game.marks.name(game.Result), "result"); assertEquals(game.marks.on(line), Some(game.Result))
+    assert(Html.view(line).contains("""<span class="okay-mark okay-mark-result"><p class="okay-text">X won</p></span>"""), Html.view(line))
+    assertEquals(ViewJson.encode(line), obj("type" -> Str("marked"), "mark" -> Str("result"), "view" -> obj("type" -> Str("text"), "text" -> Str("X won"))))
+    assertEquals(okay.face.swing.Views.component(line).getName, "okay-mark-result")
+    assertEquals(game.marks.vocabulary.markdown, "- result: how the game ended: who won, or a draw")
+    val css = okay.face.Css(okay.face.Look(okay.face.Theme.light, okay.face.Style.default.adjust(game.marks.role(game.Result))(_.copy(bold = true))))
+    assert(css.contains(".okay-mark-result{font-weight:bold}"), css)
   }
 
   test("the terminal shows every view as the test face's, rendered, in order, and ends the same") {

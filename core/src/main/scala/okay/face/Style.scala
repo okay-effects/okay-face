@@ -192,10 +192,13 @@ object Css {
       val r = look.style(role)
       val cells = if (role == Role.Table) Some(s".okay-table th,.okay-table td{${declarations(r.copy(background = None))}}") else None
       val own = declarations(if (role == Role.Table) r.copy(border = None, pad = 0) else r)
-      (if (own.isEmpty) Nil else List(s".${role.cls}{$own}")) ++ cells
+      (if (own.isEmpty) Nil else List(s".${selector(role)}{$own}")) ++ cells
     }
     (base :: blocks).mkString("\n")
   }
+
+  /** a role's class as a selector: a qualified mark's dot escaped, `okay-mark-shop\\.price` */
+  def selector(role: Role): String = role.cls.replace(".", "\\.")
 
   def declarations(r: Rule): String = {
     val ds = List(

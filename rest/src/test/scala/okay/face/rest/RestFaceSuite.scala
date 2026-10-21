@@ -6,7 +6,7 @@ import okay.effects.json.Json.{Str, num, obj}
 import okay.effects.machine.Machine
 import okay.effects.shape.Shape
 import okay.effects.shape.Shape.{field, int, record, text}
-import okay.face.{Face, Faces, View}
+import okay.face.{Face, Faces, View, Vocabulary}
 import okay.http.{Http, Https, Request}
 
 class RestFaceSuite extends munit.FunSuite {
@@ -43,6 +43,15 @@ class RestFaceSuite extends munit.FunSuite {
     assert(rs(3).body.contains("Greet Ann, 41?") && rs(3).body.contains("\"rel\":\"yes\"") && rs(3).body.contains("\"rel\":\"back\""), rs(3).body)
     assert(rs(4).body.contains("Who are you?"))
     assertEquals(rs(5).headers("Content-Type"), "application/problem+json")
+  }
+  test("the marks: a link in the resource and GET /sessions/marks when the sessions have a vocabulary; a 404 without") {
+    val vocab = Vocabulary("price" -> "the amount due")
+    val sessions = face.sessions[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), vocabulary = vocab)
+    val rs = Machine.run(https.scripted(List(Request("POST", "/sessions"), Request.get("/sessions/marks")))(https.serve[H](sessions.service)))._1
+    assert(rs.head.body.contains("\"rel\":\"marks\"") && rs.head.body.contains("/sessions/marks"), rs.head.body)
+    assertEquals(rs(1).status, 200); assertEquals(rs(1).body, """[{"name":"price","doc":"the amount due"}]""")
+    assertEquals(talk(Request("POST", "/sessions"), Request.get("/sessions/marks")).map(_.status), List(201, 404))
+    assert(!talk(Request("POST", "/sessions")).head.body.contains("\"rel\":\"marks\""))
   }
   test("to the end: done, no actions but the links to self") {
     val rs = talk(Request("POST", "/sessions"), Request.json("POST", "/sessions/s1/act/submit", obj("name" -> Str("Bo"), "age" -> num(30))), Request("POST", "/sessions/s1/act/yes"))

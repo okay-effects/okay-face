@@ -18,8 +18,9 @@ One program, these faces:
 | REST | `rest` | the dialogue as a JSON API with links and affordances; a domain effect as resources, and performed from afar over `Fetch` — on [okay-http](https://github.com/okay-effects/okay-http) |
 | HTML | `html` | pages from the server, structural HTML5, no script; the look as `/okay.css` |
 
-The look is data (`specs/style.md`): a `Theme` of tokens and a `Style` of rules by `Role`, compiled by each face. The
-other role, a domain effect as a service: okay-simple's `Describe` projected here — `RestDomains`, `McpFace.domain`,
+The look is data (`specs/style.md`): a `Theme` of tokens and a `Style` of rules by `Role`, compiled by each face; an
+application's own words on views are typed marks (`Marks[M]` over a sealed set with a `Shape`), one source for the
+look, the wire and the vocabulary an agent is told. The other role, a domain effect as a service: okay-simple's `Describe` projected here — `RestDomains`, `McpFace.domain`,
 `remote`. Read [specs/face-core.md](specs/face-core.md), [specs/faces.md](specs/faces.md), [specs/web.md](specs/web.md).
 The example is noughts and crosses in `examples/` (`sbt "examples/runMain okay.face.examples.NoughtsTerminal"`,
 `NoughtsSwing` in a window); the first application is [verity](https://github.com/okay-effects/verity), a keeper of

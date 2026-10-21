@@ -6,7 +6,7 @@ import okay.effects.json.Json.{Str, num, obj}
 import okay.effects.machine.Machine
 import okay.effects.shape.Shape
 import okay.effects.shape.Shape.{field, int, record, text}
-import okay.face.{Face, Faces, View}
+import okay.face.{Face, Faces, View, Vocabulary}
 import okay.mcp.{Link, Rpc, Servers}
 
 /** THE MCP FACE over a scripted link: the agent sees the actions as tools, calls one, is told list_changed, is refused a
@@ -74,5 +74,24 @@ class McpFaceSuite extends munit.FunSuite {
     val v = View.stack(View.heading("T"), View.table("a", "b")(Vector(View.text("1"), View.Masked("••"))), View.fields("k" -> View.text("v")), View.items(View.text("x")))
     assertEquals(Markdown.view(v), "# T\n\n| a | b |\n| --- | --- |\n| 1 | •• |\n\n- **k:** v\n\n- x")
     assertEquals(Json.print(okay.face.ViewJson.encode(View.Masked("••"))), """{"type":"masked","hint":"••"}""")
+  }
+  test("a mark in the vocabulary is shown in the Markdown; one not in it is seen through") {
+    val vocab = Vocabulary("price" -> "the amount due")
+    val v = View.stack(View.marked("price", View.text("12 €")), View.marked("badge", View.text("new")), View.items(View.marked("price", View.text("3"))), View.marked("price", View.items(View.text("a"))))
+    assertEquals(Markdown.view(v), "12 €\n\nnew\n\n- 3\n\n- a")
+    assertEquals(Markdown.view(v, vocab), "**price:** 12 €\n\nnew\n\n- price: 3\n\n**price**\n\n- a")
+  }
+  test("a server with a vocabulary tells it in the instructions and serves it as a resource") {
+    val vocab = Vocabulary("price" -> "the amount due")
+    val server = face.server[String, L]("greeting", "1", steps[String, F, L](greeting), instructions = Some("Greet."), vocabulary = vocab)
+    val replies = Machine.run(servers.links.scripted(List(init,
+      line(Rpc.Request(num(2), "resources/list", Json.Obj.empty)), line(Rpc.Request(num(3), "resources/read", obj("uri" -> Str("face://marks"))))))(servers.serve[L](server)))._1
+    val texts = replies
+    assert(texts.head.contains("Greet.\\n\\nMarks on views, and what they mean:\\n- price: the amount due"), texts.head)
+    assert(texts(1).contains("face://marks"), texts(1))
+    assert(texts(2).contains("""[{\"name\":\"price\",\"doc\":\"the amount due\"}]"""), texts(2))
+    val plain = face.server[String, L]("greeting", "1", steps[String, F, L](greeting))
+    val none = Machine.run(servers.links.scripted(List(init, line(Rpc.Request(num(2), "resources/list", Json.Obj.empty))))(servers.serve[L](plain)))._1
+    assert(!none(1).contains("face://marks"), none(1))
   }
 }

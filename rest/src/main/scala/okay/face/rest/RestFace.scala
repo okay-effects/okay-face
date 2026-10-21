@@ -3,7 +3,7 @@ package okay.face.rest
 import okay.effects.Effects
 import okay.effects.json.Json
 import okay.effects.shape.JsonSchema
-import okay.face.{Action, Chosen, Faces, Rejected, View, ViewJson}
+import okay.face.{Action, Chosen, Faces, Rejected, View, ViewJson, Vocabulary}
 import okay.http.{Http, Https, Request, Response}
 import okay.http.rest.{Link, Resource, Rests, Trouble}
 
@@ -21,17 +21,19 @@ class RestFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
   val rests: Rests[faces.fx.type] = new Rests[faces.fx.type]()(faces.fx)
   import rests.{Route, dispatch, get, post}
 
-  final class Sessions[A, R[_]](open: () => faces.Dialogue[A, R], base: String = "/sessions") {
+  final class Sessions[A, R[_]](open: () => faces.Dialogue[A, R], base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty) {
     private val sessions = scala.collection.mutable.Map.empty[String, faces.Dialogue[A, R]]
     private var count = 0
     private def fresh(): String = { count += 1; s"s$count" }
 
     def resource(id: String, d: faces.Dialogue[A, R]): Resource ! R = d.view.flatMap(v => d.actions.flatMap(as => d.done.flatMap(over => d.listening.map { listening =>
       val links = as.map(a => Link(a.name, s"$base/$id/act/${a.name}", "POST", Some(a.doc.getOrElse(a.label)), Some(JsonSchema.of(a.params.erased)))) ++
-        List(Link("self", s"$base/$id")) ++ (if (d.canGoBack) List(Link("back", s"$base/$id/back", "POST")) else Nil)
+        List(Link("self", s"$base/$id")) ++ (if (d.canGoBack) List(Link("back", s"$base/$id/back", "POST")) else Nil) ++
+        (if (vocabulary.isEmpty) Nil else List(Link("marks", s"$base/marks", "GET", Some("the application's marks on views, and what they mean"))))
       Resource(Json.obj("view" -> ViewJson.encode(v), "done" -> Json.Bool(over), "back" -> Json.Bool(d.canGoBack), "listening" -> Json.Bool(listening), "actions" -> Json.Arr(as.map(_.affordance.json).toVector)), links)
     })))
     def routes: List[Route[R]] = List(
+      get[R](s"$base/marks") { (_, _) => pure[Response, R](if (vocabulary.isEmpty) Trouble(404, "no marks").response else Response.json(vocabulary.json)) },
       post[R](base) { (_, _) => val id = fresh(); val d = open(); sessions(id) = d; resource(id, d).map(_.response(201).header("Location", s"$base/$id")) },
       get[R](s"$base/:id") { (ps, _) => sessions.get(ps("id")).fold(pure[Response, R](Trouble(404, "no such session").response))(d => resource(ps("id"), d).map(_.response())) },
       post[R](s"$base/:id/act/:name") { (ps, req) => sessions.get(ps("id")) match {
@@ -52,7 +54,7 @@ class RestFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
       } })
     def service: Request => Response ! R = dispatch[R](routes)
   }
-  def sessions[A, R[_]](open: () => faces.Dialogue[A, R], base: String = "/sessions"): Sessions[A, R] = new Sessions[A, R](open, base)
+  def sessions[A, R[_]](open: () => faces.Dialogue[A, R], base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty): Sessions[A, R] = new Sessions[A, R](open, base, vocabulary)
 }
 
 object RestFace {

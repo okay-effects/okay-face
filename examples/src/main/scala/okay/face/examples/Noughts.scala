@@ -2,7 +2,7 @@ package okay.face.examples
 
 import okay.effects.Effects
 import okay.effects.shape.Shape
-import okay.face.{Action, Face, Faces, View}
+import okay.face.{Action, Face, Faces, Marks, View}
 
 /** NOUGHTS AND CROSSES: the person is X, the program O. A loop of offers — the board shown, the free cells the one
  * action's choices — branching on the outcome, a `Tell` at the end; back is the face's and undoes a move. The same
@@ -27,10 +27,14 @@ class Noughts[F <: Effects](val faces: Faces[F]) {
   sealed trait Move
   final case class Play(cell: Int) extends Move
   case object Restart extends Move
+  /** THE GAME'S OWN MARKS, typed: the result line is marked `result`; a style may dress it, an agent is told what it is */
+  sealed trait Mark
+  case object Result extends Mark
+  val marks: Marks[Mark] = Marks.of(Shape.derived[Mark]).explained(Result -> "how the game ended: who won, or a draw")
 
   def picture(board: Board): View = View.stack(View.heading("Noughts and crosses"),
     View.Table(Vector("", "", ""), board.cells.map(c => View.Text(c.fold("·")(_.toString))).grouped(3).toVector))
-  def ended(board: Board, o: Outcome): View = View.stack(picture(board), View.text(o match { case Won(c) => s"$c won"; case Draw => "a draw" }))
+  def ended(board: Board, o: Outcome): View = View.stack(picture(board), marks.mark(Result, View.text(o match { case Won(c) => s"$c won"; case Draw => "a draw" })))
 
   def game[R[_]](board: Board)(implicit in: In[Face, R]): Outcome ! R = board.outcome match {
     case Some(o) => show[R](ended(board, o)).map(_ => o)

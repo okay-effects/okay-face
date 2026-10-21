@@ -37,6 +37,36 @@ The HTML and Laminar faces mark the SAME classes, so one stylesheet serves both;
 same words, and the Swing tests find them by those names. The vocabulary is a contract, as `ViewJson` is for REST:
 an application may write its own stylesheet against it instead of taking the compiled one.
 
+## Marks: the application's own words
+
+The roles are the library's; an application has words of its own — "price", "overdue", "badge" — and says them as
+MARKS: `View.Marked(mark, view)` is a view with the application's word on it, `Role.Mark(mark)` the key a style's
+rule is by (classes `okay-mark okay-mark-price`). A mark changes nothing about the view within; it is the word a style
+and a reader may act on. On the wire the mark is a string, as a value must be.
+
+TYPED (2026-10-21, `Marks[M]` in core): the application says its marks as a TYPE, a sealed set of cases with a
+`Shape` — Scala 3's `enum`, a sealed trait of case objects on 2.13 — and the strings are made for it:
+
+```scala
+sealed trait Mine; object Mine { case object Price extends Mine; case object DueDate extends Mine }
+val marks = Marks.of(Shape.derived[Mine]).explained(Mine.Price -> "the amount due, in euro")
+marks.mark(Mine.Price, View.text("12 €"))      // View.Marked("price", …): the case's name, kebab, as everywhere
+marks.role(Mine.Price)                          // Role.Mark("price"), for style.adjust(…)
+marks.on(view): Option[Mine]                    // the mark back as the type
+marks.vocabulary                                // the marks as data, each with its meaning
+```
+
+One source for three things: the look (a rule by `marks.role`), the wire (the string in `ViewJson`), and WHAT A
+READER IS TOLD — the `Vocabulary` is a list of `(name, doc)`, told to an agent in the MCP server's instructions and
+served as the resource `face://marks`, served by REST at `GET base/marks` with a `marks` link in every resource, and
+what makes the Markdown projection SHOW a mark (`**price:** 12 €`) instead of seeing through it. A mark the vocabulary
+does not know stays transparent, so a face that is not told anything behaves as before. A `Vocabulary` may also be
+written by hand, `Vocabulary("price" -> "the amount due")`, and `Marks.of(Shape.text)` is the untyped case.
+
+QUALIFIED: two vocabularies in one application may collide on a word; `marks.qualified("shop")` says `shop.price` —
+the view, the role and the vocabulary all carry the qualified name, the class is `okay-mark-shop.price`, and `Css`
+escapes the dot in the selector. Optional, short, and the application's: the library does not invent namespaces.
+
 ## The interpreters
 
 | Face | Interpreter | What a rule becomes |
@@ -79,8 +109,6 @@ look is another stylesheet. `web/laminar`: the `<style>` element from a look; th
 
 - Dark mode: DONE as `Css(light, dark)` — one stylesheet, the light theme's tokens on `:root`, the dark theme's under
   `@media (prefers-color-scheme: dark)`; the rules are the light look's, and stand under both since they name tones.
-- Per-application roles: DONE as marks — `View.Marked("price", view)` and `Role.Mark("price")`, a case of the sealed
-  `Role` with a name, so the vocabulary of parts stays the library's and an application's marks are explicit: a rule
-  for a mark is set in the application's `Style`, `Css` emits `.okay-mark-price` for every mark the style names, Swing
-  dresses the component by the mark's name, the terminal paints by it. A mark with no rule is the view within, unmarked.
+- Per-application roles: DONE as marks, typed by `Marks[M]` — see "Marks" above. A mark with no rule is the view
+  within, unmarked; a mark no vocabulary names is seen through by the readers.
 - Fonts by name: `Family` is a kind, each face picks the face. A theme with a web font is an application's own CSS.
