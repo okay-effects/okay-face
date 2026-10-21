@@ -495,7 +495,10 @@ After step 4 the model holds or it does not, before any web platform is paid for
   services); `McpFace.handle(game)` the server's loop over `Link` for `new Links().stdio(…)`, named, instructed and
   marked by the scenario's `title`, `instructions`, `vocabulary`; `LaminarFace.mount(game)` the dialogue in the page,
   `RemoteFace.mount(fetch)` the thin page; `Plays.handle(game)(script)` the test face. One scenario, seven mains of a line.
-  With the transport inside, a line: `run(McpFace.stdio(game))`, `run(Terminal.console(game))` — the `handle` words keep
+  A browser cut's page is the HTML face's `Shell.handle(game, "/" -> script, "/local" -> script)`: each page at its
+  path, its script beside it, the look at `/okay.css`; and services share a port by okay-http's `Https.byPrefix`
+  (`"/sessions" -> RestFace.handle(game), "/s" -> HtmlFace.handle(game), "/" -> Shell.handle(…)`), so the web main is
+  the mounts and where the linked scripts are. With the transport inside, a line: `run(McpFace.stdio(game))`, `run(Terminal.console(game))` — the `handle` words keep
   the transport's effect in the row for a scripted one. Scala 3 wants a handled program bound to a value, and a handler
   (`new Links()`, `new JdkHttp()`) too, before the one is given to the other: the dependent types resolve on names, not
   inside an argument (Scala 2 takes the nesting); the words with the transport inside do that binding themselves.
