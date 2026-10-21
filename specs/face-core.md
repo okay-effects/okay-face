@@ -426,7 +426,7 @@ hold conveniences (context bounds, `Mirror` derivation goes to a separate Scala-
 
 | Module | Artifact | Package | Content | Depends on |
 |---|---|---|---|---|
-| `core/` | `okay-faces` | `okay.faces` | View, Action, Face, Step; Role, Theme, Style, Look, Css (specs/style.md); Affordance, ViewJson, FormJson (the wire); `Describe` is okay-simple's | `okay-effects`, `okay-effects-shape` (and `json` through it) |
+| `core/` | `okay-faces` | `okay.faces` | View, Action, Face, Step, Faces (the words, `steps`), Session (a counterpart's dialogue), Sessions (by id, expiring); Role, Theme, Style, Look, Words, Css (specs/style.md); Marks; Affordance, ViewJson, FormJson (the wire); the package object: the faces over `Tagless`, so a program is a value; `Describe` is okay-simple's | `okay-effects`, `okay-effects-shape` (and `json` through it), `okay-effects-tagless` |
 | `test/` | `okay-faces-test` | `okay.faces.test` | the scripted face: `Script`, `play`, assertions on views | core |
 | `term/` | `okay-faces-term` | `okay.faces.term` | the line terminal face, a program in `Console` | core, `okay-effects-io` |
 | `mcp/` | `okay-faces-mcp` | `okay.faces.mcp` | JSON-RPC over stdio; dialogue and domain projections | core (JVM, Native) |
@@ -436,14 +436,16 @@ hold conveniences (context bounds, `Mirror` derivation goes to a separate Scala-
 | `web/airstream` | `okay-faces-airstream` | `okay.faces.airstream` | Airstream's streams and okay's, both ways | okay-effects-stream, async; airstream (JS) |
 | `web/laminar` | `okay-faces-laminar` | `okay.faces.laminar` | the Laminar face; the remote face over the REST face | web/airstream, okay-http; laminar (JS) |
 | `web/waypoint` | `okay-faces-waypoint` | `okay.faces.waypoint` | `Navigation` handled by Waypoint's router | web/laminar; waypoint (JS) |
-| `examples/` | — | `okay.faces.examples` | noughts and crosses: the terminal, the window, and the faces' agreement | core, test, term, swing, rest, html |
+| `examples/` | — | `okay.faces.examples` | noughts and crosses and a to-do list, each on every face: one-line mains, the faces' agreement, the pages under jsdom | core, test, term, swing, rest, html, mcp; laminar (JS) |
+| `docs/check` | — | `docs.check` | the README's code blocks, compiled and run (`docsCheck/test`) | every JVM module |
 
 Not here, and why: `screen/` (a keyed widget tree with a diff) was not needed — Laminar's `Var` of the step is the
 diff; `graphql/` is a face not asked for yet; `interop/okay-*` bridges to okay, the platform, wait for okay itself.
 
 Build: sbt, cross `3.3.8` / `2.13.18`, `crossproject` for JVM always, JS and Native when asked, as okay-simple's build;
-`okay-effects` 0.1.0 from the okay-effects Pages repository; munit; zero other dependencies. `organization
-io.github.okay-effects`, Apache-2.0.
+`okay-effects` 0.1.1-SNAPSHOT published locally until released; munit; zero other dependencies. `organization
+io.github.okay-effects`, Apache-2.0. Lines at most 120 wide, `.scalafmt.conf` at the root. Two pictures in `docs/`:
+`okay-faces-how.png` (one step of the game on every face) and `okay-faces-levels.png` (the levels), the README's.
 
 ## The example: noughts and crosses
 

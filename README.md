@@ -1,53 +1,46 @@
 # okay-faces — an application's capabilities as effects, its faces as handlers
 
-An application has several faces: a screen for a person, tools for an agent, resources for a program. Each shows WHAT
-IS THERE and WHAT CAN BE DONE. okay-faces writes that once, as a program over an algebraic effect, and each face is a
-handler. Built on [okay-simple](https://github.com/okay-effects/okay-simple)'s interface, for Scala 3 and 2.13, over
-any of its implementations; the data an application speaks — `Json`, `Shape`, `Schema` — is okay-simple's.
+An application has several faces: a window for a person, a page in a browser, a line dialogue at a terminal, tools
+for an agent, resources for a program. Each shows WHAT IS THERE and WHAT CAN BE DONE. okay-faces writes that once,
+as a program over one algebraic effect, `Face`, and each face is a handler of it.
 
-One program, these faces:
+The idea underneath is older than user interfaces: algebraic effects are algebraic data, so a problem is modelled at
+whatever level of abstraction suits it, and the model is interpreted level by level — an effect into another effect,
+and at the bottom into what actually runs. Here the levels are: a program, the effect `Face`, a step machine every
+face shares, each face's own effects (`Console`, `Http`, `Link`), the world.
 
-| face | module | what it is |
-|---|---|---|
-| test | `test` | a script of choices drives the step machine; what was shown, asserted |
-| terminal | `term` | a line dialogue in okay-effects-io's `Console`; the person a handler of `Fields`, asked field by field; ANSI when asked |
-| Swing | `swing` | a panel or a window on the JVM; forms from the shape; dressed by a `Look` |
-| Laminar | `web/laminar` | Scala.js: the view drawn, forms from the shape, a click is `resume`, the browser's back; `Async` in the row to a `Future`; `web/airstream` and `web/waypoint` the bridges |
-| remote | `web/laminar` | the same page over a dialogue on a server behind the REST face, the browser knowing no application |
-| MCP | `mcp` | the dialogue as tools for an agent, on [okay-mcp](https://github.com/okay-effects/okay-mcp); a domain effect's operations as tools too |
-| REST | `rest` | the dialogue as a JSON API with links and affordances; a domain effect as resources, and performed from afar over `Fetch` — on [okay-http](https://github.com/okay-effects/okay-http) |
-| HTML | `html` | pages from the server, structural HTML5, no script; the look as `/okay.css` |
+![one step of the game on every face](docs/okay-faces-how.png)
 
-The look is data (`specs/style.md`): a `Theme` of tokens and a `Style` of rules by `Role`, compiled by each face; an
-application's own words on views are typed marks (`Marks[M]` over a sealed set with a `Shape`), one source for the
-look, the wire and the vocabulary an agent is told. The other role, a domain effect as a service: okay-simple's `Describe` projected here — `RestDomains`, `McpFace.domain`,
-`remote`. Read [specs/face-core.md](specs/face-core.md), [specs/faces.md](specs/faces.md), [specs/web.md](specs/web.md).
-The examples are noughts and crosses and a to-do list in `examples/` (`sbt "examples/runMain
-okay.faces.examples.NoughtsTerminal"`, `NoughtsSwing` in a window, `TodoSwing`, `TodoHtml`, …); the first application is [verity](https://github.com/okay-effects/verity), a keeper of
-one's personal data, on every face above; [okay-store](https://github.com/okay-effects/okay-store) describes its
-types for them.
+Built on [okay-simple](https://github.com/okay-effects/okay-simple)'s interface, for Scala 3.3 and 2.13, the JVM and
+Scala.js, over any of its implementations; the data an application speaks — `Json`, `Shape`, `Schema` — is
+okay-simple's. One dependency, no platform.
+
+## A program, and every face
+
+A program is a value. It names no face and no implementation: `import okay.faces._` brings the words, and the words
+are tagless.
 
 ```scala
-import okay.faces.*                      // all a program needs: the words are tagless, no implementation is named
+import okay.faces.*
 import okay.effects.shape.Shape
 
 case class Who(name: String)
-val who = Shape.derived[Who].labelled("name", "Name")
+val who = Shape.derived[Who].labelled("name", "Name")   // one typed shape: the form, the JSON Schema, the decoder
 
-val greeting: String ! Face =           // the one effect is the row
+val greeting: String ! Face =           // Face alone is the row
   fill[Who, Face](View.heading("Who are you?"), who).flatMap(w =>
     confirm[Face](View.text(s"Greet ${w.name}?")).flatMap(yes =>
       if yes then show[Face](View.text(s"Hello, ${w.name}!")).map(_ => "greeted") else pure("left")))
 
-// every face is a handler of the one effect: a Step machine — Waiting(view, actions, resume) — driven by a script,
-// by prompts, by tool calls, by requests. The implementation is said once, where the program is run:
+// every face is a handler of the one effect; the implementation is said once, where the program is run:
 object AtTheTerminal:
   import okay.effects.machine.Machine.self
   import okay.faces.term.Terminal
   def main(args: Array[String]): Unit = run(Terminal.console(greeting))
-  // or SwingFace.handle(greeting), McpFace.stdio(greeting), HtmlFace.serve(greeting, port, host)…
+  // or SwingFace.handle(greeting), McpFace.stdio(greeting), HtmlFace.serve(greeting, port, host),
+  // RestFace.serve(greeting, port, host), LaminarFace.mount(greeting) in a page
 
-// the test face plays it by a script, and tells what was shown:
+// the test face plays it by a script, and tells what was shown — the reference every other face agrees with:
 import okay.effects.machine.Machine.self
 import okay.faces.test.Plays
 val plays = Plays()
@@ -56,3 +49,71 @@ plays.handle(greeting)(plays.Script.of(Chosen("submit", okay.effects.json.Json.o
   case plays.Played.Finished(views, a) => assert(a == "greeted" && views.last == View.text("Hello, Ann!"))
   case other => assert(false, other.toString)
 ```
+
+The block above is compiled and run by `sbt docsCheck/test`.
+
+| face | module | what it is |
+|---|---|---|
+| test | `test` | a script of choices drives the step machine; what was shown, asserted |
+| terminal | `term` | a line dialogue in okay-effects-io's `Console`; the person a handler of `Fields`, asked field by field; a typed `[key]` is a click; ANSI when asked |
+| Swing | `swing` | a panel or a window on the JVM; forms from the shape; dressed by a `Look`; what the program tells first is the window's help |
+| Laminar | `web/laminar` | Scala.js: the view drawn, forms from the shape, a click is `resume`, the browser's back; `Async` in the row to a `Future`; `web/airstream` and `web/waypoint` the bridges |
+| remote | `web/laminar` | the same page over a dialogue on a server behind the REST face, the browser knowing no application |
+| MCP | `mcp` | the dialogue as tools for an agent, on [okay-mcp](https://github.com/okay-effects/okay-mcp): stdio, or HTTP with sessions; a domain effect's operations as tools too |
+| REST | `rest` | the dialogue as a JSON API with links and affordances (HATEOAS); a domain effect as resources, and performed from afar over `Fetch` — on [okay-http](https://github.com/okay-effects/okay-http) |
+| HTML | `html` | pages from the server, structural HTML5, no script; forms posted; the look as `/okay.css` |
+
+## How it works
+
+`Face` has two operations: `Offer(view, actions)`, answered by the action taken with its parameters decoded, and
+`Show(view)`. A general handler, `steps`, takes `Face` out of the row and gives the program as a `Step` machine —
+`Waiting(view, actions, resume)`, `Told(view, next)`, `Done(a)` — with the continuation kept, so a step is resumed, and
+may be resumed again. Every face is a loop over `Step`: what a face adds is how it shows a view and how it reads a
+choice, nothing else. A choice comes back as JSON, `Chosen(action, args)`; the action's `Shape` decodes it, and a
+`Rejected` carries the problems back to the same step.
+
+![the levels](docs/okay-faces-levels.png)
+
+What a face learns of a program it learns from what the program shows: the first level-1 heading is a window's title,
+a page's, an agent's server's name; what is told before the first offer is the agent's instructions and the window's
+help. A step is not returned to unless the program says `back = true` on it; then every face keeps it in its history
+and offers a way back. How it looks is data: a `Look` is a `Theme` of tokens, a `Style` of rules by `Role` and the
+face's own `Words`, compiled by each face (CSS, Swing, ANSI); an application's own words on views are typed marks,
+`Marks[M]` over a sealed set, one source for the look, the wire and the vocabulary an agent is told. The faces that
+serve many counterparts keep `Sessions`: random ids, forgotten when idle. The other role, a domain effect as a
+service: okay-simple's `Describe` projected here — `RestDomains`, `McpFace.domain`, `remote`.
+
+Read [specs/face-core.md](specs/face-core.md), [specs/faces.md](specs/faces.md), [specs/style.md](specs/style.md),
+[specs/web.md](specs/web.md): the code follows the specs, and a change of design is a change of the spec first.
+
+## The examples
+
+Two programs in `examples/`, each on every face, each main one line: noughts and crosses (`Noughts`) and a to-do
+list (`Todo`, with a form from a type, items done by a click, removal after a choice and a confirmation).
+
+```
+sbt "examples/runMain okay.faces.examples.NoughtsSwing"            # a window; TodoSwing likewise
+sbt "examples/runMain okay.faces.examples.NoughtsTerminal"         # the console
+sbt "examples/runMain okay.faces.examples.NoughtsMcp"              # an MCP server on stdio
+sbt "examples/runMain okay.faces.examples.NoughtsHtml 8090"        # pages, no script
+sbt -Dplatforms=js examplesRemoteJS/fullLinkJS "examples/runMain okay.faces.examples.NoughtsWebRemote 8090"
+                                                                   # a JSON API, and the thin page that plays it
+sbt -Dplatforms=js examplesJS/fullLinkJS "examples/runMain okay.faces.examples.NoughtsWebLocal 8090"
+                                                                   # the whole game in the browser
+```
+
+The first application is [verity](https://github.com/okay-effects/verity), a keeper of one's personal data, on every
+face above; [okay-store](https://github.com/okay-effects/okay-store) describes its types for them.
+
+## Checking
+
+Every module is tested on both compilers, on the machine and on `Free`; the page faces under jsdom; the examples on
+every face against the test face's views; the README's code by `docsCheck`. Lines are at most 120 wide (`scalafmt`
+at the root keeps the author's line breaks and wraps only what is too long).
+
+```
+sbt -Dplatforms=js +test +examples/test +laminarJS/test examplesJS/test docsCheck/test
+```
+
+okay-simple is a snapshot until its 0.1.1 is released: in okay-simple, `sbt +publishLocal` (and the JS modules'
+`publishLocal`), then build here. A first release of okay-faces follows that one.

@@ -9,7 +9,12 @@ design is a change of the spec first.
   required — okay-faces is complete on okay-simple alone, as okay-simple is on nothing.
 - face-core imports no platform; `Json`, `Shape`, `Schema` are okay-simple's (`json`, `shape` modules), not redone here; `View`, `Chosen` are values with no functions.
 - Every face is a loop over `Step`; what a face adds is how it shows a view and reads a choice, nothing else.
-- How it looks is data (`Look` = `Theme` + `Style`, `specs/style.md`): a face marks its output with `Role`s (classes on
-  the web, names in Swing) and interprets a look; it never hard-codes a colour, a font or a stylesheet.
-- Tests on both compilers, on the machine and on `Free`. Documentation code blocks compile and run.
+- How it looks is data (`Look` = `Theme` + `Style` + `Words`, `specs/style.md`): a face marks its output with `Role`s
+  (classes on the web, names in Swing) and interprets a look; it never hard-codes a colour, a font, a stylesheet or a
+  word of its own — a face's words come from the look's `Words`.
+- A face takes the implementation (`implicit val fx: F`) and makes its own `Faces[fx.type]`: every type on one path,
+  nothing cast. A program of a face is `A ! Face`, written with `import okay.faces._` alone.
+- Tests on both compilers, on the machine and on `Free`; the pages under jsdom; the README's code by `docsCheck`:
+  `sbt -Dplatforms=js +test +examples/test +laminarJS/test examplesJS/test docsCheck/test`.
+- Lines at most 120 wide: `scalafmt` at the root keeps the author's line breaks and wraps only what is too long.
 - Commits: plain messages, what and why, no attribution trailers.
