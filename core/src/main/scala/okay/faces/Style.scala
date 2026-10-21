@@ -123,7 +123,8 @@ final case class Rule(color: Option[Tone] = None, background: Option[Tone] = Non
 final case class Style(rules: Map[Role, Rule]) {
   def apply(role: Role): Rule = rules.getOrElse(role, Rule())
   def set(role: Role, rule: Rule): Style = Style(rules.updated(role, rule))
-  def adjust(role: Role)(f: Rule => Rule): Style = set(role, f(apply(role)))
+  /** the roles' rules changed the same way: `adjust(Heading(1), Table, Actions)(_.copy(centered = true))` */
+  def adjust(roles: Role*)(f: Rule => Rule): Style = roles.foldLeft(this)((s, r) => s.set(r, f(s(r))))
 }
 object Style {
   import Role._

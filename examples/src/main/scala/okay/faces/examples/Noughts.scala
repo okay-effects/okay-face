@@ -1,7 +1,7 @@
 package okay.faces.examples
 
 import okay.effects.shape.Shape
-import okay.faces.{Action, Look, Marks, Rule, Style, Tone, View}
+import okay.faces.{Action, Look, Marks, Role, Rule, Style, Tone, View}
 
 /** the game's own types, beside the class: the rules with no effect in them, and how a game ends */
 object Noughts {
@@ -36,9 +36,10 @@ object Noughts {
   case object Cell extends Mark
   val marks: Marks[Mark] = Marks.of(Shape.derived[Mark]).explained(Result -> "how the game ended: who won, or a draw", Cell -> "a cell of the board: X, O, or free to play")
   /** the look: a cell big enough to tap, bordered; the result bold; the board in the middle */
-  val style: Style = Style.default.set(marks.role(Cell), Rule(size = 1.6, pad = 1, border = Some(Tone.Border), flow = okay.faces.Flow.Row, centered = true))
+  val style: Style = Style.default.set(marks.role(Cell), Rule(size = 1.6, pad = 1,
+      border = Some(Tone.Border), flow = okay.faces.Flow.Row, centered = true))
     .set(marks.role(Result), Rule(bold = true, color = Some(Tone.Accent), centered = true))
-    .adjust(okay.faces.Role.Heading(1))(_.copy(centered = true)).adjust(okay.faces.Role.Table)(_.copy(centered = true)).adjust(okay.faces.Role.Actions)(_.copy(centered = true))
+    .adjust(Role.Heading(1), Role.Table, Role.Actions)(_.copy(centered = true))
   val look: Look = Look.default.copy(style = style)   // the default look, the game's own style
 
   /** the rules: shown first, so a face has them to tell — the terminal prints them, an agent gets them as instructions */
