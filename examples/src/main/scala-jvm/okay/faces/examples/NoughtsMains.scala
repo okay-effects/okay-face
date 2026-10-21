@@ -28,7 +28,7 @@ object NoughtsHtml {
   def main(args: Array[String]): Unit =
     run(HtmlFace.serve(Noughts.games, Args.port(args), Args.host(args), look = Some(Noughts.look)))
 }
-/** THE GAME IN THE BROWSER: the server serves the page and `Pages`' script, linked by
+/** THE GAME IN THE BROWSER: the server serves the page and `NoughtsLocal`'s script, linked by
  * `sbt -Dplatforms=js examplesJS/fullLinkJS`; the game runs in the page, the Laminar face handling it there */
 object NoughtsWebLocal {
   def main(args: Array[String]): Unit = run(Shell.serve("Noughts and crosses", Args.port(args), Args.host(args),

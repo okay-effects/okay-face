@@ -472,7 +472,8 @@ for, with nothing of a game in it: an item added by a FORM (an action with param
 removed by a `choose` and a `confirm`, the done ones cleared after a yes, a `show` mid-dialogue ("added: …"), and
 BACK, which here undoes, since every step is kept. It ends with the list, when one leaves. The same one-line mains
 (`TodoSwing`, `TodoTerminal`, `TodoMcp`, `TodoHtml`, `TodoWebLocal`, `TodoWebRemote`, in `TodoMains.scala`; the game's
-in `NoughtsMains.scala`); in the browser one script, `Pages`, mounts the program the shell page is titled by. `TodoSuite` plays it by script on the test face; `TodoFacesSuite`
+in `NoughtsMains.scala`); in the browser its own script, `TodoLocal` (`examplesTodoJS`, `examples/todo/.js`), as the
+game has `NoughtsLocal`: one page, one script. `TodoSuite` plays it by script on the test face; `TodoFacesSuite`
 has the terminal, Swing, HTML, REST and MCP handle it whole — the form asked by prompts, by a dialog's fields, by a
 page's inputs, by a tool's arguments. What it found, and fixed: the Swing face showed a `View.Items` as a list of text, so
 a `Ref` in an item was not a button; the HTML face took any untitled group of several views for "what was told, then

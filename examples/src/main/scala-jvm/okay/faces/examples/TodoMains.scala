@@ -23,10 +23,11 @@ object TodoHtml {
   def main(args: Array[String]): Unit =
     run(HtmlFace.serve(Todo.keeping, Args.port(args), Args.host(args), look = Some(Todo.look)))
 }
-/** the page with the list in it: `Pages` mounts the program the page is titled by */
+/** THE LIST IN THE BROWSER: the server serves the page and `TodoLocal`'s script, linked by
+ * `sbt -Dplatforms=js examplesTodoJS/fullLinkJS`; the list runs in the page, the Laminar face handling it there */
 object TodoWebLocal {
   def main(args: Array[String]): Unit =
-    run(Shell.serve("To do", Args.port(args), Args.host(args), Linked("examples/.js", "okay-faces-examples"),
+    run(Shell.serve("To do", Args.port(args), Args.host(args), Linked("examples/todo/.js", "okay-faces-examples-todo"),
         look = Some(Todo.look)))
 }
 /** the list on the server, the thin page playing it */

@@ -100,10 +100,16 @@ lazy val examples = crossBoth("examples", "examples", can = Set("js"))
       Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-jvm",
       Test / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "test" / "scala-jvm"))
   .onJS(_.dependsOn(core.js, laminar.js).settings(scalaJSUseMainModuleInitializer := true,
-      Compile / mainClass := Some("okay.faces.examples.Pages"), // one script, the program by the page's title
+      Compile / mainClass := Some("okay.faces.examples.NoughtsLocal"), // this script the game's; the list's is its own
       Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-js",
       libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1",
         "io.github.okay-effects" %%% "okay-http" % okayHttp)))
+/** THE LIST'S PAGE: its own script, `examples/todo/.js`, the same sources — one page, one script, no dispatch */
+lazy val examplesTodo = CrossProject("examplesTodo", file("examples/todo"))(JSPlatform).crossType(CrossType.Pure)
+  .settings(crossBuilt, name := "okay-faces-examples-todo", publish / skip := true,
+    scalaJSUseMainModuleInitializer := true, Compile / mainClass := Some("okay.faces.examples.TodoLocal"))
+  .jsConfigure(p =>
+    if (platformsAsked("js")) p.withId("examplesTodoJS").dependsOn(examples.js) else p.withId("examplesTodoJS"))
 lazy val examplesRemote = CrossProject("examplesRemote", file("examples/remote"))(JSPlatform).crossType(CrossType.Pure)
   .settings(crossBuilt, name := "okay-faces-examples-remote", publish / skip := true,
     scalaJSUseMainModuleInitializer := true,
@@ -157,5 +163,5 @@ lazy val waypoint = CrossProject("waypoint", file("web/waypoint"))(JSPlatform).c
 lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, mcp.jvm,
     rest.jvm, html.jvm, examples.jvm) ++
     ((if (platformsAsked("js"))
-        Seq[ProjectReference](laminar.js, airstream.js, waypoint.js, examples.js, examplesRemote.js)
+        Seq[ProjectReference](laminar.js, airstream.js, waypoint.js, examples.js, examplesTodo.js, examplesRemote.js)
       else Nil))): _*).settings(name := "okay-faces-root", publish / skip := true)
