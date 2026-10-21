@@ -9,7 +9,7 @@ import okay.effects.Effects
  * handlers inside `Face` lose their state with the screens, the world's outside keep theirs — as a face's back does.
  * DECIDED over a history jump by the face: a jump is the program's own, so every face has it the same way.
  */
-class Jumps[F <: Effects](implicit implementation: F) {
+class Jumps[F <: Effects with Singleton](implicit implementation: F) {
   val fx: F = implementation
   import fx._
   import fx.std.{Error, attempt, raise}

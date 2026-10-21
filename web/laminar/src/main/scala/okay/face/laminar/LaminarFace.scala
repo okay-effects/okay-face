@@ -18,7 +18,7 @@ import scala.concurrent.ExecutionContext
  * runs by the `Runner` when the row is done (`element`), or to a `Future` when `Async` remains (`elementAsync`).
  * Every element carries its `Role`'s classes; `LaminarFace.stylesheet(look)` is the `<style>` that dresses them.
  */
-class LaminarFace[F <: Runner](val faces: Faces[F]) {
+class LaminarFace[F <: Runner with Singleton](val faces: Faces[F]) {
   import faces.fx._
 
   /** how the rest of a step is run: at once, or when its future completes */

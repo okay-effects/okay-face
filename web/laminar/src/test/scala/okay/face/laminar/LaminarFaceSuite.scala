@@ -168,6 +168,7 @@ class LifecycleSuite extends munit.FunSuite {
   import okay.effects.async.Async
   import scala.concurrent.Promise
   import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
+  import Machine._   // the words: `map` on a program by name — Scala 3 would otherwise find it twice, by `Machine` and by `Machine.self`
   val life = new Lifecycle[Machine.type]()(Machine, queue)
   import life.asynchrony.sleep
   def mount(el: HtmlElement): RootNode = { val c = dom.document.createElement("div").asInstanceOf[dom.html.Element]; dom.document.body.appendChild(c); render(c, el) }

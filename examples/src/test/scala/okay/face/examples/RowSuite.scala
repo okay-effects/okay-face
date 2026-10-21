@@ -2,7 +2,6 @@ package okay.face.examples
 
 import okay.effects.machine.Machine
 import okay.effects.machine.Machine._
-import okay.effects.machine.implicits._
 import okay.face.Face
 
 /** the row by its name, one spelling for both compilers: `Row[*[Pure] + *[Face], X]` — the game over it */

@@ -16,7 +16,7 @@ import okay.http.rest.{Link, Resource, Rests, Trouble}
  * not decode are a 400 problem. `remote` is the same wire from the client's side: the handler of the effect that
  * calls these resources, so a program performs the effect here and it happens there.
  */
-class RestDomains[F <: Effects](implicit implementation: F) {
+class RestDomains[F <: Effects with Singleton](implicit implementation: F) {
   val fx: F = implementation
   import fx._
   val domains: Domains[fx.type] = new Domains[fx.type]()(fx)

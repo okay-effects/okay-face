@@ -8,7 +8,7 @@ import okay.effects.Effects
  * the row `R` the face runs in, so a handler inside the program may use the face's own effects (a consent asked through
  * the client). Mutable, as a session is; one per counterpart.
  */
-class Dialogues[F <: Effects](implicit implementation: F) {
+class Dialogues[F <: Effects with Singleton](implicit implementation: F) {
   val fx: F = implementation
   import fx._
 

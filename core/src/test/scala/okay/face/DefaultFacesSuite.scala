@@ -2,11 +2,11 @@ package okay.face
 
 import okay.effects.Effects
 import okay.effects.machine.Machine
-import okay.effects.machine.implicits._
+import okay.effects.machine.Machine.self
 
 /** the faces by default: from the implementation in scope; stateless, so any two over one implementation agree */
 class DefaultFacesSuite extends munit.FunSuite {
-  class Taker[F <: Effects](implicit val faces: Faces[F])
+  class Taker[F <: Effects with Singleton](implicit val faces: Faces[F])
   test("a taker of implicit faces finds them from the implicit implementation, over that implementation") {
     val a = new Taker[Machine.type]; val b = new Taker[Machine.type]
     assert(a.faces.fx eq Machine); assert(b.faces.fx eq Machine); assert(Faces.of[Machine.type].fx eq Machine)

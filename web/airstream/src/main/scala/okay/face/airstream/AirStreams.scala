@@ -17,7 +17,7 @@ import scala.concurrent.ExecutionContext
  * stops it — the stream runs exactly while something observes it. `varState(v)(p)`: a `Var[S]` answering `State[S]` in
  * place, so a page sees a program's state as it changes. No `Face` here: a Laminar team may take this alone.
  */
-class AirStreams[I <: Runner, S <: Streams[I]](val streams: S)(implicit ec: ExecutionContext) {
+class AirStreams[I <: Runner with Singleton, S <: Streams[I]](val streams: S)(implicit ec: ExecutionContext) {
   val fx: streams.fx.type = streams.fx
   import fx._
   import fx.std._

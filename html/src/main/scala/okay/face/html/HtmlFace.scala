@@ -15,7 +15,7 @@ import okay.http.rest.{Rests, Trouble}
  * The markup is structure alone — HTML5 that is well-formed XML, each part marked with its `Role`'s classes — and the
  * look is the stylesheet at `GET /okay.css`, compiled from the `Look` given.
  */
-class HtmlFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
+class HtmlFace[F <: Effects with Singleton, Fs <: Faces[F]](val faces: Fs) {
   import faces.fx._
   val rests: Rests[faces.fx.type] = new Rests[faces.fx.type]()(faces.fx)
   import rests.{Route, dispatch, get, post}
@@ -157,5 +157,5 @@ object Forms {
 
 object HtmlFace {
   /** over these faces, their path kept: `HtmlFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
-  def apply[F <: Effects](faces: Faces[F]): HtmlFace[F, faces.type] = new HtmlFace[F, faces.type](faces)
+  def apply[F <: Effects with Singleton](faces: Faces[F]): HtmlFace[F, faces.type] = new HtmlFace[F, faces.type](faces)
 }

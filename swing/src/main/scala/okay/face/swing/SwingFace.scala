@@ -17,7 +17,7 @@ import scala.collection.mutable
  * by their roles (`Looks`) after each rebuild; without one, the platform's look and feel stands.
  * `F` is the implementation's singleton type (`Machine.type`): the faces come implicitly, from `Faces.default` over the
  * implicit implementation, and the `Singleton` bound keeps the type exact when Scala 3 infers it — `new SwingFace()`
- * with `import okay.effects.machine.implicits._`; Scala 2 names it, `new SwingFace[Machine.type]()`.
+ * with `import okay.effects.machine.Machine._`, on both compilers.
  */
 class SwingFace[F <: Runner with Singleton](implicit val faces: Faces[F]) {
   import faces.fx._

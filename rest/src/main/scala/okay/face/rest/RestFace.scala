@@ -16,7 +16,7 @@ import okay.http.rest.{Link, Resource, Rests, Trouble}
  * JSON and reads JSON. The data carries the actions as affordances too — the exact `Schema`, for a client of ours such as
  * the remote Laminar face; the links carry JSON Schema for everyone else.
  */
-class RestFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
+class RestFace[F <: Effects with Singleton, Fs <: Faces[F]](val faces: Fs) {
   import faces.fx._
   val rests: Rests[faces.fx.type] = new Rests[faces.fx.type]()(faces.fx)
   import rests.{Route, dispatch, get, post}
@@ -59,7 +59,7 @@ class RestFace[F <: Effects, Fs <: Faces[F]](val faces: Fs) {
 
 object RestFace {
   /** over these faces, their path kept: `RestFace(faces)` — so a `Dialogue` made by `faces` is one this face takes */
-  def apply[F <: Effects](faces: Faces[F]): RestFace[F, faces.type] = new RestFace[F, faces.type](faces)
+  def apply[F <: Effects with Singleton](faces: Faces[F]): RestFace[F, faces.type] = new RestFace[F, faces.type](faces)
   /** over the faces in scope — by default, the ones over the implicit implementation: `RestFace.default[Machine.type]` */
   def default[F <: Effects with Singleton](implicit faces: Faces[F]): RestFace[F, faces.type] = new RestFace[F, faces.type](faces)
 }

@@ -1,7 +1,6 @@
 package okay.face.examples
 
 import okay.effects.machine.Machine._
-import okay.effects.machine.implicits._
 import okay.face.Face
 import okay.face.swing.SwingFace
 

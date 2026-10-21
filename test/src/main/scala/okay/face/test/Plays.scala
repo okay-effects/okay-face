@@ -8,7 +8,7 @@ import okay.face.{Chosen, Rejected, Step, View}
  * face's history of `Waiting`s re-resumed. Over a `Runner` whose row is done: the rest of each step is `run`.
  * The law it states: two faces given the same script show the same views.
  */
-class Plays[F <: Runner](implicit implementation: F) {
+class Plays[F <: Runner with Singleton](implicit implementation: F) {
   val fx: F = implementation
   import fx._
   type M[X] = X ! okay.effects.Void

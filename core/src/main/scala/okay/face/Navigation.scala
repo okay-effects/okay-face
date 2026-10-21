@@ -29,7 +29,7 @@ final class Pages[P](first: P) {
   private def tell(): Unit = listeners.foreach(_(current))
 }
 
-class Navigations[F <: Effects](implicit implementation: F) {
+class Navigations[F <: Effects with Singleton](implicit implementation: F) {
   val fx: F = implementation
   import fx._
 

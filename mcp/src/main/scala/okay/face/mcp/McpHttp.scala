@@ -19,7 +19,7 @@ import okay.mcp.{Link, Rpc, Servers}
  * elicitation, which sends a request and then receives, parks until the client's answer arrives: a question to the
  * user crosses HTTP exchanges as it crosses lines on stdio, by the continuation, without a thread kept.
  */
-class McpHttp[F <: Effects, S <: Servers[F]](val servers: S) {
+class McpHttp[F <: Effects with Singleton, S <: Servers[F]](val servers: S) {
   import servers.fx._
 
   /** a request's mail: what came in, what goes out */
@@ -106,5 +106,5 @@ class McpHttp[F <: Effects, S <: Servers[F]](val servers: S) {
 }
 object McpHttp {
   /** over these servers, their path kept — an `McpFace`'s, so a `Server` it made is one this carries */
-  def apply[F <: Effects](servers: Servers[F]): McpHttp[F, servers.type] = new McpHttp[F, servers.type](servers)
+  def apply[F <: Effects with Singleton](servers: Servers[F]): McpHttp[F, servers.type] = new McpHttp[F, servers.type](servers)
 }

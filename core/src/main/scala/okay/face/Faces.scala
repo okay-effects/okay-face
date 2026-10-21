@@ -7,7 +7,7 @@ import okay.effects.shape.Shape
  * THE WORDS of `Face`, over any implementation `fx`, and the stepping handler. A scenario is a program in
  * `Face + Domain`; a component is a function returning one, with a result — `ShowModal`.
  */
-class Faces[F <: Effects](implicit implementation: F) {
+class Faces[F <: Effects with Singleton](implicit implementation: F) {
   val fx: F = implementation
   import fx._
   /** sessions with a step machine, for the faces that serve many counterparts */
@@ -56,7 +56,7 @@ class Faces[F <: Effects](implicit implementation: F) {
   }
 }
 
-/** THE FACES BY DEFAULT, from the implementation in scope: with `import okay.effects.machine.implicits._` and nothing
+/** THE FACES BY DEFAULT, from the implementation in scope: with `import okay.effects.machine.Machine._` and nothing
  * else said, `new SwingFace()`, `new Terminal()`, `new Noughts()` find their faces here, and the implementation's type
  * with them — `F` inferred as the implicit's singleton type. The implicit is written per compiler (`FacesDefault`):
  * Scala 3 infers `F` from `default[F](implicit fx: F)` under a `Singleton` bound; Scala 2 cannot search for an
@@ -70,5 +70,5 @@ object Faces extends FacesDefault {
     implicit val exact: fx.type = fx
     new Faces[fx.type]
   }
-  def of[F <: Effects](implicit fx: F): Faces[F] = new Faces[F]()(fx)
+  def of[F <: Effects with Singleton](implicit fx: F): Faces[F] = new Faces[F]()(fx)
 }
