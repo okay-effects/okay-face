@@ -145,7 +145,8 @@ object Html {
 
   def document(title: String, body: String): String =
     s"""<!DOCTYPE html>
-       |<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+       |<html lang="en"><head><meta charset="utf-8"/>
+       |<meta name="viewport" content="width=device-width, initial-scale=1"/>
        |<title>${esc(title)}</title><link rel="stylesheet" href="$stylesheetPath"/></head>
        |<body>$body</body></html>""".stripMargin
 

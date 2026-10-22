@@ -16,8 +16,10 @@ ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 ThisBuild / scalaVersion := scala3
-/** okay-simple, the only dependency: its release from its Pages repository — until 0.1.1 is released, with the `json` and
- * `shape` modules this needs, the snapshot published locally: in okay-simple, `sbt +shape/publishLocal` and its dependencies */
+/** okay-simple, the only dependency: its release from its Pages repository — until 0.1.1 is released, with the `json`
+ * and
+ * `shape` modules this needs, the snapshot published locally: in okay-simple, `sbt +shape/publishLocal` and its
+ * dependencies */
 ThisBuild / resolvers += "okay-effects" at "https://okay-effects.github.io/okay-simple/maven"
 val okayEffects = "0.1.1-SNAPSHOT"
 
@@ -42,7 +44,8 @@ def crossBoth(id: String, dir: String, can: Set[String] = Set("js", "native")): 
   CrossProject(id, file(dir))(platformsOf(can): _*).crossType(CrossType.Pure)
     .settings(crossBuilt).jvmConfigure(_.withId(id)).onJS(_.withId(id + "JS")).onNative(_.withId(id + "Native"))
 
-/** FACE-CORE: View, Action, the effect Face, the step machine — over okay-simple's `shape` (Shape, Schema) and `json` (Json) */
+/** FACE-CORE: View, Action, the effect Face, the step machine — over okay-simple's `shape` (Shape, Schema) and `json`
+ * (Json) */
 lazy val core = crossBoth("core", "core").settings(name := "okay-faces",
   libraryDependencies += "io.github.okay-effects" %%% "okay-effects-describe" % okayEffects,
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-effects" % okayEffects,
@@ -74,10 +77,12 @@ lazy val mcp = crossBoth("mcp", "mcp").dependsOn(core).settings(name := "okay-fa
     "io.github.okay-effects" %%% "okay-http" % okayHttp,
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
-/** THE REST FACE and THE HTML FACE, over okay-http: the dialogue as a JSON API with links, and as pages from the server */
+/** THE REST FACE and THE HTML FACE, over okay-http: the dialogue as a JSON API with links, and as pages from the server
+ */
 lazy val rest = crossBoth("rest", "rest").dependsOn(core).settings(name := "okay-faces-rest",
   // the server's words on the JVM (`Web`, `Linked`), told impossible in the browser
-  Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / ("scala-" + (if (baseDirectory.value.getName == ".jvm")
+  Compile / unmanagedSourceDirectories +=
+    baseDirectory.value.getParentFile / "src" / "main" / ("scala-" + (if (baseDirectory.value.getName == ".jvm")
                                                                                                               "jvm"
                                                                                                             else "js")),
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-http" % okayHttp,
@@ -89,8 +94,10 @@ lazy val html = crossBoth("html", "html").dependsOn(core, rest).settings(name :=
     "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test))
 
 /** EXAMPLES: noughts and crosses — one program, every face. The game is shared source; the JVM's mains (a window, the
- * terminal, an agent, a server) in `scala-jvm`, the page with the game in it in `scala-js` (`examplesJS`, when js is asked:
- * `sbt -Dplatforms=js examplesJS/fullLinkJS` links it); the THIN page, knowing no game, is its own script, `examplesRemoteJS`
+ * terminal, an agent, a server) in `scala-jvm`, the page with the game in it in `scala-js` (`examplesJS`, when js is
+ * asked:
+ * `sbt -Dplatforms=js examplesJS/fullLinkJS` links it); the THIN page, knowing no game, is its own script,
+ * `examplesRemoteJS`
  * (`examples/remote`); `sbt "examples/runMain okay.faces.examples.NoughtsWebRemote"` serves both */
 lazy val examples = crossBoth("examples", "examples", can = Set("js"))
   .settings(name := "okay-faces-examples", publish / skip := true,
@@ -125,8 +132,10 @@ lazy val examplesRemote = CrossProject("examplesRemote", file("examples/remote")
   .jsConfigure(p =>
     if (platformsAsked("js")) p.withId("examplesRemoteJS").dependsOn(laminar.js) else p.withId("examplesRemoteJS"))
 
-/** THE LAMINAR FACE, Scala.js only: a Step machine as a Laminar element — the view drawn, the actions buttons and forms,
- * a click is `resume`; and THE REMOTE FACE, the same page over a dialogue behind the REST face, through okay-http's `Browser.fetch`. Built and tested when js is asked: `sbt -Dplatforms=js laminarJS/test`, under jsdom */
+/** THE LAMINAR FACE, Scala.js only: a Step machine as a Laminar element — the view drawn, the actions buttons and
+ * forms,
+ * a click is `resume`; and THE REMOTE FACE, the same page over a dialogue behind the REST face, through okay-http's
+ * `Browser.fetch`. Built and tested when js is asked: `sbt -Dplatforms=js laminarJS/test`, under jsdom */
 lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).crossType(CrossType.Pure)
   .settings(crossBuilt, name := "okay-faces-laminar",
     libraryDependencies ++= Seq("com.raquo" %%% "laminar" % "17.2.1",
@@ -137,7 +146,8 @@ lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).cros
     Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(
       org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
         .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
-  // on core's JS project only when js is asked: core has no JS platform otherwise; the REST face in the tests, as the remote face's server
+  // on core's JS project only when js is asked: core has no JS platform otherwise; the REST face in the tests, as the
+  // remote face's server
   .jsConfigure(p =>
     if (platformsAsked("js")) p.withId("laminarJS").dependsOn(core.js, rest.js % "test->compile")
     else p.withId("laminarJS"))

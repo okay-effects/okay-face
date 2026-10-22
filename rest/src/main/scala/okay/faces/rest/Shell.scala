@@ -52,7 +52,8 @@ object Shell {
   }
   def page(title: String, script: String): String =
     s"""<!DOCTYPE html>
-       |<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+       |<html lang="en"><head><meta charset="utf-8"/>
+       |<meta name="viewport" content="width=device-width, initial-scale=1"/>
        |<title>${esc(title)}</title><link rel="stylesheet" href="$stylesheetPath"/></head>
        |<body><div id="app"></div><script src="$script"></script></body></html>""".stripMargin
   /** the script's path for a page's: `/` → `/index.js`, `/local` → `/local.js` */
