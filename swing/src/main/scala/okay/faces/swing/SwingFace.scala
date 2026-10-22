@@ -26,19 +26,31 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
   val faces: Faces[fx.type] = new Faces[fx.type]()(fx)
   type M[X] = X ! Pure
 
-  final case class Shown[A](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]], problems: Problems)
+  /** HOW THE REST OF A STEP IS RUN, when the program leaves effects in the row beside `Face`: a window runs the rest
+   * by it, on the event dispatch thread. `Pure` by `run`, `atOnce`; a program with `Console` in its row (one written for the
+   * terminal too) by the real console, `io.realConsole` then `run` */
+  trait Lower[R[_]] { def apply[X](p: X ! R): X }
+  val atOnce: Lower[Pure] = new Lower[Pure] { def apply[X](p: X ! Pure): X = run(p) }
+
+  final case class Shown[A, N[_]](told: Vector[View], step: Step[A, N], history: List[Step.Waiting[A, N]],
+    problems: Problems)
 
   /** the face as a panel, rebuilt at each step; `done` with the value at the end */
   def panel[A](first: Step[A, M] ! Pure, done: A => Unit = (_: A) => (),
+    settings: SwingFace.Settings = SwingFace.Settings()): JPanel = panelIn[A, Pure](first, atOnce, done, settings)
+
+  /** the same over a program that leaves `R` in its row: `lower` runs each rest */
+  def panelIn[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R, lower: Lower[R], done: A => Unit = (_: A) => (),
     settings: SwingFace.Settings = SwingFace.Settings()): JPanel = {
+    type N[X] = X ! R
     val look = settings.look
     val root = new JPanel(new BorderLayout)
     root.setName(Role.Face.cls)
-    def settle(step: Step[A, M], told: Vector[View], history: List[Step.Waiting[A, M]]): Shown[A] = step match {
-      case Step.Told(view, next) => settle(run(next), told :+ view, history)
+    def settle(step: Step[A, N], told: Vector[View], history: List[Step.Waiting[A, N]]): Shown[A, N] = step match {
+      case Step.Told(view, next) => settle(lower(next), told :+ view, history)
       case other => Shown(told, other, history, Nil)
     }
-    var current: Option[Step[A, M]] = None
+    var current: Option[Step[A, N]] = None
     var unlisten: () => Unit = () => ()
     /** the window grows with its content, within the screen, and never shrinks: a step that adds a line adds no
      * scrollbar */
@@ -52,28 +64,28 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
         if (h > w.getHeight || wd > w.getWidth) w.setSize(math.max(wd, w.getWidth), math.max(h, w.getHeight))
       }
     }
-    def show(s: Shown[A]): Unit = {
+    def show(s: Shown[A, N]): Unit = {
       current = Some(s.step)
       root.removeAll()
-      root.add(render(s, show, settle, look.map(_.words).getOrElse(Words.english)), BorderLayout.CENTER)
+      root.add(render[A, N](s, show, settle, lower(_), look.map(_.words).getOrElse(Words.english)), BorderLayout.CENTER)
       look.foreach(l => Looks(l)(root))
       root.revalidate(); root.repaint()
       grow()
       unlisten()
       s.step match {
         case Step.Done(a) => done(a)
-        case w: Step.Waiting[A, M] @unchecked =>
+        case w: Step.Waiting[A, N] @unchecked =>
           // the step's event: when it fires and this is still the step, the rest runs on the event dispatch thread as a
           // click's would
           unlisten = w.listen(next =>
             SwingUtilities.invokeLater(new Runnable {
               def run(): Unit =
-                if (current.exists(_ eq w)) show(settle(fx.run(next), Vector.empty, w :: s.history))
+                if (current.exists(_ eq w)) show(settle(lower(next), Vector.empty, w :: s.history))
             }))
         case _ => ()
       }
     }
-    show(settle(run(first), Vector.empty, Nil))
+    show(settle(lower(first), Vector.empty, Nil))
     root
   }
 
@@ -100,7 +112,14 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
    * follows the program's current page */
   def window[A](title: String, first: Step[A, M] ! Pure, done: A => Unit = (_: A) => (),
     pages: Option[(okay.faces.Pages[_], Any => String)] = None, settings: SwingFace.Settings = SwingFace.Settings(),
-    closed: () => Unit = () => sys.exit(0), help: Vector[View] = Vector.empty): Unit = {
+    closed: () => Unit = () => sys.exit(0), help: Vector[View] = Vector.empty): Unit =
+    windowIn[A, Pure](title, first, atOnce, done, pages, settings, closed, help)
+
+  /** the same over a program that leaves `R` in its row: `lower` runs each rest */
+  def windowIn[A, R[_]](title: String, first: Step[A, ({ type L[X] = X ! R })#L] ! R, lower: Lower[R],
+    done: A => Unit = (_: A) => (), pages: Option[(okay.faces.Pages[_], Any => String)] = None,
+    settings: SwingFace.Settings = SwingFace.Settings(), closed: () => Unit = () => sys.exit(0),
+    help: Vector[View] = Vector.empty): Unit = {
     val look = settings.look
     SwingUtilities.invokeLater(new Runnable {
       def run(): Unit = {
@@ -112,7 +131,7 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
         frame.addWindowListener(new java.awt.event.WindowAdapter {
           override def windowClosed(e: java.awt.event.WindowEvent): Unit = closed()
         })
-        frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, settings)),
+        frame.getContentPane.add(new JScrollPane(Views.fitting(panelIn[A, R](first, lower, done, settings)),
             ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER))
         // the help, when there is one: a `?` at the top right, the views told before the first step in a dialog
         if (help.nonEmpty) {
@@ -135,18 +154,18 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
     })
   }
 
-  private def render[A](s: Shown[A], show: Shown[A] => Unit,
-    settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A], words: Words)
-    : JComponent = {
+  private def render[A, N[_]](s: Shown[A, N], show: Shown[A, N] => Unit,
+    settle: (Step[A, N], Vector[View], List[Step.Waiting[A, N]]) => Shown[A, N], lower: N[Step[A, N]] => Step[A, N],
+    words: Words): JComponent = {
     val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS))
     s.told.foreach(v => box.add(named(Views.component(v), Role.Told.cls)))
     s.step match {
       case Step.Done(_) => box.add(named(Views.component(words.over), "okay-done"))
       case Step.Told(_, _) => ()
-      case w: Step.Waiting[A, M] @unchecked =>
+      case w: Step.Waiting[A, N] @unchecked =>
         def choose(chosen: Chosen): Unit = w.resume(chosen) match {
           case Left(Rejected(ps)) => show(s.copy(problems = ps))
-          case Right(next) => show(settle(run(next), Vector.empty, if (w.back) w :: s.history else s.history))
+          case Right(next) => show(settle(lower(next), Vector.empty, if (w.back) w :: s.history else s.history))
         }
         val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref"))
           Some(key => choose(Chosen("ref", Json.obj("key" -> Json.Str(key)))))

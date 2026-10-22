@@ -163,6 +163,10 @@ The handler (`SwingFace.handle(p)`) makes what the program tells before its firs
 HELP: a `?` button at the top right opens it in a dialog (2026-10-21, after the rules above the first board scrolled
 away at the first click); what is told later in the dialogue stays inline, as part of the step it precedes.
 
+A program that leaves effects in its row beside `Face` (`Console`, say, written for the terminal too) is shown by
+`panelIn`/`windowIn` with a `Lower[R]`, how each rest is run: `atOnce` for `Pure`, the real console for `Console`
+(2026-10-22; verity's window cast its program to the empty row before).
+
 ## face-rest — the dialogue as a JSON API
 
 DONE 2026-10-20 as `rest`, on okay-http: `RestFace(faces).sessions(open, base)` — `POST base` opens a session and
