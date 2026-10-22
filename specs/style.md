@@ -73,7 +73,7 @@ escapes the dot in the selector. Optional, short, and the application's: the lib
 | Face | Interpreter | What a rule becomes |
 |---|---|---|
 | `html`, `web/laminar` | `Css(look)` in core; served at `GET /okay.css`, or `LaminarFace.stylesheet(look)` as `<style>` | custom properties `--okay-fg` … on `:root`; a block per role with a rule, in `var(--okay-…)` |
-| `swing` | `Looks(look)(root)`, after each rebuild when `panel(…, look = Some(l))` | `Font` (family, bold, size × base), `setForeground`, `setBackground` + opaque, `LineBorder` + `EmptyBorder` for pad |
+| `swing` | `Looks(look)(root)`, after each rebuild when `panel(…, SwingFace.Settings(look = Some(l)))` | `Font` (family, bold, size × base), `setForeground`, `setBackground` + opaque, `LineBorder` + `EmptyBorder` for pad |
 | `term` | `Ansi(look): Paint`, given to `Terminal(faces, paint)` | SGR: `1` for bold, `38;2;r;g;b` for the tone, `48;2;r;g;b` for the background; reset after |
 
 Rules of the interpreters:

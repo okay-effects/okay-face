@@ -19,10 +19,20 @@ object Step {
    * and waits on THIS step again — or the rest, a program of the remaining row */
   final case class Waiting[A, M[_]](view: View, actions: List[Action[_]],
     resume: Chosen => Either[Rejected, M[Step[A, M]]],
-    meanwhile: Option[Meanwhile[M[Step[A, M]]]] = None, back: Boolean = false)
+    meanwhile: Option[Meanwhile[M[Step[A, M]]]] = None, options: Options = Options())
     extends Step[A, M] {
+    /** whether this step may be returned to: a face keeps it in its history then, and offers a way back */
+    def back: Boolean = options.back
     /** a face that listens: the rest of the program when the event fires, to run as `resume`'s */
     def listen(k: M[Step[A, M]] => Unit): () => Unit = meanwhile.fold(() => ())(_.register(k))
+  }
+  /** WHAT A STEP SAYS OF ITSELF, beside its view and actions — one value, so a new option is a new field and no pattern
+   * on `Offer` or `Waiting` breaks. `back`: whether the step may be returned to once left; not by default, most steps
+   * are not to be returned to */
+  final case class Options(back: Boolean = false)
+  object Options {
+    /** a step one may return to */
+    val returnable: Options = Options(back = true)
   }
   /** told, and going on at once: a face shows it and runs the rest */
   final case class Told[A, M[_]](view: View, next: M[Step[A, M]]) extends Step[A, M]

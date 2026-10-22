@@ -11,24 +11,23 @@ import okay.effects.shape.Shape
 class Faces[F <: Effects with Singleton](implicit implementation: F) {
   val fx: F = implementation
   import fx._
-  /** a session with a step machine, for the faces that serve many counterparts: over this implementation, so any
-   * face over it takes one made here */
-  type Dialogue[A, R[_]] = Session[fx.type, A, R]
-  def dialogue[A, R[_]](first0: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true,
-    over: View = Session.over): Dialogue[A, R] =
-    new Session[fx.type, A, R](fx, back, over) { protected def first: Step[A, M] ! R = first0 }
+  /** a session with a step machine, for the faces that serve many counterparts: `Session[fx.type, A, R]`, over this
+   * implementation, so any face over it takes one made here; `over` what it shows at the end */
+  def session[A, R[_]](first0: Step[A, ({ type L[X] = X ! R })#L] ! R,
+    over: View = Session.over): Session[fx.type, A, R] =
+    new Session[fx.type, A, R](fx, over) { protected def first: Step[A, M] ! R = first0 }
 
   def offer[A, R[_]](view: View, actions: List[Action[A]])(implicit in: In[Face, R]): A ! R =
     perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a))
-  /** show, and wait; `back = false`: a step a face may not undo */
-  def offer[A, R[_]](view: View, actions: List[Action[A]], back: Boolean)(implicit in: In[Face, R]): A ! R =
-    perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a, None, back))
+  /** show, and wait; the step's `options` (`Step.Options.returnable`: a step one may return to) */
+  def offer[A, R[_]](view: View, actions: List[Action[A]], options: Step.Options)(implicit in: In[Face, R]): A ! R =
+    perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a, None, options))
   /** show, and wait for an action or for the event, whichever comes first */
   def offer[A, R[_]](view: View, actions: List[Action[A]], meanwhile: Meanwhile[A])(implicit in: In[Face, R]): A ! R =
     perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a, Some(meanwhile)))
-  def offer[A, R[_]](view: View, actions: List[Action[A]], meanwhile: Meanwhile[A], back: Boolean)(
+  def offer[A, R[_]](view: View, actions: List[Action[A]], meanwhile: Meanwhile[A], options: Step.Options)(
     implicit in: In[Face, R]): A ! R =
-    perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a, Some(meanwhile), back))
+    perform[Face].apply[R, A](Face.Offer[A, A](view, actions, a => a, Some(meanwhile), options))
   /** show until something happens: no action, the event alone — a face that cannot listen is stuck here, so give an
    * action where that matters */
   def await[A, R[_]](view: View, meanwhile: Meanwhile[A])(implicit in: In[Face, R]): A ! R =
@@ -38,26 +37,27 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
   def show[R[_]](view: View)(implicit in: In[Face, R]): Unit ! R =
     perform[Face].apply[R, Unit](Face.Show[Unit](view, u => u))
 
-  /** yes or no; `back = true`: a step one may return to */
-  def confirm[R[_]](question: View, back: Boolean = false)(implicit in: In[Face, R]): Boolean ! R =
+  /** yes or no */
+  def confirm[R[_]](question: View, options: Step.Options = Step.Options())(implicit in: In[Face, R]): Boolean ! R =
     offer[Boolean, R](question,
-      List(Action.plain[Boolean]("yes", "Yes")(true), Action.plain[Boolean]("no", "No")(false)), back)
+      List(Action.plain[Boolean]("yes", "Yes")(true), Action.plain[Boolean]("no", "No")(false)), options)
   /** one of the options, each a plain action named from its label */
-  def choose[A, R[_]](view: View, options: List[(String, A)], back: Boolean = false)(
+  def choose[A, R[_]](view: View, choices: List[(String, A)], options: Step.Options = Step.Options())(
     implicit in: In[Face, R]): A ! R = {
-    val names = options.map(o => Action.nameOf(o._1))
+    val names = choices.map(o => Action.nameOf(o._1))
     val unique = names.zipWithIndex.map { case (n, i) => if (names.indexOf(n) == i) n else s"$n-${i + 1}" }
-    offer[A, R](view, options.zip(unique).map { case ((label, a), name) => Action.plain[A](name, label)(a) }, back)
+    offer[A, R](view, choices.zip(unique).map { case ((label, a), name) => Action.plain[A](name, label)(a) }, options)
   }
   /** a form, filled and submitted */
-  def fill[P, R[_]](view: View, form: Shape[P], back: Boolean = false)(implicit in: In[Face, R]): P ! R =
-    offer[P, R](view, List(Action[P, P]("submit", "Submit", form)(p => p)), back)
+  def fill[P, R[_]](view: View, form: Shape[P], options: Step.Options = Step.Options())(
+    implicit in: In[Face, R]): P ! R =
+    offer[P, R](view, List(Action[P, P]("submit", "Submit", form)(p => p)), options)
   /** a form, filled and submitted, or cancelled */
-  def fillOrCancel[P, R[_]](view: View, form: Shape[P], back: Boolean = false)(
+  def fillOrCancel[P, R[_]](view: View, form: Shape[P], options: Step.Options = Step.Options())(
     implicit in: In[Face, R]): Option[P] ! R =
     offer[Option[P], R](view,
       List(Action[P, Option[P]]("submit", "Submit", form)(p => Some(p)),
-        Action.plain[Option[P]]("cancel", "Cancel")(None)), back)
+        Action.plain[Option[P]]("cancel", "Cancel")(None)), options)
 
   /** `Face` alone is the row of a program of a face, `A ! Face`: one effect is a row (`splitOne`), no alias needed */
   /** A PROGRAM OF NO IMPLEMENTATION, on this one: written over `Faces.tagless` as a value, `Program[A, Face]`, it runs
@@ -74,10 +74,10 @@ class Faces[F <: Effects with Singleton](implicit implementation: F) {
       new Handler[Face, Rest, A, Step[A, M]] {
         def ret(a: A) = pure(Step.Done[A, M](a))
         def op[X](op: Face[X], k: X => Step[A, M] ! Rest) = op match {
-          case Face.Offer(view, actions, answer, meanwhile, back) =>
+          case Face.Offer(view, actions, answer, meanwhile, options) =>
             pure[Step[A, M], Rest](Step.Waiting[A, M](view, actions,
                 chosen => Step.take(chosen, actions).map(a => k(answer(a))), meanwhile.map(_.map(a => k(answer(a)))),
-                back))
+                options))
           case Face.Show(view, answer) => pure[Step[A, M], Rest](Step.Told[A, M](view, k(answer(()))))
         }
       })

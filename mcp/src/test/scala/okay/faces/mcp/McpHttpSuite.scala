@@ -22,7 +22,7 @@ class McpHttpSuite extends munit.FunSuite {
   type HLF[X] = Sum[HL, Face, X]
   def greeting: String ! HLF = confirm[HLF](View.text("Go?")).flatMap(yes =>
     show[HLF](View.text(if (yes) "went" else "stayed")).map(_ => if (yes) "went" else "stayed"))
-  val service = face.http.service[H](_ => face.server[String, HL]("t", "0", steps[String, HLF, HL](greeting)))
+  val service = face.http.service[H](_ => face.server[String, HL]("t", steps[String, HLF, HL](greeting)))
   def post(body: String, session: Option[String] = None, stream: Boolean = false): Request =
     Request.post("/mcp", body).copy(headers = Map(
       "content-type" -> List("application/json")) ++ (if (stream)

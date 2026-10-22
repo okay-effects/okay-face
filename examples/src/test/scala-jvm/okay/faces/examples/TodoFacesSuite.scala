@@ -57,7 +57,7 @@ class TodoFacesSuite extends munit.FunSuite {
 
   test("the HTML pages: the form posted, an item a link, the list shown") {
     val html = HtmlFace()
-    val pages = html.handle(Todo.keeping, ids = okay.faces.Sessions.counting("s"))
+    val pages = html.handle(Todo.keeping, HtmlFace.Settings(ids = okay.faces.Sessions.counting("s")))
     val form = "application/x-www-form-urlencoded"
     val requests = List(Request.get("/"), Request.get("/s/s1"), Request.post("/s/s1/act/add", "title=milk", form),
       Request.post("/s/s1/act/add", "title=bread&due=2026-10-25", form), Request.get("/s/s1"),
@@ -73,7 +73,8 @@ class TodoFacesSuite extends munit.FunSuite {
 
   test("the REST resources: the form as a tool with its schema, an item by key, a bad form a 400") {
     val rest = RestFace()
-    val sessions = rest.handle(Todo.keeping, vocabulary = marks.vocabulary, ids = okay.faces.Sessions.counting("s"))
+    val sessions = rest.handle(Todo.keeping,
+      RestFace.Settings(vocabulary = marks.vocabulary, ids = okay.faces.Sessions.counting("s")))
     val requests = List(Request.post("/sessions", "", "application/json"),
       Request.json("POST", "/sessions/s1/act/add", obj("title" -> Str("milk"))),
       Request.json("POST", "/sessions/s1/act/ref", obj("key" -> Str("1"))),
@@ -89,7 +90,7 @@ class TodoFacesSuite extends munit.FunSuite {
 
   test("MCP: the form a tool with the item's schema; a call adds, the items are the view's refs") {
     val mcp = McpFace()
-    val served = mcp.handle(Todo.keeping, vocabulary = marks.vocabulary)
+    val served = mcp.handle(Todo.keeping, McpFace.Settings(vocabulary = marks.vocabulary))
     val init = Rpc.encode(Rpc.Request(num(1), "initialize",
         obj("protocolVersion" -> Str("2025-06-18"), "capabilities" -> Json.Obj.empty,
           "clientInfo" -> obj("name" -> Str("t")))))

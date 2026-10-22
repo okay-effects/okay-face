@@ -36,7 +36,7 @@ class TodoPageSuite extends munit.FunSuite {
 
   test("Laminar: the list in the page — two added, one clicked done, the marks and the count") {
     val face = new LaminarFace[Machine.type]()(Machine)
-    val root = mounted(face.handle(Todo.keeping, look = Some(Todo.look)))
+    val root = mounted(face.handle(Todo.keeping, LaminarFace.Settings(look = Some(Todo.look))))
     assertEquals(q(root, "h1").textContent, "To do")
     assert(root.innerHTML.contains("Nothing to do."), root.innerHTML)
     typeInto(root, "f-title", "milk"); submit(root, "add")
@@ -52,8 +52,8 @@ class TodoPageSuite extends munit.FunSuite {
     // the sessions over the implementation alone (no Http in the row), each request answered on the machine
     val faces = new okay.faces.Faces[Machine.type]()(Machine)
     val service: Request => Response ! Void = new RestFace[Machine.type]()(Machine).sessions[Unit, Void](
-      () => faces.dialogue[Unit, Void](faces.steps[Unit, okay.faces.Face, Void](faces.of(Todo.keeping))),
-      ids = Sessions.counting("s")).service
+      () => faces.session[Unit, Void](faces.steps[Unit, okay.faces.Face, Void](faces.of(Todo.keeping))),
+      RestFace.Settings(ids = Sessions.counting("s"))).service
     var calls: List[Request] = Nil
     val transport: Request => Future[Response] =
       req => { calls = req :: calls; Future.successful(Machine.run(service(req))) }

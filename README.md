@@ -76,7 +76,7 @@ choice, nothing else. A choice comes back as JSON, `Chosen(action, args)`; the a
 
 What a face learns of a program it learns from what the program shows: the first level-1 heading is a window's title,
 a page's, an agent's server's name; what is told before the first offer is the agent's instructions and the window's
-help. A step is not returned to unless the program says `back = true` on it; then every face keeps it in its history
+help. A step is not returned to unless the program says so, `Step.Options.returnable`; then every face keeps it in its history
 and offers a way back. How it looks is data: a `Look` is a `Theme` of tokens, a `Style` of rules by `Role` and the
 face's own `Words`, compiled by each face (CSS, Swing, ANSI); an application's own words on views are typed marks,
 `Marks[M]` over a sealed set, one source for the look, the wire and the vocabulary an agent is told. The faces that

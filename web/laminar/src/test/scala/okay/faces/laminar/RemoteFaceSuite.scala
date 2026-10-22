@@ -24,14 +24,15 @@ class RemoteFaceSuite extends munit.FunSuite {
     record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w =>
       (w.name, w.age))
   def greeting: String ! F =
-    fill[Who, F](View.heading("Who are you?"), who, back = true).flatMap { w =>
+    fill[Who, F](View.heading("Who are you?"), who, okay.faces.Step.Options.returnable).flatMap { w =>
       confirm[F](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
         if (yes) show[F](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, F]("left")
       }
     }
   /** the server: the REST face's sessions, each request answered on the machine; the transport, a future of it */
   val service: Request => Response ! Void = new RestFace[Machine.type]()(Machine).sessions[String, Void](() =>
-    faces.dialogue[String, Void](steps[String, F, Void](greeting)), ids = okay.faces.Sessions.counting("s")).service
+      faces.session[String, Void](steps[String, F, Void](greeting)),
+    RestFace.Settings(ids = okay.faces.Sessions.counting("s"))).service
   var calls: List[Request] = Nil
   val transport: Request => Future[Response] =
     req => { calls = req :: calls; Future.successful(Machine.run(service(req))) }

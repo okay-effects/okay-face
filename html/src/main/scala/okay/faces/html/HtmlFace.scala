@@ -4,7 +4,7 @@ import okay.effects.Effects
 import okay.effects.tagless.{Program, Tagless}
 import okay.effects.json.Json
 import okay.effects.shape.Schema
-import okay.faces.{Action, Chosen, Css, Face, Faces, Look, Rejected, Role, Sessions, View, Words}
+import okay.faces.{Action, Chosen, Css, Face, Faces, Look, Rejected, Role, Session, Sessions, View, Words}
 import okay.http.{Http, Query, Request, Response}
 import okay.http.rest.{Rests, Trouble}
 
@@ -24,14 +24,16 @@ class HtmlFace[F <: Effects with Singleton](implicit val fx: F) {
   val rests: Rests[fx.type] = new Rests[fx.type]()(fx)
   import rests.{Route, dispatch, get, post}
 
-  final class Pages[A, R[_]](open: () => faces.Dialogue[A, R], title: String, base: String = "/s",
-    look: Look = Look.default, ids: () => String = Sessions.random) {
+  final class Pages[A, R[_]](open: () => Session[fx.type, A, R], title: String,
+    settings: HtmlFace.Settings = HtmlFace.Settings()) {
+    private val base = settings.base
+    private val look = settings.look.getOrElse(Look.default)
     // the sessions, by id: random ids, forgotten when idle an hour, at most a thousand (`Sessions`)
-    private val sessions = new Sessions[(faces.Dialogue[A, R], List[okay.effects.shape.Problem])](ids)
+    private val sessions = new Sessions[(Session[fx.type, A, R], List[okay.effects.shape.Problem])](settings.ids)
     private val words = look.words
     val stylesheet: String = Css(look)
 
-    def page(id: String, d: faces.Dialogue[A, R], problems: List[okay.effects.shape.Problem]): String ! R =
+    def page(id: String, d: Session[fx.type, A, R], problems: List[okay.effects.shape.Problem]): String ! R =
       d.shown.flatMap { case (told, v) =>
         d.actions.map(as =>
           Html.page(View.title(told :+ v).getOrElse(title), told, v, as, problems, s"$base/$id", d.canGoBack, words))
@@ -90,22 +92,21 @@ class HtmlFace[F <: Effects with Singleton](implicit val fx: F) {
       })
     def service: Request => Response ! R = dispatch[R](routes)
   }
-  def pages[A, R[_]](open: () => faces.Dialogue[A, R], title: String, base: String = "/s", look: Look = Look.default,
-    ids: () => String = Sessions.random): Pages[A, R] =
-    new Pages[A, R](open, title, base, look, ids)
+  def pages[A, R[_]](open: () => Session[fx.type, A, R], title: String,
+    settings: HtmlFace.Settings = HtmlFace.Settings()): Pages[A, R] =
+    new Pages[A, R](open, title, settings)
 
   /** THE HANDLER: a program of the face as pages, a service over `Http` — `/` and `base` open a session, the pages at
    * `base/{id}`, titled by the level-1 heading shown, the look at `/okay.css` */
-  def handle[A](p: Program[A, okay.faces.Face], base: String = "/s", look: Option[Look] = None, back: Boolean = true,
-    ids: () => String = Sessions.random): Request => Response ! H = {
-    val l = look.getOrElse(Look.default)
-    pages[A, H](() => faces.dialogue[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), back, l.words.over), "okay",
-      base, l, ids).service
+  def handle[A](p: Program[A, okay.faces.Face], settings: HtmlFace.Settings = HtmlFace.Settings())
+    : Request => Response ! H = {
+    val over = settings.look.getOrElse(Look.default).words.over
+    pages[A, H](() => faces.session[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), over), "okay", settings).service
   }
   /** the same served: `run(new HtmlFace().serve(Noughts.games, port, host))` */
-  def serve[A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1", look: Option[Look] = None,
-    base: String = "/s", back: Boolean = true): Unit ! Pure =
-    okay.faces.rest.Web.serve(fx, port, host)("/" -> handle[A](p, base, look, back))
+  def serve[A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1",
+    settings: HtmlFace.Settings = HtmlFace.Settings()): Unit ! Pure =
+    okay.faces.rest.Web.serve(fx, port, host)("/" -> handle[A](p, settings))
   type H[X] = okay.effects.Sum[Pure, Http, X]
   type HF[X] = okay.effects.Sum[H, Face, X]
 }
@@ -243,13 +244,15 @@ object Forms {
 }
 
 object HtmlFace {
+  /** THE FACE'S SETTINGS, one value: where its pages are, how they look (the stylesheet and the face's words), how
+   * sessions are named (random by default; a test gives `Sessions.counting("s")`) */
+  final case class Settings(base: String = "/s", look: Option[Look] = None, ids: () => String = Sessions.random)
   /** over the implementation in scope */
   def apply[F <: Effects with Singleton]()(implicit fx: F): HtmlFace[F] = new HtmlFace[F]()(fx)
   /** THE HANDLER, whole, served: `run(HtmlFace.serve(Noughts.games, port, host))` */
   def serve[F <: okay.effects.Runner with Singleton, A](p: Program[A, okay.faces.Face], port: Int = 8080,
-    host: String = "127.0.0.1", look: Option[Look] = None, base: String = "/s", back: Boolean = true)(
-    implicit fx: F): Program[Unit, Tagless.Pure] = {
+    host: String = "127.0.0.1", settings: Settings = Settings())(implicit fx: F): Program[Unit, Tagless.Pure] = {
     val face = new HtmlFace[F]()(fx)
-    Faces.running(face.fx.run[Unit](face.serve[A](p, port, host, look, base, back)))
+    Faces.running(face.fx.run[Unit](face.serve[A](p, port, host, settings)))
   }
 }

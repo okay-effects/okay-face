@@ -14,9 +14,12 @@ import okay.faces.{Action, Chosen, Face, Faces, Paint, Rejected, Role, Step, Vie
  * actions' docs, `q` quits. Plain text unless a `Paint` is given: `Ansi(look)` colours by role for a terminal, and a
  * pipe gets none.
  */
-class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80,
-  words: Words = Words.english)(implicit val fx: F) {
+class Terminal[F <: okay.effects.Effects with Singleton](settings: Terminal.Settings = Terminal.Settings())(
+  implicit val fx: F) {
   import fx._
+  private val paint = settings.paint
+  private val width = settings.width
+  private val words = settings.words
   val faces: Faces[fx.type] = new Faces[fx.type]()(fx)
   val io: Io[fx.type] = new Io[fx.type]()(fx)
   val reading: Reading[fx.type] = new Reading[fx.type]()(fx)
@@ -124,18 +127,18 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
   /** THE HANDLER: a program of the face at a terminal, `Console` left in the row for a console handler — a scripted one
    * in a
    * test, the real one by `console`; `None` when the person quits */
-  def handle[A](p: Program[A, okay.faces.Face], back: Boolean = true): Option[A] ! C =
-    terminal[A, C](faces.steps[A, CF, C](faces.of(p).into[CF]), back)
+  def handle[A](p: Program[A, okay.faces.Face]): Option[A] ! C =
+    terminal[A, C](faces.steps[A, CF, C](faces.of(p).into[CF]))
   /** the same at the real console: `run(Terminal().console(Noughts.games))` */
-  def console[A](p: Program[A, okay.faces.Face], back: Boolean = true): Option[A] ! Pure =
-    io.realConsole[C, Pure, Option[A]](handle[A](p, back))
+  def console[A](p: Program[A, okay.faces.Face]): Option[A] ! Pure =
+    io.realConsole[C, Pure, Option[A]](handle[A](p))
   type C[X] = okay.effects.Sum[Pure, Console, X]
   type CF[X] = okay.effects.Sum[C, Face, X]
 
   // ---- THE STEP LOOP
   /** the face: shows, reads, resumes; `None` when the person quits. The row holds `Console` and whatever the steps need
    */
-  def terminal[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R, back: Boolean = true)(
+  def terminal[A, R[_]](first: Step[A, ({ type L[X] = X ! R })#L] ! R)(
     implicit c: In[Console, R]): Option[A] ! R = {
     type M[X] = X ! R
     type RF[X] = okay.effects.Sum[R, Fields, X]
@@ -178,13 +181,13 @@ class Terminal[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.no
       case Step.Done(a) => pure[Option[A], R](Some(a))
       case Step.Told(view, next) => say[R](Render.view(view, paint) :+ "").flatMap(_ => next).flatMap(loop(_, history))
       case w: Step.Waiting[A, M] @unchecked =>
-        say[R](Render.view(w.view, paint) :+ "").flatMap(_ => say[R](menuOf(w, back && history.nonEmpty))).flatMap(_ =>
+        say[R](Render.view(w.view, paint) :+ "").flatMap(_ => say[R](menuOf(w, history.nonEmpty))).flatMap(_ =>
           printLine[R]("> ")).flatMap(_ => readLine[R]).flatMap {
           case None => pure[Option[A], R](None)
           case Some(l) if l.trim == "q" => pure[Option[A], R](None)
           case Some(l) if l.trim == "<" =>
             history match {
-              case previous :: older if back => loop(previous, older)
+              case previous :: older => loop(previous, older)
               case _ => loop(w, history)
             }
           case Some(l) if l.trim == "?" => say[R](docs(w)).flatMap(_ => loop(w, history))
@@ -222,14 +225,16 @@ object Terminal {
         if (line.length + 1 + word.length <= width) (line + " " + word) :: done else (pad + word) :: line :: done
     }.reverse
   }
+  /** THE FACE'S SETTINGS, one value: how it paints (plain, or ANSI from a look: `Ansi(look)`), how wide its help is
+   * wrapped, the face's own words */
+  final case class Settings(paint: Paint = Paint.none, width: Int = 80, words: Words = Words.english)
   /** over the implementation in scope */
-  def apply[F <: okay.effects.Effects with Singleton](paint: Paint = Paint.none, width: Int = 80,
-    words: Words = Words.english)(implicit fx: F): Terminal[F] = new Terminal[F](paint, width, words)(fx)
+  def apply[F <: okay.effects.Effects with Singleton](settings: Settings = Settings())(implicit fx: F): Terminal[F] =
+    new Terminal[F](settings)(fx)
   /** THE HANDLER, whole, at the real console: `run(Terminal.console(Noughts.games))` */
-  def console[F <: okay.effects.Runner with Singleton, A](p: Program[A, okay.faces.Face], paint: Paint = Paint.none,
-    width: Int = 80, back: Boolean = true, words: Words = Words.english)(
-    implicit fx: F): Program[Option[A], Tagless.Pure] = {
-    val term = new Terminal[F](paint, width, words)(fx)
-    Faces.running(term.fx.run[Option[A]](term.console[A](p, back)))
+  def console[F <: okay.effects.Runner with Singleton, A](p: Program[A, okay.faces.Face],
+    settings: Settings = Settings())(implicit fx: F): Program[Option[A], Tagless.Pure] = {
+    val term = new Terminal[F](settings)(fx)
+    Faces.running(term.fx.run[Option[A]](term.console[A](p)))
   }
 }

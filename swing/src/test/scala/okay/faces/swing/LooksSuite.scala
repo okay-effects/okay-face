@@ -26,7 +26,7 @@ class LooksSuite extends munit.FunSuite {
   test(
     "with a look: the heading bold and larger, the problem in its tone, the face on its background, " +
       "the button an accent") {
-    val root = face.panel(steps[Unit, F, Void](program), (_: Unit) => (), Some(Look.default))
+    val root = face.panel(steps[Unit, F, Void](program), (_: Unit) => (), SwingFace.Settings(Some(Look.default)))
     val h = byName[JLabel](root, Role.Heading(1).cls)
     assert(h.getFont.isBold); assertEquals(h.getFont.getSize, 26)
     assertEquals(byName[JLabel](root, Role.Notice(View.Notice.Problem).cls).getForeground, awt(okay.faces.Tone.Problem))

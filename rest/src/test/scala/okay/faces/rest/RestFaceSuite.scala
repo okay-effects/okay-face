@@ -23,19 +23,20 @@ class RestFaceSuite extends munit.FunSuite {
     record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w =>
       (w.name, w.age))
   def greeting: String ! HF =
-    fill[Who, HF](View.heading("Who are you?"), who, back = true).flatMap { w =>
+    fill[Who, HF](View.heading("Who are you?"), who, okay.faces.Step.Options.returnable).flatMap { w =>
       confirm[HF](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
         if (yes) show[HF](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, HF]("left")
       }
     }
   def talk(requests: Request*): List[okay.http.Response] = {
     val sessions = face.sessions[String, H](
-      () => faces.dialogue[String, H](steps[String, HF, H](greeting)), ids = okay.faces.Sessions.counting("s"))
+      () => faces.session[String, H](steps[String, HF, H](greeting)),
+      RestFace.Settings(ids = okay.faces.Sessions.counting("s")))
     Machine.run(https.scripted(requests.toList)(https.serve[H](sessions.service)))._1
   }
 
   test(
-    "a session opened, its resource with links and schemas; an action taken; a bad one a 400 with the step unchanged; " +
+    "a session opened, its resource with links and schemas; an action taken; a bad one a 400, the step unchanged; " +
       "back") {
     val rs = talk(Request("POST", "/sessions"), Request.get("/sessions/s1"),
       Request.json("POST", "/sessions/s1/act/submit", obj("name" -> Str("Ann"), "age" -> num(3))),
@@ -55,8 +56,8 @@ class RestFaceSuite extends munit.FunSuite {
   test("the marks: a link in the resource and GET /sessions/marks when the sessions have a vocabulary; a 404 without") {
     val vocab = Vocabulary("price" -> "the amount due")
     val sessions =
-      face.sessions[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), vocabulary = vocab,
-        ids = okay.faces.Sessions.counting("s"))
+      face.sessions[String, H](() => faces.session[String, H](steps[String, HF, H](greeting)),
+        RestFace.Settings(vocabulary = vocab, ids = okay.faces.Sessions.counting("s")))
     val rs = Machine.run(https.scripted(List(Request("POST", "/sessions"), Request.get("/sessions/marks")))(
         https.serve[H](sessions.service)))._1
     assert(rs.head.body.contains("\"rel\":\"marks\"") && rs.head.body.contains("/sessions/marks"), rs.head.body)
@@ -77,7 +78,8 @@ class RestFaceSuite extends munit.FunSuite {
       offer[Int, HF](View.text("waiting"), List(okay.faces.Action.plain[Int]("skip", "Skip")(0)),
         bus.meanwhile).flatMap(n => show[HF](View.text(s"got $n")).map(_ => s"$n"))
     val sessions = face.sessions[String, H](
-      () => faces.dialogue[String, H](steps[String, HF, H](program)), ids = okay.faces.Sessions.counting("s"))
+      () => faces.session[String, H](steps[String, HF, H](program)),
+      RestFace.Settings(ids = okay.faces.Sessions.counting("s")))
     val opened = Machine.run(https.scripted(List(Request.post("/sessions", "", "application/json")))(
         https.serve[H](sessions.service)))._1.head
     assert(opened.body.contains("\"listening\":true"), opened.body)

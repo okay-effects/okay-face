@@ -27,44 +27,42 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
   trait Lower[M[_]] { def apply[X](m: M[X])(k: X => Unit): Unit }
 
   /** the row done: the rest run at once */
-  def element[A](first: Step[A, ({ type L[X] = X ! Pure })#L] ! Pure,
-    done: A => Unit = (_: A) => (),
-    browserHistory: Boolean = false, back: Boolean = true, words: Words = Words.english): HtmlElement = {
+  def element[A](first: Step[A, ({ type L[X] = X ! Pure })#L] ! Pure, done: A => Unit = (_: A) => (),
+    settings: LaminarFace.Settings = LaminarFace.Settings()): HtmlElement = {
     type M[X] = X ! Pure
-    new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = k(run(m)) }, done, browserHistory,
-      back, words).element(first)
+    new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = k(run(m)) }, done, settings)
+      .element(first)
   }
 
   /** THE HANDLER: a program of the face as an element — the dialogue run here, in the browser, with its look as a
    * `<style>`
    * when one is given; `mount` puts it into `#app` or the body: `new LaminarFace().mount(Noughts.games)` */
-  def handle[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (),
-    back: Boolean = true): HtmlElement =
-    div(look.map(LaminarFace.stylesheet).toList,
-      element[A](faces.steps[A, okay.faces.Face, Pure](faces.of(p)), done, back = back,
-        words = look.map(_.words).getOrElse(Words.english)))
-  def mount[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, done: A => Unit = (_: A) => (),
-    back: Boolean = true): Unit = {
+  def handle[A](p: Program[A, okay.faces.Face], settings: LaminarFace.Settings = LaminarFace.Settings(),
+    done: A => Unit = (_: A) => ()): HtmlElement =
+    div(settings.look.map(LaminarFace.stylesheet).toList,
+      element[A](faces.steps[A, okay.faces.Face, Pure](faces.of(p)), done, settings))
+  def mount[A](p: Program[A, okay.faces.Face], settings: LaminarFace.Settings = LaminarFace.Settings(),
+    done: A => Unit = (_: A) => ()): Unit = {
     val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
-    renderOnDomContentLoaded(root, handle[A](p, look, done, back))
+    renderOnDomContentLoaded(root, handle[A](p, settings, done))
   }
 
   /** `Async` remaining: the rest run to a `Future` — a program that waits (a fetch, a timer) between steps */
   def elementAsync[A](first: Step[A, ({ type L[X] = X ! Async })#L] ! Async, done: A => Unit = (_: A) => (),
-    browserHistory: Boolean = false, back: Boolean = true, words: Words = Words.english)(
-    implicit ec: ExecutionContext): HtmlElement = {
+    settings: LaminarFace.Settings = LaminarFace.Settings())(implicit ec: ExecutionContext): HtmlElement = {
     type M[X] = X ! Async
     val asynchrony = new Asynchrony[fx.type]()(fx, ec)
     new Machine[A, M](new Lower[M] { def apply[X](m: M[X])(k: X => Unit): Unit = asynchrony.toFuture(m).foreach(k) },
-      done, browserHistory, back, words).element(first)
+      done, settings).element(first)
   }
 
   final case class Shown[A, M[_]](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]],
     problems: Problems, busy: Boolean)
 
   /** one machine per element: its state, how it runs a rest, what it does at the end */
-  final class Machine[A, M[_]](lower: Lower[M], done: A => Unit, browserHistory: Boolean, allowsBack: Boolean = true,
-    words: Words = Words.english) {
+  final class Machine[A, M[_]](lower: Lower[M], done: A => Unit, settings: LaminarFace.Settings) {
+    private val browserHistory = settings.browserHistory
+    private val words = settings.look.map(_.words).getOrElse(Words.english)
     val state: Var[Shown[A, M]] =
       Var(Shown(Vector.empty, Step.Told(View.Empty, null.asInstanceOf[M[Step[A, M]]]), Nil, Nil, busy = true))
 
@@ -126,7 +124,7 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
         case w: Step.Waiting[A, M] @unchecked =>
           val problems =
             if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
-          val backButton = if (!allowsBack || s.history.isEmpty) emptyNode
+          val backButton = if (s.history.isEmpty) emptyNode
           else
             button(typ := "button", cls := Role.Back.classes, words.back,
               onClick --> Observer[dom.MouseEvent](_ => back()))
@@ -291,12 +289,15 @@ object Forms {
 }
 
 object LaminarFace {
+  /** THE FACE'S SETTINGS, one value: how it looks (a `<style>` and the face's words), whether a step is an entry of
+   * the browser's history (its back button then goes back a step) */
+  final case class Settings(look: Option[Look] = None, browserHistory: Boolean = false)
   /** over the implementation in scope */
   def apply[F <: Runner with Singleton]()(implicit fx: F): LaminarFace[F] = new LaminarFace[F]()(fx)
   /** THE HANDLER, whole, in the page: `LaminarFace.mount(Noughts.games)` */
-  def mount[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], look: Option[Look] = None,
-    done: A => Unit = (_: A) => (), back: Boolean = true)(implicit fx: F): Unit =
-    new LaminarFace[F]()(fx).mount[A](p, look, done, back)
+  def mount[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], settings: Settings = Settings(),
+    done: A => Unit = (_: A) => ())(implicit fx: F): Unit =
+    new LaminarFace[F]()(fx).mount[A](p, settings, done)
   /** the look as a `<style>` for the document: the same stylesheet the HTML face serves */
   def stylesheet(look: Look = Look.default): HtmlElement = styleTag(Css(look))
 

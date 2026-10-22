@@ -22,7 +22,7 @@ class HtmlFaceSuite extends munit.FunSuite {
     record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w =>
       (w.name, w.age))
   def greeting: String ! HF =
-    fill[Who, HF](View.heading("Who are you?"), who, back = true).flatMap { w =>
+    fill[Who, HF](View.heading("Who are you?"), who, okay.faces.Step.Options.returnable).flatMap { w =>
       confirm[HF](View.text(s"Greet <${w.name}>, ${w.age}?")).flatMap { yes =>
         if (yes) show[HF](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, HF]("left")
       }
@@ -30,8 +30,8 @@ class HtmlFaceSuite extends munit.FunSuite {
   def form(kv: (String, String)*): Request = Request.post("/s/s1/act/submit",
     Query.print(kv.toList.groupBy(_._1).map { case (k, vs) => k -> vs.map(_._2) }), "application/x-www-form-urlencoded")
   def talk(requests: Request*): List[okay.http.Response] = {
-    val pages = face.pages[String, H](() => faces.dialogue[String, H](steps[String, HF, H](greeting)), "Greeting",
-      ids = okay.faces.Sessions.counting("s"))
+    val pages = face.pages[String, H](() => faces.session[String, H](steps[String, HF, H](greeting)), "Greeting",
+      HtmlFace.Settings(ids = okay.faces.Sessions.counting("s")))
     Machine.run(https.scripted(requests.toList)(https.serve[H](pages.service)))._1
   }
 
@@ -78,7 +78,8 @@ class HtmlFaceSuite extends munit.FunSuite {
     assertEquals(css.status, 200); assertEquals(css.headers("Content-Type"), "text/css; charset=utf-8")
     assert(css.body.contains("--okay-bg:#ffffff") && css.body.contains(".okay-heading-1{"), css.body)
     val dark = face.pages[String, H](
-      () => faces.dialogue[String, H](steps[String, HF, H](greeting)), "Greeting", look = okay.faces.Look.dark)
+      () => faces.session[String, H](steps[String, HF, H](greeting)), "Greeting",
+      HtmlFace.Settings(look = Some(okay.faces.Look.dark)))
     assert(
       Machine.run(https.scripted(List(Request.get("/okay.css")))(https.serve[H](dark.service)))._1.head.body.contains(
         "--okay-bg:#0d1117"))
@@ -104,7 +105,8 @@ class HtmlFaceSuite extends munit.FunSuite {
         List(okay.faces.Action[String, String]("ref", "Open", record(field("key", text))(k => k)(k => k))(k =>
             k))).flatMap(k => show[HF](View.text(s"opened $k")).map(_ => k))
     val pages = face.pages[String, H](
-      () => faces.dialogue[String, H](steps[String, HF, H](listing)), "Refs", ids = okay.faces.Sessions.counting("s"))
+      () => faces.session[String, H](steps[String, HF, H](listing)), "Refs",
+      HtmlFace.Settings(ids = okay.faces.Sessions.counting("s")))
     val rs = Machine.run(https.scripted(List(Request.get("/"), Request.get("/s/s1"), Request.get("/s/s1/ref/r2"),
           Request.get("/s/s1")))(https.serve[H](pages.service)))._1
     assert(rs(1).body.contains("""href="/s/s1/ref/r2""""), rs(1).body)

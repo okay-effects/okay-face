@@ -4,7 +4,7 @@ import okay.effects.{Effects, Runner}
 import okay.effects.tagless.{Program, Tagless}
 import okay.effects.json.Json
 import okay.effects.shape.JsonSchema
-import okay.faces.{Action, Chosen, Face, Faces, Look, Rejected, Sessions => Store, Step, View, ViewJson, Vocabulary}
+import okay.faces.{Action, Chosen, Face, Faces, Look, Rejected, Session, Sessions, Step, View, ViewJson, Vocabulary}
 import okay.http.{Http, Https, Request, Response}
 import okay.http.rest.{Link, Resource, Rests, Trouble}
 
@@ -25,12 +25,15 @@ class RestFace[F <: Runner with Singleton](implicit val fx: F) {
   val rests: Rests[fx.type] = new Rests[fx.type]()(fx)
   import rests.{Route, dispatch, get, post}
 
-  final class Sessions[A, R[_]](open: () => faces.Dialogue[A, R], base: String = "/sessions",
-    vocabulary: Vocabulary = Vocabulary.empty, ids: () => String = Store.random) {
-    // the sessions, by id: random ids, forgotten when idle an hour, at most a thousand (`Sessions` in core)
-    private val sessions = new Store[faces.Dialogue[A, R]](ids)
+  /** the sessions as resources: opened, shown, chosen in, gone back in — a service over `Http` */
+  final class Resources[A, R[_]](open: () => Session[fx.type, A, R],
+    settings: RestFace.Settings = RestFace.Settings()) {
+    private val base = settings.base
+    private val vocabulary = settings.vocabulary
+    // the sessions, by id: random ids, forgotten when idle an hour, at most a thousand (`Sessions`)
+    private val sessions = new Sessions[Session[fx.type, A, R]](settings.ids)
 
-    def resource(id: String, d: faces.Dialogue[A, R]): Resource ! R = d.view.flatMap(v =>
+    def resource(id: String, d: Session[fx.type, A, R]): Resource ! R = d.view.flatMap(v =>
       d.actions.flatMap(as =>
         d.done.flatMap(over =>
           d.listening.map { listening =>
@@ -81,42 +84,43 @@ class RestFace[F <: Runner with Singleton](implicit val fx: F) {
       })
     def service: Request => Response ! R = dispatch[R](routes)
   }
-  def sessions[A, R[_]](open: () => faces.Dialogue[A, R], base: String = "/sessions",
-    vocabulary: Vocabulary = Vocabulary.empty, ids: () => String = Store.random): Sessions[A, R] =
-    new Sessions[A, R](open, base, vocabulary, ids)
+  def sessions[A, R[_]](open: () => Session[fx.type, A, R], settings: RestFace.Settings = RestFace.Settings())
+    : Resources[A, R] = new Resources[A, R](open, settings)
 
   /** THE HANDLER: a program of the face as a JSON API, a service over `Http` — `POST base` opens a session, the
    * resource
    * at `base/{id}` with its links, the marks at `base/marks` — for a server, or the remote face */
-  def handle[A](p: Program[A, okay.faces.Face], base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty,
-    back: Boolean = true, ids: () => String = Store.random): Request => Response ! H =
-    sessions[A, H](
-      () => faces.dialogue[A, H](faces.steps[A, HF, H](faces.of(p).into[HF]), back), base, vocabulary, ids).service
+  def handle[A](p: Program[A, okay.faces.Face], settings: RestFace.Settings = RestFace.Settings())
+    : Request => Response ! H =
+    sessions[A, H](() => faces.session[A, H](faces.steps[A, HF, H](faces.of(p).into[HF])), settings).service
   /** the same served: `run(new RestFace().serve(Noughts.games, port, host))`; with a `page`, the thin page at `/` that
    * plays
    * the sessions from the browser — the remote face's script (`okay.faces.laminar.RemotePage`, linked), knowing no
    * program */
   def serve[A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1",
-    page: Option[() => Either[String, String]] = None, look: Option[Look] = None,
-    base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true): Unit ! Pure = {
+    settings: RestFace.Settings = RestFace.Settings()): Unit ! Pure = {
     val title = Step.opening[A, ({ type M[X] = X ! Pure })#M](faces.steps[A, okay.faces.Face, Pure](faces.of(p)),
       run).title.getOrElse("okay")
-    Web.serve(fx, port, host)((List(base -> handle[A](p, base, vocabulary, back)) ++ page.map(script =>
-        "/" -> new Shell[fx.type]()(fx).handle(title, look, "/" -> script)).toList): _*)
+    Web.serve(fx, port, host)((List(settings.base -> handle[A](p, settings)) ++ settings.page.map(script =>
+        "/" -> new Shell[fx.type]()(fx).handle(title, settings.look, "/" -> script)).toList): _*)
   }
   type H[X] = okay.effects.Sum[Pure, Http, X]
   type HF[X] = okay.effects.Sum[H, Face, X]
 }
 
 object RestFace {
+  /** THE FACE'S SETTINGS, one value: where the sessions are, the vocabulary of the application's marks (served at
+   * `base/marks`), how sessions are named (random by default; a test gives `Sessions.counting("s")`); for `serve`, the
+   * thin page at `/` (`page`, the remote face's script, linked) and its look */
+  final case class Settings(base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty,
+    ids: () => String = Sessions.random, look: Option[Look] = None,
+    page: Option[() => Either[String, String]] = None)
   /** over the implementation in scope */
   def apply[F <: Runner with Singleton]()(implicit fx: F): RestFace[F] = new RestFace[F]()(fx)
   /** THE HANDLER, whole, served: `run(RestFace.serve(Noughts.games, port, host))` */
   def serve[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], port: Int = 8080, host: String = "127.0.0.1",
-    page: Option[() => Either[String, String]] = None, look: Option[Look] = None,
-    base: String = "/sessions", vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true)(
-    implicit fx: F): Program[Unit, Tagless.Pure] = {
+    settings: Settings = Settings())(implicit fx: F): Program[Unit, Tagless.Pure] = {
     val face = new RestFace[F]()(fx)
-    Faces.running(face.fx.run[Unit](face.serve[A](p, port, host, page, look, base, vocabulary, back)))
+    Faces.running(face.fx.run[Unit](face.serve[A](p, port, host, settings)))
   }
 }

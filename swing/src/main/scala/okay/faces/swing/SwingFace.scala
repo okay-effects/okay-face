@@ -29,8 +29,9 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
   final case class Shown[A](told: Vector[View], step: Step[A, M], history: List[Step.Waiting[A, M]], problems: Problems)
 
   /** the face as a panel, rebuilt at each step; `done` with the value at the end */
-  def panel[A](first: Step[A, M] ! Pure, done: A => Unit = (_: A) => (), look: Option[Look] = None,
-    back: Boolean = true): JPanel = {
+  def panel[A](first: Step[A, M] ! Pure, done: A => Unit = (_: A) => (),
+    settings: SwingFace.Settings = SwingFace.Settings()): JPanel = {
+    val look = settings.look
     val root = new JPanel(new BorderLayout)
     root.setName(Role.Face.cls)
     def settle(step: Step[A, M], told: Vector[View], history: List[Step.Waiting[A, M]]): Shown[A] = step match {
@@ -54,7 +55,7 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
     def show(s: Shown[A]): Unit = {
       current = Some(s.step)
       root.removeAll()
-      root.add(render(s, show, settle, back, look.map(_.words).getOrElse(Words.english)), BorderLayout.CENTER)
+      root.add(render(s, show, settle, look.map(_.words).getOrElse(Words.english)), BorderLayout.CENTER)
       look.foreach(l => Looks(l)(root))
       root.revalidate(); root.repaint()
       grow()
@@ -81,14 +82,15 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
    * right,
    * not a line above the first step that the next step scrolls away; the result the dialogue's, or `None` when the
    * window is closed first: `run(new SwingFace().handle(Noughts.games))` */
-  def handle[A](p: Program[A, okay.faces.Face], look: Option[Look] = None, back: Boolean = true): Option[A] ! Pure = {
+  def handle[A](p: Program[A, okay.faces.Face], settings: SwingFace.Settings = SwingFace.Settings())
+    : Option[A] ! Pure = {
     val steps = faces.steps[A, okay.faces.Face, Pure](faces.of(p))
     pure(()).flatMap { _ =>
       val opening = Step.opening[A, M](steps, run)
       val outcome = new java.util.concurrent.LinkedBlockingQueue[Option[A]](1)
       window(opening.title.getOrElse("okay"), pure[Step[A, M], Pure](opening.first),
         (a: A) => outcome.offer(Some(a)),
-        look = look, back = back, closed = () => outcome.offer(None), help = opening.intro)
+        settings = settings, closed = () => outcome.offer(None), help = opening.intro)
       pure[Option[A], Pure](outcome.take())
     }
   }
@@ -97,8 +99,9 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
    * title
    * follows the program's current page */
   def window[A](title: String, first: Step[A, M] ! Pure, done: A => Unit = (_: A) => (),
-    pages: Option[(okay.faces.Pages[_], Any => String)] = None, look: Option[Look] = None, back: Boolean = true,
-    closed: () => Unit = () => sys.exit(0), help: Vector[View] = Vector.empty): Unit =
+    pages: Option[(okay.faces.Pages[_], Any => String)] = None, settings: SwingFace.Settings = SwingFace.Settings(),
+    closed: () => Unit = () => sys.exit(0), help: Vector[View] = Vector.empty): Unit = {
+    val look = settings.look
     SwingUtilities.invokeLater(new Runnable {
       def run(): Unit = {
         val frame = new JFrame(title)
@@ -109,7 +112,7 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
         frame.addWindowListener(new java.awt.event.WindowAdapter {
           override def windowClosed(e: java.awt.event.WindowEvent): Unit = closed()
         })
-        frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, look, back)),
+        frame.getContentPane.add(new JScrollPane(Views.fitting(panel(first, done, settings)),
             ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER))
         // the help, when there is one: a `?` at the top right, the views told before the first step in a dialog
         if (help.nonEmpty) {
@@ -130,9 +133,10 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
         frame.setLocationRelativeTo(null); frame.setVisible(true)
       }
     })
+  }
 
   private def render[A](s: Shown[A], show: Shown[A] => Unit,
-    settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A], back: Boolean, words: Words)
+    settle: (Step[A, M], Vector[View], List[Step.Waiting[A, M]]) => Shown[A], words: Words)
     : JComponent = {
     val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS))
     s.told.foreach(v => box.add(named(Views.component(v), Role.Told.cls)))
@@ -155,7 +159,7 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
         val actions = new JPanel; actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
         actions.setName(Role.Actions.cls)
         w.actions.filterNot(_.name == "ref").foreach(a => actions.add(Forms.action(a, choose, words)))
-        if (back && s.history.nonEmpty) {
+        if (s.history.nonEmpty) {
           val b = new JButton(words.back); b.setName(Role.Back.cls)
           b.addActionListener(_ => show(Shown(Vector.empty, s.history.head, s.history.tail, Nil)))
           actions.add(b)
@@ -195,14 +199,16 @@ object SwingFace {
     sp.setPreferredSize(new java.awt.Dimension(460, math.min(h + 16, 360).max(60)))
     sp
   }
+  /** THE FACE'S SETTINGS, one value: how it looks (`None`: the platform's look and feel) */
+  final case class Settings(look: Option[Look] = None)
   /** over the implementation in scope */
   def apply[F <: Runner with Singleton]()(implicit fx: F): SwingFace[F] = new SwingFace[F]()(fx)
   /** THE HANDLER, whole: `run(SwingFace.handle(Noughts.games))` — a program of nothing, run on the implementation in
    * scope */
-  def handle[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], look: Option[Look] = None,
-    back: Boolean = true)(implicit fx: F): Program[Option[A], Tagless.Pure] = {
+  def handle[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], settings: Settings = Settings())(
+    implicit fx: F): Program[Option[A], Tagless.Pure] = {
     val face = new SwingFace[F]()(fx)
-    Faces.running(face.fx.run[Option[A]](face.handle[A](p, look, back)))
+    Faces.running(face.fx.run[Option[A]](face.handle[A](p, settings)))
   }
 }
 

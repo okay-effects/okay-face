@@ -6,18 +6,17 @@ import okay.effects.Effects
  * ONE COUNTERPART'S SESSION with a step machine: the step it is at, the history for `back`, what was told on the way —
  * what every face that serves many counterparts keeps per session (MCP, REST, HTML). The rest of a step is a program of
  * the row `R` the face runs in, so a handler inside the program may use the face's own effects (a consent asked through
- * the client). Mutable, as a session is; one per counterpart. The faces call it a dialogue (`faces.dialogue`,
- * `faces.Dialogue[A, R]`): a session is one counterpart's dialogue.
+ * the client). Mutable, as a session is; one per counterpart. `faces.session(first)` makes one; `Sessions` keeps
+ * them by id. Back is offered exactly when there is a kept step behind: a step is kept when it says so
+ * (`Step.Options`).
  */
 object Session {
   /** what a face shows when the dialogue is over: that it is — the program's value is the program's, not shown */
   val over: View = View.info("done")
 }
-abstract class Session[F <: Effects with Singleton, A, R[_]](val fx: F, val allowsBack: Boolean,
-  over: View = Session.over) {
-  // `allowsBack`: whether the dialogue offers going back at all; `fx` the implementation, so that any face over it
-  // takes a session made anywhere over it — the type is `Session[Machine.type, A, R]`, no path in it. Made by
-  // `Faces.dialogue`, which gives `first`
+abstract class Session[F <: Effects with Singleton, A, R[_]](val fx: F, over: View = Session.over) {
+  // `fx` the implementation, so that any face over it takes a session made anywhere over it — the type is
+  // `Session[Machine.type, A, R]`, no path in it. Made by `Faces.session`, which gives `first`
   import fx._
   type M[X] = X ! R
   protected def first: Step[A, M] ! R
@@ -55,7 +54,7 @@ abstract class Session[F <: Effects with Singleton, A, R[_]](val fx: F, val allo
   }
   def actions: List[Action[_]] ! R = current.map { case w: Step.Waiting[A, M] @unchecked => w.actions; case _ => Nil }
   def done: Boolean ! R = current.map { case Step.Done(_) => true; case _ => false }
-  def canGoBack: Boolean = allowsBack && history.nonEmpty
+  def canGoBack: Boolean = history.nonEmpty
   /** the choice taken: the view after, or the problems, the step unchanged */
   def choose(chosen: Chosen): Either[Rejected, View] ! R = current.flatMap {
     case w: Step.Waiting[A, M] @unchecked => w.resume(chosen) match {

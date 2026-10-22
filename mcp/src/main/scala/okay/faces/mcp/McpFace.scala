@@ -21,14 +21,14 @@ class McpFace[F <: Runner with Singleton](implicit val fx: F) {
   /** the server over the SAME implementation value, so one `!` serves both */
   val servers: Servers[fx.type] = new Servers[fx.type]()(fx)
 
-  type Dialogue[A, R[_]] = faces.Dialogue[A, R]
+  type Session[A, R[_]] = okay.faces.Session[fx.type, A, R]
   /** the same servers over HTTP: `http.service(() => server(...))` */
   val http: McpHttp[fx.type, servers.type] = new McpHttp[fx.type, servers.type](servers)
   val domains: Domains[fx.type] = new Domains[fx.type]()(fx)
 
   /** the dialogue as tools: the step's actions, `look`, and `back` when there is a step to go back to — the list
    * changes as the dialogue moves, and `list_changed` says so */
-  def tools[A, R[_]](d: Dialogue[A, R], vocabulary: Vocabulary = Vocabulary.empty): servers.Tools[R] =
+  def tools[A, R[_]](d: Session[A, R], vocabulary: Vocabulary = Vocabulary.empty): servers.Tools[R] =
     new servers.Tools[R] {
       def list: List[ToolSpec] ! R = d.actions.map(as =>
         as.map(a => ToolSpec(a.name, a.doc.getOrElse(a.label), JsonSchema.of(a.params.erased))) ++ List(
@@ -52,7 +52,7 @@ class McpFace[F <: Runner with Singleton](implicit val fx: F) {
     }
   /** THE SINGLE-TOOL FALLBACK, for a client that reads the tool list once: `act(action, arguments)` is every step's
    * action, the current ones and their schemas in each result's text and in the `look`'s; `look` and `back` as ever */
-  def single[A, R[_]](d: Dialogue[A, R], vocabulary: Vocabulary = Vocabulary.empty): servers.Tools[R] =
+  def single[A, R[_]](d: Session[A, R], vocabulary: Vocabulary = Vocabulary.empty): servers.Tools[R] =
     new servers.Tools[R] {
       private def menu(as: List[Action[_]]): String = if (as.isEmpty) "no actions: the dialogue is over"
       else
@@ -69,7 +69,9 @@ class McpFace[F <: Runner with Singleton](implicit val fx: F) {
             "properties" -> Json.obj("action" -> Json.obj("type" -> Json.Str("string")),
               "arguments" -> Json.obj("type" -> Json.Str("object"))), "required" -> Json.arr(Json.Str("action")))),
         ToolSpec("look", "the current view and the actions, as they stand", Json.obj("type" -> Json.Str("object")))) ++
-        (if (d.allowsBack) List(ToolSpec("back", "one step back", Json.obj("type" -> Json.Str("object")))) else Nil))
+        // the list never changes in this mode (for a client that does not follow `list_changed`): `back` is always
+        // there, and answers "nothing to go back to" when no step behind was kept
+        List(ToolSpec("back", "one step back", Json.obj("type" -> Json.Str("object")))))
       def call(c: ToolCall): ToolResult ! R = c.name match {
         case "look" => d.view.flatMap(v => d.actions.map(as => told(v, as)))
         case "back" => if (d.back()) d.view.flatMap(v => d.actions.map(as => told(v, as)))
@@ -118,7 +120,7 @@ class McpFace[F <: Runner with Singleton](implicit val fx: F) {
 
   /** the current view as a resource, Markdown and JSON; the application's marks at `face://marks` when it has a
    * vocabulary */
-  def resources[A, R[_]](d: Dialogue[A, R], vocabulary: Vocabulary = Vocabulary.empty): servers.Resources[R] =
+  def resources[A, R[_]](d: Session[A, R], vocabulary: Vocabulary = Vocabulary.empty): servers.Resources[R] =
     new servers.Resources[R] {
       def list: List[ResourceSpec] ! R = pure[List[ResourceSpec], R](List(
         ResourceSpec("face://view", "the current view", Some("text/markdown")),
@@ -141,30 +143,28 @@ class McpFace[F <: Runner with Singleton](implicit val fx: F) {
    * one in a test, standard input and output by `stdio`. Named by the first level-1 heading the program shows,
    * instructed
    * by what it shows before its first offer and by the `vocabulary` of its marks */
-  def handle[A](p: Program[A, okay.faces.Face], vocabulary: Vocabulary = Vocabulary.empty, version: String = "1",
-    elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true): Unit ! L = {
+  def handle[A](p: Program[A, okay.faces.Face], settings: McpFace.Settings = McpFace.Settings()): Unit ! L = {
     val local = faces.of(p)
     val opening = Step.opening[A, ({ type M[X] = X ! Pure })#M](faces.steps[A, okay.faces.Face, Pure](local), run)
-    val instructions =
-      Some(opening.intro.map(Markdown.view(_, vocabulary)).filter(_.nonEmpty).mkString("\n\n")).filter(_.nonEmpty)
-    servers.serve[L](server[A, L](opening.title.getOrElse("okay"), version, faces.steps[A, LF, L](local.into[LF]),
-        instructions, elicitation, singleTool, vocabulary, back))
+    val instructions = Some(opening.intro.map(Markdown.view(_, settings.vocabulary)).filter(_.nonEmpty)
+        .mkString("\n\n")).filter(_.nonEmpty)
+    servers.serve[L](server[A, L](opening.title.getOrElse("okay"), faces.steps[A, LF, L](local.into[LF]),
+        instructions, settings))
   }
   /** the same over standard input and output, the transport an agent's client starts a server with: `run(new
    * McpFace().stdio(Noughts.games))` */
-  def stdio[A](p: Program[A, okay.faces.Face], vocabulary: Vocabulary = Vocabulary.empty, version: String = "1",
-    elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true): Unit ! Pure =
-    servers.links.stdio[L, Pure, Unit](handle[A](p, vocabulary, version, elicitation, singleTool, back))
+  def stdio[A](p: Program[A, okay.faces.Face], settings: McpFace.Settings = McpFace.Settings()): Unit ! Pure =
+    servers.links.stdio[L, Pure, Unit](handle[A](p, settings))
   type L[X] = okay.effects.Sum[Pure, Link, X]
   type LF[X] = okay.effects.Sum[L, Face, X]
 
   /** a server of the dialogue, named; `first` the steps over the server's own row; the `vocabulary` of the
    * application's
    * marks is told in the instructions, served at `face://marks`, and shown in the Markdown */
-  def server[A, R[_]](name: String, version: String, first: Step[A, ({ type L[X] = X ! R })#L] ! R,
-    instructions: Option[String] = None, elicitation: Boolean = false,
-    singleTool: Boolean = false, vocabulary: Vocabulary = Vocabulary.empty, back: Boolean = true): servers.Server[R] = {
-    val d = faces.dialogue[A, R](first, back)
+  def server[A, R[_]](name: String, first: Step[A, ({ type L[X] = X ! R })#L] ! R,
+    instructions: Option[String] = None, settings: McpFace.Settings = McpFace.Settings()): servers.Server[R] = {
+    import settings.{elicitation, singleTool, version, vocabulary}
+    val d = faces.session[A, R](first)
     val told = if (vocabulary.isEmpty) instructions
     else Some((instructions.toList :+ ("Marks on views, and what they mean:\n" + vocabulary.markdown)).mkString("\n\n"))
     servers.Server[R](name, version, if (singleTool) single[A, R](d, vocabulary) else tools[A, R](d, vocabulary),
@@ -219,13 +219,17 @@ object Markdown {
 }
 
 object McpFace {
+  /** THE FACE'S SETTINGS, one value: the vocabulary of the application's marks (told in the instructions, served at
+   * `face://marks`), the server's version, whether consent is asked by elicitation, whether the actions are one tool
+   * `act` (`singleTool`) rather than a tool each */
+  final case class Settings(vocabulary: Vocabulary = Vocabulary.empty, version: String = "1",
+    elicitation: Boolean = false, singleTool: Boolean = false)
   /** over the implementation in scope */
   def apply[F <: Runner with Singleton]()(implicit fx: F): McpFace[F] = new McpFace[F]()(fx)
   /** THE HANDLER, whole, over standard input and output: `run(McpFace.stdio(Noughts.games))` */
-  def stdio[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], vocabulary: Vocabulary = Vocabulary.empty,
-    version: String = "1", elicitation: Boolean = false, singleTool: Boolean = false, back: Boolean = true)(
+  def stdio[F <: Runner with Singleton, A](p: Program[A, okay.faces.Face], settings: Settings = Settings())(
     implicit fx: F): Program[Unit, Tagless.Pure] = {
     val face = new McpFace[F]()(fx)
-    Faces.running(face.fx.run[Unit](face.stdio[A](p, vocabulary, version, elicitation, singleTool, back)))
+    Faces.running(face.fx.run[Unit](face.stdio[A](p, settings)))
   }
 }

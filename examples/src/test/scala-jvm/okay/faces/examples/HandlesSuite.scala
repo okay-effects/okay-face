@@ -23,7 +23,8 @@ class HandlesSuite extends munit.FunSuite {
 
   test("REST: a session opened, the board as JSON, the one action ref, no back, the marks served") {
     val rest = RestFace() // bound first: Scala 3 widens a word on an unbound face to Any
-    val service = rest.handle(Noughts.games, vocabulary = marks.vocabulary, ids = okay.faces.Sessions.counting("s"))
+    val service = rest.handle(Noughts.games,
+      RestFace.Settings(vocabulary = marks.vocabulary, ids = okay.faces.Sessions.counting("s")))
     val rs = run(https.scripted(List(Request("POST", "/sessions"), Request.get("/sessions/marks")))(
         https.serve[H](service)))._1
     assertEquals(rs.map(_.status), List(201, 200))
@@ -35,7 +36,8 @@ class HandlesSuite extends munit.FunSuite {
     "HTML: the base opens a session, the page is titled by the heading shown, the cells are links, no back, " +
       "the look at /okay.css") {
     val html = HtmlFace()
-    val service = html.handle(Noughts.games, look = Some(look), ids = okay.faces.Sessions.counting("s"))
+    val service =
+      html.handle(Noughts.games, HtmlFace.Settings(look = Some(look), ids = okay.faces.Sessions.counting("s")))
     val rs = run(https.scripted(List(Request.get("/s"), Request.get("/s/s1"), Request.get("/okay.css")))(
         https.serve[H](service)))._1
     assertEquals(rs.map(_.status), List(303, 200, 200))
@@ -48,7 +50,7 @@ class HandlesSuite extends munit.FunSuite {
     "MCP: named by the heading, instructed by the rules shown and the marks; the tools are the move and look; " +
       "a call plays, back is not listed and has nowhere to go") {
     val mcp = McpFace()
-    val served = mcp.handle(Noughts.games, vocabulary = marks.vocabulary)
+    val served = mcp.handle(Noughts.games, McpFace.Settings(vocabulary = marks.vocabulary))
     val init = Rpc.encode(Rpc.Request(num(1), "initialize",
         obj("protocolVersion" -> Str("2025-06-18"), "capabilities" -> Json.Obj.empty,
           "clientInfo" -> obj("name" -> Str("t")))))

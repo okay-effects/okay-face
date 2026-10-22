@@ -25,7 +25,7 @@ class LaminarFaceSuite extends munit.FunSuite {
     record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)))(Who(_, _))(w =>
       (w.name, w.age))
   def greeting: String ! F =
-    fill[Who, F](View.heading("Who are you?"), who, back = true).flatMap { w =>
+    fill[Who, F](View.heading("Who are you?"), who, okay.faces.Step.Options.returnable).flatMap { w =>
       confirm[F](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
         if (yes) show[F](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, F]("left")
       }
@@ -167,7 +167,8 @@ class LaminarFaceSuite extends munit.FunSuite {
     assert(root.innerHTML.contains("opened r1"), root.innerHTML)
   }
   test("the browser's back: a popstate re-resumes the previous step") {
-    val root = mounted(face.element(steps[String, F, Void](greeting), browserHistory = true))
+    val root =
+      mounted(face.element(steps[String, F, Void](greeting), settings = LaminarFace.Settings(browserHistory = true)))
     typeInto(root, "f-name", "Di"); typeInto(root, "f-age", "33")
     submit(root, "submit")
     assertEquals(q(root, "p").textContent, "Greet Di, 33?")

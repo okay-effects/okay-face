@@ -53,7 +53,7 @@ class DomainToolsSuite extends munit.FunSuite {
     type F[X] = Sum[Void, okay.faces.Face, X]
     def greeting: String ! F = confirm[F](okay.faces.View.text("Go?")).flatMap(yes =>
       show[F](okay.faces.View.text(if (yes) "went" else "stayed")).map(_ => if (yes) "went" else "stayed"))
-    val d = faces.dialogue[String, Void](steps[String, F, Void](greeting))
+    val d = faces.session[String, Void](steps[String, F, Void](greeting))
     val tools = face.single[String, Void](d)
     val specs = Machine.run(tools.list)
     assertEquals(specs.map(_.name), List("act", "look", "back"))

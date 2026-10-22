@@ -12,7 +12,8 @@ import okay.faces.term.Terminal
  * nothing else; the implementation is said once, by the import.
  * `sbt "examples/runMain okay.faces.examples.NoughtsSwing"` and so on; the servers take `[port] [host]` */
 object NoughtsSwing {
-  def main(args: Array[String]): Unit = run(SwingFace.handle(Noughts.games, look = Some(Noughts.look)))
+  def main(args: Array[String]): Unit =
+    run(SwingFace.handle(Noughts.games, SwingFace.Settings(look = Some(Noughts.look))))
 }
 /** the real console handles the program; the same program the test face plays by script */
 object NoughtsTerminal {
@@ -21,12 +22,13 @@ object NoughtsTerminal {
 /** the program served over the Model Context Protocol on standard input and output: an agent plays by the cells as
  * tools, told the marks */
 object NoughtsMcp {
-  def main(args: Array[String]): Unit = run(McpFace.stdio(Noughts.games, vocabulary = Noughts.marks.vocabulary))
+  def main(args: Array[String]): Unit =
+    run(McpFace.stdio(Noughts.games, McpFace.Settings(vocabulary = Noughts.marks.vocabulary)))
 }
 /** the game as pages from the server: structural pages, no script, a cell a link */
 object NoughtsHtml {
   def main(args: Array[String]): Unit =
-    run(HtmlFace.serve(Noughts.games, Args.port(args), Args.host(args), look = Some(Noughts.look)))
+    run(HtmlFace.serve(Noughts.games, Args.port(args), Args.host(args), HtmlFace.Settings(look = Some(Noughts.look))))
 }
 /** THE GAME IN THE BROWSER: the server serves the page and `NoughtsLocal`'s script, linked by
  * `sbt -Dplatforms=js examplesJS/fullLinkJS`; the game runs in the page, the Laminar face handling it there */
@@ -38,8 +40,8 @@ object NoughtsWebLocal {
  * the library's script, linked by `sbt -Dplatforms=js examplesRemoteJS/fullLinkJS` */
 object NoughtsWebRemote {
   def main(args: Array[String]): Unit = run(RestFace.serve(Noughts.games, Args.port(args), Args.host(args),
-      page = Some(Linked("examples/remote/.js", "okay-faces-examples-remote")), look = Some(Noughts.look),
-      vocabulary = Noughts.marks.vocabulary))
+      RestFace.Settings(page = Some(Linked("examples/remote/.js", "okay-faces-examples-remote")),
+        look = Some(Noughts.look), vocabulary = Noughts.marks.vocabulary)))
 }
 
 /** the port and the host from the arguments: `[port] [host]`, `8090` and the loopback by default; `0.0.0.0` opens to

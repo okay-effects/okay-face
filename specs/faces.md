@@ -103,7 +103,7 @@ The server holds one session: the current `Step` and a history. `steps(program)`
   `oneOf` over the current actions (`{action: name, args: {...}}`) regenerated per call, plus `look`; the `description`
   names the current actions.
 
-The application's marks are told: `server(..., vocabulary = marks.vocabulary)` appends "Marks on views, and what they
+The application's marks are told: `server(name, first, instructions, McpFace.Settings(vocabulary = marks.vocabulary))` appends "Marks on views, and what they
 mean" to the instructions, lists `face://marks` among the resources (JSON, `[{name, doc}]`), and the Markdown of every
 result shows a mark the vocabulary knows — `**price:** 12 €`, or `price: 12` in a cell — so the agent reads the
 application's words, not only its parts. Without a vocabulary nothing changes.

@@ -26,7 +26,7 @@ class McpFaceSuite extends munit.FunSuite {
     record(field("name", text).labelled("Name"), field("age", int.check("of age")(_ >= 18)).documented("in years"))(
       Who(_, _))(w => (w.name, w.age))
   def greeting: String ! F =
-    fill[Who, F](View.heading("Who are you?"), who, back = true).flatMap { w =>
+    fill[Who, F](View.heading("Who are you?"), who, okay.faces.Step.Options.returnable).flatMap { w =>
       confirm[F](View.text(s"Greet ${w.name}, ${w.age}?")).flatMap { yes =>
         if (yes) show[F](View.text(s"Hello, ${w.name}!")).map(_ => s"greeted ${w.name}") else pure[String, F]("left")
       }
@@ -38,7 +38,7 @@ class McpFaceSuite extends munit.FunSuite {
         "clientInfo" -> obj("name" -> Str("t")))))
 
   def talk(lines: String*): List[Rpc] = {
-    val server = face.server[String, L]("greeting", "1", steps[String, F, L](greeting))
+    val server = face.server[String, L]("greeting", steps[String, F, L](greeting))
     Machine.run(servers.links.scripted(lines.toList)(servers.serve[L](server)))._1.map(rpc)
   }
 
@@ -120,8 +120,8 @@ class McpFaceSuite extends munit.FunSuite {
   }
   test("a server with a vocabulary tells it in the instructions and serves it as a resource") {
     val vocab = Vocabulary("price" -> "the amount due")
-    val server = face.server[String, L]("greeting", "1", steps[String, F, L](greeting), instructions = Some("Greet."),
-      vocabulary = vocab)
+    val server = face.server[String, L]("greeting", steps[String, F, L](greeting), instructions = Some("Greet."),
+      settings = McpFace.Settings(vocabulary = vocab))
     val replies = Machine.run(servers.links.scripted(List(init,
           line(Rpc.Request(num(2), "resources/list", Json.Obj.empty)),
           line(Rpc.Request(num(3), "resources/read", obj("uri" -> Str("face://marks"))))))(servers.serve[L](server)))._1
@@ -129,7 +129,7 @@ class McpFaceSuite extends munit.FunSuite {
     assert(texts.head.contains("Greet.\\n\\nMarks on views, and what they mean:\\n- price: the amount due"), texts.head)
     assert(texts(1).contains("face://marks"), texts(1))
     assert(texts(2).contains("""[{\"name\":\"price\",\"doc\":\"the amount due\"}]"""), texts(2))
-    val plain = face.server[String, L]("greeting", "1", steps[String, F, L](greeting))
+    val plain = face.server[String, L]("greeting", steps[String, F, L](greeting))
     val none =
       Machine.run(servers.links.scripted(List(init, line(Rpc.Request(num(2), "resources/list", Json.Obj.empty))))(
           servers.serve[L](plain)))._1

@@ -495,6 +495,28 @@ in its own `told` section before the step's.
 - `face-mcp`: a scripted stdio session: `initialize`, `tools/list` shows the first step's actions, a `tools/call` moves
   the game, `list_changed` is sent, a bad argument is an error result and the tool list is unchanged.
 
+## The shape of the API before 0.1.0 — DECIDED 2026-10-22
+
+Four changes made before the first release, so that what comes in 0.2 (layout, interactive lists, who the user is,
+richer fields) is ADDED, not broken:
+
+1. A STEP'S OPTIONS ARE ONE VALUE. `Face.Offer(view, actions, answer, meanwhile, options)` and
+   `Step.Waiting(view, actions, resume, meanwhile, options)`, `options: Step.Options` — today `back`; tomorrow focus,
+   a timeout, whatever a step may say, as fields of `Step.Options` with defaults, so no pattern on `Offer` or
+   `Waiting` breaks. The words take it too: `offer(view, actions, options)`, `confirm(q, options)`,
+   `fill(view, form, options)`; `choose(view, choices, options)` (its list is `choices` now).
+   `Step.Options.returnable` is `Step.Options(back = true)`.
+2. NO `back` ON A FACE. A face offered a way back when the dialogue allowed it AND the step was kept; since a step is
+   not kept unless it says `back = true`, the face's own switch said the same thing twice. Gone from every handler,
+   from the session, from the step loops; a face offers back exactly when there is a kept step behind.
+3. A FACE'S SETTINGS ARE ONE VALUE. Each face has `X.Settings`, every field defaulted, and its words take
+   `(p, settings)`, a server's `(p, port, host, settings)`: `SwingFace.Settings(look)`, `Terminal.Settings(paint, width,
+   words)`, `McpFace.Settings(vocabulary, version, elicitation, singleTool)`, `HtmlFace.Settings(base, look, ids)`,
+   `RestFace.Settings(base, vocabulary, ids, look, page)`, `LaminarFace.Settings(look, browserHistory)`. A new option
+   is a new field; a settings value is made once and shared.
+4. ONE NAME FOR A COUNTERPART'S DIALOGUE: `Session`. The class `Session[F, A, R]`, the faces' `Session[A, R]` and
+   `session(first)` — no more `Dialogue`/`dialogue` beside it; `Sessions` keeps them by id.
+
 ## Order of work
 
 1. Value, Json, Problem, Shape, Schema, JsonSchema. Verify: the Shape tests above, both compilers. DONE 2026-10-20,
@@ -538,19 +560,19 @@ released, so okay-faces can depend on a release and be published itself.
   2026-10-21 for saying nothing the effect's name does not), written over the faces given, since the
   words are theirs — and since 2026-10-21 the faces are the tagless ones, so a program is a value, `val games: Outcome ! Face`,
   with `import okay.faces._` alone (see "Programs are tagless"). A handler is a face's
-  method: `SwingFace().handle(Noughts.games, look)` (a window; `None` when closed), `Terminal().handle(p)` (Console left
+  method: `SwingFace().handle(Noughts.games, settings)` (a window; `None` when closed), `Terminal().handle(p)` (Console left
   in the row) and `.console(p)` (the real one), `McpFace().handle(p, vocabulary)` (the loop over Link) and `.stdio(p)`,
   `RestFace().handle(p)` and `HtmlFace().handle(p)` (services over Http) and `.serve(p, port, host)`, `LaminarFace().mount(p)`,
   `Plays().handle(p)(script)`; `Shell().serve(title, port, host, Linked(…))` the page of an application's own script, the
   thin page the library's `RemotePage`. Everything a face wants to know of a program it learns from what the program
   shows: the first level-1 heading is a window's title, a page's, an agent's server's name; what is told before the first
   offer is the agent's instructions (`Step.opening`). What is the face's own — a look, the vocabulary of marks, a port —
-  is the handler's parameter. `Offer(…, back = true)` says a step may be returned to (DEFAULT FLIPPED 2026-10-21: it was
+  is the handler's setting. `Offer(…, options = Step.Options.returnable)` says a step may be returned to (DEFAULT FLIPPED 2026-10-21: it was
   true; a step is rarely one to go back to, so a program says so where it is); without, no face keeps it in its
   history, so none offers a way back to it; the agent's `back` tool stays listed and answers "nothing to go back to".
   A FACE IS OVER THE IMPLEMENTATION, not over faces (2026-10-21, after a day of casts): `class XFace[F <: Runner with
   Singleton](implicit val fx: F)` makes its own words and stepping handler as `Faces[fx.type]`, so every type in it is
-  on one path, `fx`'s, and nothing is cast. A session (`Session[F, A, R]`, the faces' `Dialogue[A, R]`) is typed by the
+  on one path, `fx`'s, and nothing is cast. A session (`Session[F, A, R]`, made by `faces.session(first)`) is typed by the
   implementation alone, so one made by any `Faces` over `Machine` is taken by any face over `Machine`; `X.over(faces)`
   is gone. `X()` is `apply()(implicit fx: F)`; the companion whole-handlers (`SwingFace.handle(p)`, `Terminal.console(p)`,
   `McpFace.stdio(p)`, `HtmlFace.serve(…)`, `RestFace.serve(…)`, `Shell.serve(…)`, `LaminarFace.mount(p)`) make a face
