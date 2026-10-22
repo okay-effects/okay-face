@@ -154,9 +154,8 @@ decoder needs no GADT matching at all.
 
 `decode(v: Value)` fixes the source of the fields to a JSON-shaped value, and that is a leak: nothing in a `Shape` says
 JSON. Reading the fields a shape names is a PROGRAM over an effect — "the field `name`, as text" — and where the field
-comes from is the handler's business: a `Json` (okay-simple's `okay.effects.json.Json`, which replaces `Value` here
-once okay-simple 0.1.1 is released), CBOR or any other encoding later, a command line's arguments, or a PERSON asked
-field by field at a terminal. That last handler is the point: the terminal face's loop of prompt, input, problem and
+comes from is the handler's business: a `Json` (okay-simple's `okay.effects.json.Json`, which replaced `Value` here),
+CBOR or any other encoding later, a command line's arguments, or a PERSON asked field by field at a terminal. That last handler is the point: the terminal face's loop of prompt, input, problem and
 prompt again is a handler of the field-reading effect, not code of its own, and the same handler serves every form.
 
 ```scala
@@ -443,7 +442,7 @@ Not here, and why: `screen/` (a keyed widget tree with a diff) was not needed �
 diff; `graphql/` is a face not asked for yet; `interop/okay-*` bridges to okay, the platform, wait for okay itself.
 
 Build: sbt, cross `3.3.8` / `2.13.18`, `crossproject` for JVM always, JS and Native when asked, as okay-simple's build;
-`okay-effects` 0.1.1-SNAPSHOT published locally until released; munit; zero other dependencies. `organization
+`okay-effects` 0.1.1 from its release repository; munit; zero other dependencies. `organization
 io.github.okay-effects`, Apache-2.0. Lines at most 120 wide, `.scalafmt.conf` at the root. Two pictures in `docs/`:
 `okay-faces-how.png` (one step of the game on every face) and `okay-faces-levels.png` (the levels), the README's.
 
@@ -537,8 +536,8 @@ After step 4 the model holds or it does not, before any web platform is paid for
 
 State on 2026-10-21, evening: all six steps done, verity on every face, two examples (the game, the list) on every
 face, the README's code checked by `docsCheck`. No CI by choice (2026-10-21): the build is checked where it is run,
-`sbt -Dplatforms=js +test +examples/test +laminarJS/test examplesJS/test docsCheck/test`. Left: okay-simple 0.1.1
-released, so okay-faces can depend on a release and be published itself.
+`sbt -Dplatforms=js +test +examples/test +laminarJS/test examplesJS/test docsCheck/test`. okay-simple 0.1.1
+released on 2026-10-22 and depended on. Left: okay-http and okay-mcp released, so okay-faces can be published itself.
 
 ## Open
 

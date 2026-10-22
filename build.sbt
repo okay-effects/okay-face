@@ -16,12 +16,9 @@ ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 ThisBuild / scalaVersion := scala3
-/** okay-simple, the only dependency: its release from its Pages repository — until 0.1.1 is released, with the `json`
- * and
- * `shape` modules this needs, the snapshot published locally: in okay-simple, `sbt +shape/publishLocal` and its
- * dependencies */
+/** okay-simple, from its Pages repository */
 ThisBuild / resolvers += "okay-effects" at "https://okay-effects.github.io/okay-simple/maven"
-val okayEffects = "0.1.1-SNAPSHOT"
+val okayEffects = "0.1.1"
 
 def major(v: String): String = if (v.startsWith("3")) "3" else "2"
 
