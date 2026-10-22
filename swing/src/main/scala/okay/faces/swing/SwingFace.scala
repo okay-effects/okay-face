@@ -27,7 +27,8 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
   type M[X] = X ! Pure
 
   /** HOW THE REST OF A STEP IS RUN, when the program leaves effects in the row beside `Face`: a window runs the rest
-   * by it, on the event dispatch thread. `Pure` by `run`, `atOnce`; a program with `Console` in its row (one written for the
+   * by it, on the event dispatch thread. `Pure` by `run`, `atOnce`;
+   * a program with `Console` in its row (one written for the
    * terminal too) by the real console, `io.realConsole` then `run` */
   trait Lower[R[_]] { def apply[X](p: X ! R): X }
   val atOnce: Lower[Pure] = new Lower[Pure] { def apply[X](p: X ! Pure): X = run(p) }
