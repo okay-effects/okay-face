@@ -537,7 +537,8 @@ After step 4 the model holds or it does not, before any web platform is paid for
 State on 2026-10-21, evening: all six steps done, verity on every face, two examples (the game, the list) on every
 face, the README's code checked by `docsCheck`. No CI by choice (2026-10-21): the build is checked where it is run,
 `sbt -Dplatforms=js +test +examples/test +laminarJS/test examplesJS/test docsCheck/test`. okay-simple 0.1.1
-released on 2026-10-22 and depended on. Left: okay-http and okay-mcp released, so okay-faces can be published itself.
+released on 2026-10-22 and depended on, okay-http 0.1.0 and okay-mcp 0.1.0 the same day. Left: okay-faces' own
+publishing, as theirs.
 
 ## Open
 

@@ -115,5 +115,5 @@ at the root keeps the author's line breaks and wraps only what is too long).
 sbt -Dplatforms=js +test +examples/test +laminarJS/test examplesJS/test docsCheck/test
 ```
 
-okay-simple 0.1.1 comes from its release repository. okay-http and okay-mcp are snapshots until released: in each,
-`sbt +publishLocal` (and the JS modules' `publishLocal`), then build here.
+okay-simple 0.1.1, okay-http 0.1.0 and okay-mcp 0.1.0 come from their release repositories: nothing to publish
+locally first.

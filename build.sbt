@@ -16,8 +16,10 @@ ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 ThisBuild / scalaVersion := scala3
-/** okay-simple, from its Pages repository */
+/** okay-simple, okay-http and okay-mcp, each from its Pages repository */
 ThisBuild / resolvers += "okay-effects" at "https://okay-effects.github.io/okay-simple/maven"
+ThisBuild / resolvers ++= Seq("okay-http" at "https://okay-effects.github.io/okay-http/maven",
+  "okay-mcp" at "https://okay-effects.github.io/okay-mcp/maven")
 val okayEffects = "0.1.1"
 
 def major(v: String): String = if (v.startsWith("3")) "3" else "2"
@@ -67,8 +69,8 @@ lazy val swing = (project in file("swing")).dependsOn(core.jvm)
     libraryDependencies += "io.github.okay-effects" %% "okay-effects-machine" % okayEffects % Test)
 
 /** THE MCP FACE: the dialogue as tools for an agent, over okay-mcp — the actions a person would see, as tools */
-val okayMcp = "0.1.0-SNAPSHOT"
-val okayHttp = "0.1.0-SNAPSHOT"
+val okayMcp = "0.1.0"
+val okayHttp = "0.1.0"
 lazy val mcp = crossBoth("mcp", "mcp").dependsOn(core).settings(name := "okay-faces-mcp",
   libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-mcp" % okayMcp,
     "io.github.okay-effects" %%% "okay-http" % okayHttp,
