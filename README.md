@@ -15,6 +15,17 @@ Built on [okay-simple](https://github.com/okay-effects/okay-simple)'s interface,
 Scala.js, over any of its implementations; the data an application speaks — `Json`, `Shape`, `Schema` — is
 okay-simple's. One dependency, no platform.
 
+```scala-sbt
+resolvers ++= Seq("okay-effects" at "https://okay-effects.github.io/okay-simple/maven",
+  "okay-http" at "https://okay-effects.github.io/okay-http/maven",
+  "okay-mcp" at "https://okay-effects.github.io/okay-mcp/maven",
+  "okay-faces" at "https://okay-effects.github.io/okay-faces/maven")
+// a face; okay-faces, the core, with it
+libraryDependencies += "io.github.okay-effects" %% "okay-faces-term" % "0.1.0"
+```
+
+The modules, one per face, are in [specs/face-core.md](specs/face-core.md); releases in [RELEASING.md](RELEASING.md).
+
 ## A program, and every face
 
 A program is a value. It names no face and no implementation: `import okay.faces._` brings the words, and the words

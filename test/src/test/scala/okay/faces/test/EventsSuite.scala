@@ -47,15 +47,17 @@ class EventsSuite extends munit.FunSuite {
     }
   }
   test("from a future: the value when it comes, not after a cancel") {
-    import scala.concurrent.{Future, Promise}
+    import scala.concurrent.Promise
     import scala.concurrent.ExecutionContext.Implicits.global
     val p = Promise[Int]()
     var got = List.empty[Int]
     val cancel = Meanwhile.fromFuture(p.future).register(n => got ::= n)
-    cancel(); p.success(1); Thread.sleep(50)
-    assertEquals(got, Nil)
-    val q = Promise[Int](); Meanwhile.fromFuture(q.future).register(n => got ::= n); q.success(2); Thread.sleep(50)
-    assertEquals(got, List(2))
+    cancel(); p.success(1)
+    // the second's value awaited, not slept for: on Scala.js there is no sleeping; the first, cancelled, came before
+    val q = Promise[Int](); val seen = Promise[Unit]()
+    Meanwhile.fromFuture(q.future).register { n => got ::= n; seen.trySuccess(()); () }
+    q.success(2)
+    seen.future.map(_ => assertEquals(got, List(2)))
   }
   test("a jump from any screen: the screens unwound, the one named begun; done when a screen ends without one") {
     val jumps = new okay.faces.Jumps[Machine.type]()(Machine)

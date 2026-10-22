@@ -16,6 +16,14 @@ ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 ThisBuild / scalaVersion := scala3
+/** RELEASES, ON GITHUB PAGES: `sbt -Dplatforms=jvm,js publishPages` writes every published module, for both
+ * compilers and every platform asked, as a Maven repository into `target/pages-maven/`; that directory goes to the
+ * `gh-pages` branch under `maven/`, served at https://okay-effects.github.io/okay-faces/maven (RELEASING.md) */
+val pagesRepository = settingKey[File]("the Maven repository a release is written to, for GitHub Pages")
+ThisBuild / pagesRepository := (ThisBuild / baseDirectory).value / "target" / "pages-maven"
+ThisBuild / publishTo := Some(MavenCache("pages", (ThisBuild / pagesRepository).value))
+/** no API documentation jars, as okay-simple: the sources jars are published, which IDEs read for the documentation */
+ThisBuild / Compile / packageDoc / publishArtifact := false
 /** okay-simple, okay-http and okay-mcp, each from its Pages repository */
 ThisBuild / resolvers += "okay-effects" at "https://okay-effects.github.io/okay-simple/maven"
 ThisBuild / resolvers ++= Seq("okay-http" at "https://okay-effects.github.io/okay-http/maven",
@@ -32,7 +40,7 @@ def crossBuilt: Seq[Def.Setting[?]] = Seq(
   libraryDependencies += "org.scalameta" %%% "munit" % "1.2.3" % Test)
 
 /** THE PLATFORMS BUILT: the JVM always; Scala.js and Scala Native when asked —
- * `sbt -Dplatforms=jvm,js,native ...`, or the environment's `OKAY_PLATFORMS=js,native` */
+ * `sbt -Dplatforms=jvm,js ...`, or the environment's `OKAY_PLATFORMS=js,native` */
 val platformsAsked: Set[String] =
   (sys.props.get("platforms") orElse sys.env.get("OKAY_PLATFORMS")).getOrElse("jvm").split(',').map(
     _.trim.toLowerCase).toSet + "jvm"
@@ -200,8 +208,13 @@ lazy val docsCheck = (project in file("docs/check"))
     crossScalaVersions := Seq(scala3), libraryDependencies += "org.scalameta" %% "munit" % "1.2.3" % Test,
     scalacOptions ++= Seq("-deprecation", "-feature"), Test / sourceGenerators += docBlocks.taskValue)
 
-lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](core.jvm, test.jvm, term.jvm, swing, mcp.jvm,
-    rest.jvm, html.jvm, examples.jvm, docsCheck) ++
+/** every module on every platform asked: the cross-built ones' projects, the web ones' when js is asked */
+lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](swing, docsCheck) ++
+    Seq(core, test, term, mcp, rest, html, examples).flatMap(_.projects.values.map(p => p: ProjectReference)) ++
     ((if (platformsAsked("js"))
-        Seq[ProjectReference](laminar.js, airstream.js, waypoint.js, examples.js, examplesTodo.js, examplesRemote.js)
-      else Nil))): _*).settings(name := "okay-faces-root", publish / skip := true)
+        Seq[ProjectReference](laminar.js, airstream.js, waypoint.js, examplesTodo.js, examplesRemote.js)
+      else Nil))): _*).settings(name := "okay-faces-root", publish / skip := true, crossScalaVersions := Nil)
+
+/** a release into `target/pages-maven/`, on Scala 3.3 and 2.13 — `sbt -Dplatforms=jvm,js publishPages`: the
+ * web faces are built only when js is asked, so a release asks for it */
+addCommandAlias("publishPages", "; ++3.3.8 publish ; ++2.13.18 publish ; ++3.3.8")
