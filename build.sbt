@@ -159,6 +159,21 @@ lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).cros
     if (platformsAsked("js")) p.withId("laminarJS").dependsOn(core.js, rest.js % "test->compile")
     else p.withId("laminarJS"))
 
+/** THE DOM FACE, Scala.js only: the Laminar face's step machine and markup by the DOM's own calls, no library — the
+ * same classes, so a look dresses it the same and only the handler changes. Its tests: the Laminar face's, and the
+ * two faces' markup compared step by step (Laminar in the tests only). `sbt -Dplatforms=js domJS/test`, under jsdom */
+lazy val domFace = CrossProject("dom", file("web/dom"))(JSPlatform).crossType(CrossType.Pure)
+  .settings(crossBuilt, name := "okay-faces-dom",
+    libraryDependencies ++= Seq("org.scala-js" %%% "scalajs-dom" % "2.8.0",
+      "io.github.okay-effects" %%% "okay-effects-async" % okayEffects,
+      "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test),
+    Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(
+      org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
+        .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
+  .jsConfigure(p =>
+    if (platformsAsked("js")) p.withId("domJS").dependsOn(core.js, laminar.js % "test->compile")
+    else p.withId("domJS"))
+
 /** AIRSTREAM'S STREAMS AND OKAY'S, both ways, a Var as a State's handler — no Face: a Laminar team may take it alone */
 lazy val airstream = CrossProject("airstream", file("web/airstream"))(JSPlatform).crossType(CrossType.Pure)
   .settings(crossBuilt, name := "okay-faces-airstream",
@@ -212,7 +227,7 @@ lazy val docsCheck = (project in file("docs/check"))
 lazy val root = (project in file(".")).aggregate((Seq[ProjectReference](swing, docsCheck) ++
     Seq(core, test, term, mcp, rest, html, examples).flatMap(_.projects.values.map(p => p: ProjectReference)) ++
     ((if (platformsAsked("js"))
-        Seq[ProjectReference](laminar.js, airstream.js, waypoint.js, examplesTodo.js, examplesRemote.js)
+        Seq[ProjectReference](laminar.js, domFace.js, airstream.js, waypoint.js, examplesTodo.js, examplesRemote.js)
       else Nil))): _*).settings(name := "okay-faces-root", publish / skip := true, crossScalaVersions := Nil)
 
 /** a release into `target/pages-maven/`, on Scala 3.3 and 2.13 — `sbt -Dplatforms=jvm,js publishPages`: the
