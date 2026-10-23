@@ -13,9 +13,9 @@ resolvers ++= Seq("okay-effects" at "https://okay-effects.github.io/okay-simple/
   "okay-faces" at "https://okay-effects.github.io/okay-faces/maven")
 
 libraryDependencies ++= Seq(
-  "io.github.okay-effects" %% "okay-faces"      % "0.1.2",          // Face, the words, the step machine
-  "io.github.okay-effects" %% "okay-faces-term" % "0.1.2",          // and the faces wanted: term, swing, rest, html,
-  "io.github.okay-effects" %% "okay-faces-test" % "0.1.2" % Test    // mcp; laminar, airstream, waypoint on Scala.js
+  "io.github.okay-effects" %% "okay-faces"      % "0.1.0",          // Face, the words, the step machine
+  "io.github.okay-effects" %% "okay-faces-term" % "0.1.0",          // and the faces wanted: term, swing, rest, html,
+  "io.github.okay-effects" %% "okay-faces-test" % "0.1.0" % Test    // mcp; laminar, airstream, waypoint on Scala.js
 )
 ```
 
