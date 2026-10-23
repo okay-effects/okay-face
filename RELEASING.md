@@ -13,9 +13,9 @@ resolvers ++= Seq("okay-effects" at "https://okay-effects.github.io/okay-simple/
   "okay-faces" at "https://okay-effects.github.io/okay-faces/maven")
 
 libraryDependencies ++= Seq(
-  "io.github.okay-effects" %% "okay-faces"      % "0.1.0",          // Face, the words, the step machine
-  "io.github.okay-effects" %% "okay-faces-term" % "0.1.0",          // and the faces wanted: term, swing, rest, html,
-  "io.github.okay-effects" %% "okay-faces-test" % "0.1.0" % Test    // mcp; laminar, airstream, waypoint on Scala.js
+  "io.github.okay-effects" %% "okay-faces"      % "0.1.1",          // Face, the words, the step machine
+  "io.github.okay-effects" %% "okay-faces-term" % "0.1.1",          // and the faces wanted: term, swing, rest, html,
+  "io.github.okay-effects" %% "okay-faces-test" % "0.1.1" % Test    // mcp; laminar, airstream, waypoint on Scala.js
 )
 ```
 
@@ -30,7 +30,7 @@ libraryDependencies ++= Seq(
    sbt -Dplatforms=jvm,js clean +test
    ```
 
-2. The version: `ThisBuild / version` in `build.sbt` without `-SNAPSHOT`, committed, tagged (`v0.1.0`).
+2. The version: `ThisBuild / version` in `build.sbt` without `-SNAPSHOT`, committed, tagged (`v0.1.1`).
 
 3. The repository written into `target/pages-maven/`, for both compilers and both platforms — js asked, or the web
    faces are not built:
@@ -49,9 +49,9 @@ libraryDependencies ++= Seq(
    rsync -a target/pages-maven/ /tmp/okay-faces-pages/maven/
    touch /tmp/okay-faces-pages/.nojekyll
    git -C /tmp/okay-faces-pages add -A
-   git -C /tmp/okay-faces-pages commit -m "release 0.1.0"
+   git -C /tmp/okay-faces-pages commit -m "release 0.1.1"
    git -C /tmp/okay-faces-pages push origin gh-pages
-   git push origin v0.1.0
+   git push origin v0.1.1
    ```
 
    The first time, GitHub Pages is turned on for the branch `gh-pages` in the repository's settings.
