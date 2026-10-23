@@ -18,6 +18,8 @@ design is a change of the spec first.
   `sbt -Dplatforms=js +test +examples/test +laminarJS/test +domJS/test examplesJS/test docsCheck/test`.
 - Lines at most 120 wide: `scalafmt` at the root keeps the author's line breaks and wraps only what is too long.
 - Commits: plain messages, what and why, no attribution trailers.
-- The DOM face (`web/dom`) keeps the Laminar face's markup exactly: a change to the Laminar face's markup is a change to
-  the DOM face's too — `SameMarkupSuite` fails otherwise. Inside it, the world is effects (`Page`, `History`, `Focus`,
-  `Keys`, `World.scala`) handled by `Browser`; no DOM call outside those handlers.
+- The DOM faces (`web/dom`: `DomFace`, `DomRemoteFace`) keep the Laminar faces' markup exactly: a change to the
+  Laminar faces' markup is a change to theirs too (`Drawing`) — `SameMarkupSuite`, `SameRemoteMarkupSuite` fail
+  otherwise. Inside, the world is effects (`Page`, `History`, `Focus`, `Keys`, `Server`, `Timer`, `World.scala`)
+  handled by `World`; no DOM call, no fetch, no timer outside those handlers. Build with effects and handlers (the
+  user's rule): a face's own effects, handled inside it.

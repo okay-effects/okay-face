@@ -159,19 +159,22 @@ lazy val laminar = CrossProject("laminar", file("web/laminar"))(JSPlatform).cros
     if (platformsAsked("js")) p.withId("laminarJS").dependsOn(core.js, rest.js % "test->compile")
     else p.withId("laminarJS"))
 
-/** THE DOM FACE, Scala.js only: the Laminar face's step machine and markup by the DOM's own calls, no library — the
- * same classes, so a look dresses it the same and only the handler changes. Its tests: the Laminar face's, and the
+/** THE DOM FACES, Scala.js only: the Laminar faces' — the local one's step machine, the remote one's page over the REST
+ * face — and their markup by the DOM's own calls, no library: the same classes, so a look dresses them the same and
+ * only the handler changes. Its tests: the Laminar face's, and the
  * two faces' markup compared step by step (Laminar in the tests only). `sbt -Dplatforms=js domJS/test`, under jsdom */
 lazy val domFace = CrossProject("dom", file("web/dom"))(JSPlatform).crossType(CrossType.Pure)
   .settings(crossBuilt, name := "okay-faces-dom",
     libraryDependencies ++= Seq("org.scala-js" %%% "scalajs-dom" % "2.8.0",
       "io.github.okay-effects" %%% "okay-effects-async" % okayEffects,
-      "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects % Test),
+      "io.github.okay-effects" %%% "okay-http" % okayHttp,
+      // the thin page's script runs its own programs: on the machine
+      "io.github.okay-effects" %%% "okay-effects-machine" % okayEffects),
     Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(
       org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv.Config()
         .withEnv(Map("NODE_PATH" -> sys.env.getOrElse("NODE_PATH", "/opt/homebrew/lib/node_modules")))))
   .jsConfigure(p =>
-    if (platformsAsked("js")) p.withId("domJS").dependsOn(core.js, laminar.js % "test->compile")
+    if (platformsAsked("js")) p.withId("domJS").dependsOn(core.js, laminar.js % "test->compile", rest.js % "test->compile")
     else p.withId("domJS"))
 
 /** AIRSTREAM'S STREAMS AND OKAY'S, both ways, a Var as a State's handler — no Face: a Laminar team may take it alone */

@@ -101,14 +101,22 @@ attribute for attribute — so a look's stylesheet dresses it the same and an ap
 else. `SameMarkupSuite` plays every scenario on both faces and compares the page after each act (Laminar's comment
 nodes and the DOM face's accessibility attributes, which no selector of a look uses, left out).
 
-Inside, the face is a program over effects of its own, handled inside it — the world reached in one place:
+THE REMOTE FACE BY THE DOM: `DomRemoteFace(transport).element(base)` is the Laminar `RemoteFace`'s page — the same
+wire, the same markup (`SameRemoteMarkupSuite`: one dialogue on an in-process REST face, both pages, the markup after
+each settled act), what was typed kept when the server refuses — with no library; `DomRemotePage` its script, on
+okay-simple's machine. The REST resource's reading is core's `Resource` (`decode`, `problems`), both remote faces'.
+What both DOM faces draw is `Drawing`'s.
+
+Inside, the faces are programs over effects of their own, handled inside them — the world reached in one place:
 - `Page` — the DOM: an element made (tag, classes, attributes, children), text, a place (a comment), a node swapped,
   put before another, removed, a listener added, a value read or set, buttons disabled, a case shown or hidden;
 - `History` — the browser's history: a step pushed, the browser's back listened to;
 - `Focus` — where the keyboard is: the first field of a step drawn, the first field with a problem;
-- `Keys` — keys listened to: Escape is back where the step offers it.
-Each has one handler, the browser's, applied where the face runs its programs (`world`); a test may intercept any of
-them. The machine's state (the step shown, its history) stays the face's.
+- `Keys` — keys listened to: Escape is back where the step offers it;
+- `Server` — a request through the face's transport, its reply to a callback (the remote face);
+- `Timer` — something later: a listening step asked again (the remote face).
+Each has one handler, the browser's (`World`), applied where the face runs its programs (`world`, which a face may
+override to intercept any of them). The machine's state (the step shown, its history) stays the face's.
 
 Accessibility, by `Page`: the problems a live region (`role="alert"`), a field with a problem `aria-invalid`, a
 field's doc its `aria-describedby`, the face `aria-busy` while a rest runs. Focus by default (`Settings.focus`).

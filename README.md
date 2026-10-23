@@ -70,7 +70,7 @@ The block above is compiled and run by `sbt docsCheck/test`.
 | Swing | `swing` | a panel or a window on the JVM; forms from the shape; dressed by a `Look`; what the program tells first is the window's help |
 | Laminar | `web/laminar` | Scala.js: the view drawn, forms from the shape, a click is `resume`, the browser's back; `Async` in the row to a `Future`; `web/airstream` and `web/waypoint` the bridges |
 | DOM | `web/dom` | Scala.js, no library: the Laminar face's page, markup for markup — a look dresses it the same, only the handler changes; inside, a program over its own effects (the page, history, focus, keys), with focus, Escape as back and accessibility attributes |
-| remote | `web/laminar` | the same page over a dialogue on a server behind the REST face, the browser knowing no application |
+| remote | `web/laminar`, `web/dom` | the same page over a dialogue on a server behind the REST face, the browser knowing no application — by Laminar (`RemoteFace`) or with no library (`DomRemoteFace`, the same markup) |
 | MCP | `mcp` | the dialogue as tools for an agent, on [okay-mcp](https://github.com/okay-effects/okay-mcp): stdio, or HTTP with sessions; a domain effect's operations as tools too |
 | REST | `rest` | the dialogue as a JSON API with links and affordances (HATEOAS); a domain effect as resources, and performed from afar over `Fetch` — on [okay-http](https://github.com/okay-effects/okay-http) |
 | HTML | `html` | pages from the server, structural HTML5, no script; forms posted; the look as `/okay.css` |

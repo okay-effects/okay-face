@@ -1,7 +1,10 @@
 package okay.faces.dom
 
 import okay.effects.{Runner, Sum, Void}
+import okay.http.{Request, Response}
 import org.scalajs.dom
+import scala.concurrent.Future
+import scala.util.Try
 
 /**
  * THE DOM FACE'S WORLD, as effects: what the face does to the page is operations, and one handler of each does it —
@@ -64,17 +67,33 @@ object Keys {
     extends Keys[X]
 }
 
+/** A SERVER: a request sent through the face's transport, its reply — a response or a failure — to `reply` when it
+ * comes; the program goes on at once */
+sealed trait Server[X]
+object Server {
+  final case class Send[X](request: Request, reply: Try[Response] => Unit, answer: Unit => X) extends Server[X]
+}
+
+/** TIME: `act` after `ms` milliseconds */
+sealed trait Timer[X]
+object Timer {
+  final case class After[X](ms: Int, act: () => Unit, answer: Unit => X) extends Timer[X]
+}
+
 /**
- * THE BROWSER, the handlers of the world's effects over an implementation: each answers in place, by the DOM's own
- * calls. `world` runs a program of the face's row with all four.
+ * THE WORLD, the handlers of the faces' effects over an implementation: each answers in place, by the browser's own
+ * calls — the DOM, its history, focus, keys, a timer, and `transport` for the server (none, by default: a face in the
+ * page alone). `world` runs a program of the faces' row with all of them.
  */
-class Browser[F <: Runner with Singleton](implicit val fx: F) {
+class World[F <: Runner with Singleton](transport: Request => Future[Response] = World.nowhere)(implicit val fx: F) {
   import fx._
   type P1[X] = Sum[Void, Page, X]
   type P2[X] = Sum[P1, History, X]
   type P3[X] = Sum[P2, Focus, X]
-  /** THE FACE'S ROW: the page, the history, the focus, the keys */
-  type W[X] = Sum[P3, Keys, X]
+  type P4[X] = Sum[P3, Keys, X]
+  type P5[X] = Sum[P4, Server, X]
+  /** THE FACES' ROW: the page, the history, the focus, the keys, the server, time */
+  type W[X] = Sum[P5, Timer, X]
 
   def page[R[_], Rest[_], A](p: A ! R)(implicit s: Split[Page, R, Rest]): A ! Rest =
     handle[Page, R, Rest, A, A](p, new TailHandler[Page, Rest, A, A] {
@@ -155,6 +174,31 @@ class Browser[F <: Runner with Singleton](implicit val fx: F) {
       }
     })
 
-  /** a program of the face's row, run in the browser */
-  def world[A](p: A ! W): A = run(page[P1, Void, A](history[P2, P1, A](focus[P3, P2, A](keys[W, P3, A](p)))))
+  def server[R[_], Rest[_], A](p: A ! R)(implicit s: Split[Server, R, Rest]): A ! Rest =
+    handle[Server, R, Rest, A, A](p, new TailHandler[Server, Rest, A, A] {
+      def ret(a: A): A ! Rest = pure(a)
+      def answer[X](op: Server[X]): X = op match {
+        case Server.Send(request, reply, answer) =>
+          // the reply on the browser's own queue, as an event of the page would come
+          transport(request).onComplete(reply)(scala.scalajs.concurrent.JSExecutionContext.queue); answer(())
+      }
+    })
+
+  def timer[R[_], Rest[_], A](p: A ! R)(implicit s: Split[Timer, R, Rest]): A ! Rest =
+    handle[Timer, R, Rest, A, A](p, new TailHandler[Timer, Rest, A, A] {
+      def ret(a: A): A ! Rest = pure(a)
+      def answer[X](op: Timer[X]): X = op match {
+        case Timer.After(ms, act, answer) => dom.window.setTimeout(() => act(), ms.toDouble); answer(())
+      }
+    })
+
+  /** a program of the faces' row, run in the browser */
+  def world[A](p: A ! W): A = run(page[P1, Void, A](history[P2, P1, A](focus[P3, P2, A](keys[P4, P3, A](
+    server[P5, P4, A](timer[W, P5, A](p)))))))
+}
+
+object World {
+  /** no server: a face in the page alone sends nothing */
+  val nowhere: Request => Future[Response] =
+    r => Future.failed(new IllegalStateException(s"no server to send ${r.method} ${r.path} to"))
 }

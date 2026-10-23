@@ -203,7 +203,7 @@ class DomFaceSuite extends munit.FunSuite {
 class DomStyleSuite extends munit.FunSuite {
   val face = new DomFace[okay.effects.machine.Machine.type]()(okay.effects.machine.Machine)
   test("the stylesheet element from the look, the roles' classes on the elements") {
-    assert(face.browser.world(face.stylesheet()).textContent.contains(".okay-face{"))
+    assert(face.world(face.stylesheet()).textContent.contains(".okay-face{"))
     val el = face.drawn(View.stack(View.heading("T"), View.problem("P"))).asInstanceOf[dom.html.Element]
     assertEquals(el.querySelector("h1").getAttribute("class"), "okay-heading okay-heading-1")
     assertEquals(el.querySelector("p").getAttribute("class"), "okay-notice okay-notice-problem")

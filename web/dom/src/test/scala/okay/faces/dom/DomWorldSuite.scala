@@ -79,8 +79,8 @@ class DomWorldSuite extends munit.FunSuite {
     var made = List.empty[String]
     var focused = 0
     val face = new DomFace[Machine.type]()(Machine) {
-      import browser.W
-      override def world[X](p: X ! W): X = browser.world(
+      import handlers.W
+      override def world[X](p: X ! W): X = handlers.world(
         Machine.intercept[Focus, W, X, X](Machine.intercept[Page, W, X, X](p, new Handler[Page, W, X, X] {
           def ret(x: X) = pure(x)
           def op[Y](op: Page[Y], k: Y => X ! W) = {
