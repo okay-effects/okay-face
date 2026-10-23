@@ -235,7 +235,9 @@ object Forms {
         // a list of records: an item added by a button, removed by one; each item's fields by index
         var next = 0
         val ids = Var(Vector.empty[Int])
-        def add(): Unit = { ids.update(_ :+ next); next += 1 }
+        // the number taken NOW: an update made while a step is drawn runs later, in Airstream's next transaction, when
+        // `next` has moved on — the first item was 1, not 0, and an added one a key already there (shown once)
+        def add(): Unit = { val i = next; next += 1; ids.update(_ :+ i) }
         (0 until (min max 0)).foreach(_ => add())
         items(path) = () => ids.now()
         val legendText = field.flatMap(_.label).orElse(field.map(_.name)).orElse(path.lastOption).getOrElse("items")

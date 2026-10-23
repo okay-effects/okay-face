@@ -181,6 +181,23 @@ class LaminarFaceSuite extends munit.FunSuite {
     submit(root, "submit")
     assertEquals(got, Some(Order("ann", List(Line("tea", 2), Line("milk", 1)))))
   }
+  test("a list of at least one: its first item is there at once, each one added is another") {
+    final case class Line(what: String, qty: Int)
+    val line = record(field("what", text), field("qty", int))(Line(_, _))(l => (l.what, l.qty))
+    var got = Option.empty[List[Line]]
+    val root = mounted(face.element(steps[List[Line], F, Void](fill[List[Line], F](View.heading("Lines"),
+      line.many(1, None))), (ls: List[Line]) => got = Some(ls)))
+    def items = (0 until root.querySelectorAll(".okay-item").length).map(i =>
+      root.querySelectorAll(".okay-item")(i).getAttribute("data-item")).toList
+    assertEquals(items, List("0"))
+    q(root, "button[data-add=f]").click(); q(root, "button[data-add=f]").click()
+    assertEquals(items, List("0", "1", "2"))
+    typeInto(root, "f-0-what", "tea"); typeInto(root, "f-0-qty", "1")
+    typeInto(root, "f-1-what", "milk"); typeInto(root, "f-1-qty", "2")
+    q(root, "button[data-remove='2']").click()
+    submit(root, "submit")
+    assertEquals(got, Some(List(Line("tea", 1), Line("milk", 2))))
+  }
   test("a Ref is live when the step offers ref: a click chooses it with the key") {
     def listing: String ! F = offer[String, F](View.stack(View.text("records"), View.Ref("r1", "Ann")),
       List(Action[String, String]("ref", "Open", record(field("key", text))(k => k)(k => k))(k => k))).flatMap(k =>
