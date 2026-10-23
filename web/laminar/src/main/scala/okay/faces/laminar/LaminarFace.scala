@@ -74,7 +74,10 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
         onUnmountCallback(_ => {
           unlisten(); if (browserHistory) dom.window.removeEventListener("popstate", popstate)
         }),
-        child <-- state.signal.map(render))
+        // the step drawn again only when the step is another: a problem or a call out changes what is shown on it,
+        // not its forms — what was typed stays
+        child <-- state.signal.distinctByFn((a, b) => (a.step eq b.step) && (a.history eq b.history) &&
+          (a.told eq b.told)).map(render))
     }
 
     /** `Told`s run through, their views kept; a `Waiting` or a `Done` is shown */
@@ -122,8 +125,9 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
         case Step.Done(_) => div(notices, div(cls := "okay-done", Views.element(words.over)))
         case Step.Told(_, _) => div(notices, div(cls := "okay-busy", "…"))
         case w: Step.Waiting[A, M] @unchecked =>
-          val problems =
-            if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
+          val problems = child <-- state.signal.map(_.problems).distinct.map(ps =>
+            if (ps.isEmpty) emptyNode else ul(cls := Role.Problems.classes, ps.map(p => li(p.render))))
+          val busy = state.signal.map(_.busy).distinct
           val backButton = if (s.history.isEmpty) emptyNode
           else
             button(typ := "button", cls := Role.Back.classes, words.back,
@@ -133,7 +137,7 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
           else None
           div(notices, sectionTag(cls := Role.View.classes, Views.element(w.view, ref)), problems,
             navTag(cls := Role.Actions.classes,
-              w.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(w, _), s.busy, words)), backButton))
+              w.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(w, _), busy, words)), backButton))
       }
     }
   }
@@ -171,17 +175,22 @@ object Views {
  * for none, a list of leaves a textarea one per line. What is typed becomes JSON the action's shape decodes — the face
  * does not validate, the shape does, and the problems come back */
 object Forms {
-  def action[A](a: Action[A], choose: Chosen => Unit, busy: Boolean, words: Words = Words.english): HtmlElement =
+  def action[A](a: Action[A], choose: Chosen => Unit, busy: Boolean, words: Words): HtmlElement =
+    action(a, choose, Val(busy), words)
+  def action[A](a: Action[A], choose: Chosen => Unit, busy: Boolean): HtmlElement =
+    action(a, choose, Val(busy), Words.english)
+  /** `busy` a signal: a call going out disables the form, and does not draw it again — what was typed stays */
+  def action[A](a: Action[A], choose: Chosen => Unit, busy: Signal[Boolean], words: Words): HtmlElement =
     a.params.erased match {
       case Schema.Record(fields) if fields.isEmpty =>
-        button(typ := "button", cls := Role.Action.classes, dataAttr("action") := a.name, disabled := busy, a.label,
+        button(typ := "button", cls := Role.Action.classes, dataAttr("action") := a.name, disabled <-- busy, a.label,
           onClick --> Observer[dom.MouseEvent](_ => choose(Chosen.plain(a.name))))
       case schema =>
         val inputs = new Inputs(words)
         val body = inputs.of(Nil, schema)
         form(cls := Role.Form.classes, dataAttr("action") := a.name, a.doc.map(d => p(cls := Role.Doc.classes, d)),
           body,
-          button(typ := "submit", cls := Role.Action.classes, disabled := busy, a.label),
+          button(typ := "submit", cls := Role.Action.classes, disabled <-- busy, a.label),
           onSubmit.preventDefault --> Observer[dom.Event](_ => choose(Chosen(a.name, inputs.collect(Nil, schema)))))
     }
 

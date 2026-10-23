@@ -44,6 +44,9 @@ class SwingFaceSuite extends munit.FunSuite {
     byName[JTextField](root, "f-name").setText("Ann"); byName[JTextField](root, "f-age").setText("3")
     byName[JButton](root, "submit:submit").doClick()
     assert(texts(root).contains("age: of age"), texts(root))
+    // what was typed stays: the form is not built again for a problem
+    assertEquals(byName[JTextField](root, "f-name").getText, "Ann")
+    assertEquals(byName[JTextField](root, "f-age").getText, "3")
     byName[JTextField](root, "f-name").setText("Ann"); byName[JTextField](root, "f-age").setText("41")
     byName[JButton](root, "submit:submit").doClick()
     assert(texts(root).contains("Greet Ann, 41?"), texts(root))

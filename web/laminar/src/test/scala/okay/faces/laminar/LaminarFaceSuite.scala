@@ -62,7 +62,10 @@ class LaminarFaceSuite extends munit.FunSuite {
     submit(root, "submit")
     assert(root.innerHTML.contains("age: of age"), root.innerHTML) // the problem, from the shape
     assertEquals(q(root, "h1").textContent, "Who are you?") // the same step
-    typeInto(root, "f-name", "Ann"); typeInto(root, "f-age", "41")
+    // what was typed stays: the form is not drawn again for a problem
+    assertEquals(q(root, "#f-name").asInstanceOf[dom.html.Input].value, "Ann")
+    assertEquals(q(root, "#f-age").asInstanceOf[dom.html.Input].value, "3")
+    typeInto(root, "f-age", "41")
     submit(root, "submit")
     assertEquals(q(root, "p").textContent, "Greet Ann, 41?")
     press(root, "yes")

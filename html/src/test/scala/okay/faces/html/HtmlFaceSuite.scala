@@ -50,6 +50,9 @@ class HtmlFaceSuite extends munit.FunSuite {
         "<style") && !rs(1).body.contains("style="), rs(1).body)
     rs.filter(_.status != 303).foreach(r => assertEquals(WellFormed(r.body), Nil, r.body))
     assert(rs(3).body.contains("<li>age: of age</li>") && rs(3).body.contains("Who are you?"), rs(3).body)
+    // the form as it was filled, not blank: what was typed stays
+    assert(rs(3).body.contains("""<input type="number" name="age" id="f-age" value="3"/>""") &&
+      rs(3).body.contains("id=\"f-name\" value=\""), rs(3).body)
     assert(rs(5).body.contains("Greet &lt;Ann&gt;, 41?") && rs(5).body.contains("""value="yes""""), rs(5).body)
     assert(rs(5).body.contains("/s/s1/back"))
     assert(rs(7).body.contains("Hello, Ann!") && rs(7).body.contains("okay-notice-info") && !rs(7).body.contains(

@@ -52,20 +52,25 @@ class RemoteFace(transport: Request => Future[Response], poll: Int = 1000,
 
     div(cls := Role.Face.classes,
       onMountCallback(_ => call(Request("POST", base), base)),
-      child <-- state.signal.map { s =>
-        again(s)
-        val problems =
-          if (s.problems.isEmpty) emptyNode else ul(cls := Role.Problems.classes, s.problems.map(p => li(p.render)))
+      state.signal --> Observer[Shown](again),
+      // the step drawn again only when another arrives: a problem or a call out changes what is shown on it, not its
+      // forms — what was typed stays
+      child <-- state.signal.distinctByFn((a, b) => a.copy(problems = Nil, busy = false) ==
+        b.copy(problems = Nil, busy = false)).map { s =>
+        val problems = child <-- state.signal.map(_.problems).distinct.map(ps =>
+          if (ps.isEmpty) emptyNode else ul(cls := Role.Problems.classes, ps.map(p => li(p.render))))
+        val busy = state.signal.map(_.busy).distinct
         val backButton = if (!s.back) emptyNode
-        else button(typ := "button", cls := Role.Back.classes, words.back, disabled := s.busy,
-          onClick --> Observer[dom.MouseEvent](_ => back(s)))
+        else button(typ := "button", cls := Role.Back.classes, words.back, disabled <-- busy,
+          onClick --> Observer[dom.MouseEvent](_ => back(state.now())))
         val ref: Option[String => Unit] = if (s.actions.exists(_.name == "ref"))
           Some(key => choose(s, Chosen("ref", Json.obj("key" -> Json.Str(key)))))
         else None
         div(sectionTag(cls := Role.View.classes, Views.element(s.view, ref)), problems,
           if (s.done) div(cls := "okay-done", words.done)
           else navTag(cls := Role.Actions.classes,
-            s.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(s, _), s.busy)), backButton))
+            s.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(state.now(), _), busy, words)),
+            backButton))
       })
   }
 }

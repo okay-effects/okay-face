@@ -29,42 +29,49 @@ class HtmlFace[F <: Effects with Singleton](implicit val fx: F) {
     private val base = settings.base
     private val look = settings.look.getOrElse(Look.default)
     // the sessions, by id: random ids, forgotten when idle an hour, at most a thousand (`Sessions`)
-    private val sessions = new Sessions[(Session[fx.type, A, R], List[okay.effects.shape.Problem])](settings.ids)
+    // with a session: the problems of its last choice, and what was typed for it (the action, the form as posted) —
+    // the page shows the form as it was filled, not empty
+    private val sessions =
+      new Sessions[(Session[fx.type, A, R], List[okay.effects.shape.Problem], Option[(String, Map[String, List[String]])])](
+        settings.ids)
     private val words = look.words
     val stylesheet: String = Css(look)
 
-    def page(id: String, d: Session[fx.type, A, R], problems: List[okay.effects.shape.Problem]): String ! R =
+    def page(id: String, d: Session[fx.type, A, R], problems: List[okay.effects.shape.Problem],
+      typed: Option[(String, Map[String, List[String]])] = None): String ! R =
       d.shown.flatMap { case (told, v) =>
         d.actions.map(as =>
-          Html.page(View.title(told :+ v).getOrElse(title), told, v, as, problems, s"$base/$id", d.canGoBack, words))
+          Html.page(View.title(told :+ v).getOrElse(title), told, v, as, problems, s"$base/$id", d.canGoBack, words,
+            typed))
       }
 
     def routes: List[Route[R]] = List(
       get[R]("/") { (_, _) =>
-        val id = sessions.open((open(), Nil)); pure[Response, R](Response.redirect(s"$base/$id"))
+        val id = sessions.open((open(), Nil, None)); pure[Response, R](Response.redirect(s"$base/$id"))
       },
       // the base itself opens a session too: a service beside others, with `/` taken, has its door at `base`
       get[R](base) { (_, _) =>
-        val id = sessions.open((open(), Nil)); pure[Response, R](Response.redirect(s"$base/$id"))
+        val id = sessions.open((open(), Nil, None)); pure[Response, R](Response.redirect(s"$base/$id"))
       },
       get[R](Html.stylesheetPath) { (_, _) => pure[Response, R](Response.ok(stylesheet, "text/css; charset=utf-8")) },
       get[R](s"$base/:id") { (ps, _) =>
         sessions.get(ps("id")) match {
           case None => pure[Response, R](Response.html(Html.lost(title, base, words), 404))
-          case Some((d, problems)) => page(ps("id"), d, problems).map(Response.html(_))
+          case Some((d, problems, typed)) => page(ps("id"), d, problems, typed).map(Response.html(_))
         }
       },
       post[R](s"$base/:id/act/:name") { (ps, req) =>
         sessions.get(ps("id")) match {
           case None => pure[Response, R](Response.html(Html.lost(title, base, words), 404))
-          case Some((d, _)) => d.actions.flatMap { as =>
+          case Some((d, _, _)) => d.actions.flatMap { as =>
+              val form = Query.parse(req.body)
               val args =
-                as.find(_.name == ps("name")).map(a => Forms.collect(a.params.erased, Query.parse(req.body))).getOrElse(
-                  Json.Obj.empty)
+                as.find(_.name == ps("name")).map(a => Forms.collect(a.params.erased, form)).getOrElse(Json.Obj.empty)
               d.choose(Chosen(ps("name"), args)).map {
-                case Right(_) => sessions.update(ps("id"), (d, Nil)); Response.redirect(s"$base/${ps("id")}")
+                case Right(_) => sessions.update(ps("id"), (d, Nil, None)); Response.redirect(s"$base/${ps("id")}")
                 case Left(Rejected(problems)) =>
-                  sessions.update(ps("id"), (d, problems)); Response.redirect(s"$base/${ps("id")}")
+                  sessions.update(ps("id"), (d, problems, Some(ps("name") -> form)))
+                  Response.redirect(s"$base/${ps("id")}")
               }
             }
         }
@@ -73,11 +80,11 @@ class HtmlFace[F <: Effects with Singleton](implicit val fx: F) {
       get[R](s"$base/:id/ref/:key") { (ps, _) =>
         sessions.get(ps("id")) match {
           case None => pure[Response, R](Response.html(Html.lost(title, base, words), 404))
-          case Some((d, _)) => d.actions.flatMap { as =>
+          case Some((d, _, _)) => d.actions.flatMap { as =>
               if (as.exists(_.name == "ref")) d.choose(Chosen("ref", Json.obj("key" -> Json.Str(ps("key"))))).map {
-                case Right(_) => sessions.update(ps("id"), (d, Nil)); Response.redirect(s"$base/${ps("id")}")
+                case Right(_) => sessions.update(ps("id"), (d, Nil, None)); Response.redirect(s"$base/${ps("id")}")
                 case Left(Rejected(problems)) =>
-                  sessions.update(ps("id"), (d, problems)); Response.redirect(s"$base/${ps("id")}")
+                  sessions.update(ps("id"), (d, problems, None)); Response.redirect(s"$base/${ps("id")}")
               }
               else pure[Response, R](Response.redirect(s"$base/${ps("id")}"))
             }
@@ -86,8 +93,9 @@ class HtmlFace[F <: Effects with Singleton](implicit val fx: F) {
       post[R](s"$base/:id/back") { (ps, _) =>
         sessions.get(ps("id")) match {
           case None => pure[Response, R](Response.html(Html.lost(title, base, words), 404))
-          case Some((d, _)) =>
-            d.back(); sessions.update(ps("id"), (d, Nil)); pure[Response, R](Response.redirect(s"$base/${ps("id")}"))
+          case Some((d, _, _)) =>
+            d.back(); sessions.update(ps("id"), (d, Nil, None))
+            pure[Response, R](Response.redirect(s"$base/${ps("id")}"))
         }
       })
     def service: Request => Response ! R = dispatch[R](routes)
@@ -125,7 +133,8 @@ object Html {
   /** the page: what was told since the last step, each in its own `told` section, then the step's view; the refs live
    * when the step offers `ref` */
   def page(title: String, told: Vector[View], v: View, actions: List[Action[_]],
-    problems: List[okay.effects.shape.Problem], here: String, back: Boolean, words: Words = Words.english): String =
+    problems: List[okay.effects.shape.Problem], here: String, back: Boolean, words: Words = Words.english,
+    typed: Option[(String, Map[String, List[String]])] = None): String =
     document(title,
       s"""<main ${cls(Role.Face)}>
          |<section ${cls(Role.View)}>${told.map(t =>
@@ -133,7 +142,9 @@ object Html {
           v, if (actions.exists(_.name == "ref")) Some(here) else None)}</section>
          |${if (problems.isEmpty) ""
         else s"<ul ${cls(Role.Problems)}>" + problems.map(p => s"<li>${esc(p.render)}</li>").mkString + "</ul>"}
-         |<nav ${cls(Role.Actions)}>${actions.filterNot(_.name == "ref").map(a => Forms.action(a, here)).mkString("\n")}
+         |<nav ${cls(Role.Actions)}>${actions.filterNot(_.name == "ref").map(a =>
+          Forms.action(a, here, typed.collect { case (n, form) if n == a.name => form }.getOrElse(Map.empty)))
+          .mkString("\n")}
          |${if (back)
           s"""<form method="post" action="$here/back"><button ${cls(Role.Back)}>${esc(words.back)}</button></form>"""
         else ""}</nav>
@@ -182,34 +193,41 @@ object Html {
 object Forms {
   import Html.esc
   private def cls(role: Role): String = s"""class="${role.classes}""""
-  def action[A](a: Action[A], here: String): String = a.params.erased match {
+  /** `typed`: the form as it was posted, when a choice of this action was rejected — its fields filled again, not
+   * left blank (a secret's excepted: a password is not sent back in a page) */
+  def action[A](a: Action[A], here: String, typed: Map[String, List[String]] = Map.empty): String =
+    a.params.erased match {
     case Schema.Record(fields) if fields.isEmpty =>
       s"""<form method="post" action="$here/act/${a.name}"><button ${cls(
           Role.Action)} name="action" value="${a.name}">${esc(a.label)}</button></form>"""
     case schema =>
       s"""<form method="post" ${cls(Role.Form)} action="$here/act/${a.name}">${a.doc.map(d =>
-          s"<p ${cls(Role.Doc)}>${esc(d)}</p>").getOrElse("")}${field(Nil, schema, None)}<button ${cls(
+          s"<p ${cls(Role.Doc)}>${esc(d)}</p>").getOrElse("")}${field(Nil, schema, None, typed)}<button ${cls(
           Role.Action)}>${esc(a.label)}</button></form>"""
-  }
+    }
   private def name(path: List[String]) = path.mkString(".")
-  def field(path: List[String], schema: Schema, f: Option[Schema.Field]): String = schema match {
+  def field(path: List[String], schema: Schema, f: Option[Schema.Field],
+    typed: Map[String, List[String]] = Map.empty): String = schema match {
     case Schema.Record(fs) => "<fieldset>" + f.flatMap(_.label).orElse(f.map(_.name)).map(l =>
         s"<legend ${cls(Role.Label)}>${esc(l)}</legend>").getOrElse("") +
-        fs.map(x => field(path :+ x.name, x.schema, Some(x))).mkString + "</fieldset>"
+        fs.map(x => field(path :+ x.name, x.schema, Some(x), typed)).mkString + "</fieldset>"
     case Schema.Described(of, label, doc) => field(path, of,
         Some(f.getOrElse(Schema.Field(path.lastOption.getOrElse(""), of, None, None, false, None)).copy(
-            label = Some(label), doc = doc)))
-    case Schema.Optional(of) => field(path, of, f)
-    case Schema.Choice(options) => labelled(path, f,
+            label = Some(label), doc = doc)), typed)
+    case Schema.Optional(of) => field(path, of, f, typed)
+    case Schema.Choice(options) =>
+      val chosen = typed.get(name(path)).flatMap(_.headOption)
+      labelled(path, f,
         s"""<select name="${name(path)}" id="f-${name(path)}">${options.map(o =>
-            s"""<option value="${esc(o)}">${esc(o)}</option>""").mkString}</select>""")
+            s"""<option value="${esc(o)}"${if (chosen.contains(o)) " selected=\"selected\"" else ""}>${esc(o)}</option>""")
+            .mkString}</select>""")
     case Schema.OneOf(cases) =>
       labelled(path, f,
         s"""<select name="${name(path)}.type" id="f-${name(path)}">${cases.map { case (n, _) =>
             s"""<option value="${esc(n)}">${esc(n)}</option>"""
           }.mkString}</select>""") +
         cases.map { case (n, cs) =>
-          s"""<div class="okay-case" data-case="${esc(n)}">${field(path :+ n, cs, None)}</div>"""
+          s"""<div class="okay-case" data-case="${esc(n)}">${field(path :+ n, cs, None, typed)}</div>"""
         }.mkString
     case Schema.Many(of, min, _) if !okay.faces.FormJson.leafish(of) =>
       // a list of records with no script: slots, `min` and one spare, a blank one no item (FormJson.collect)
@@ -218,19 +236,26 @@ object Forms {
         s"<legend ${cls(Role.Label)}>${esc(l)}</legend>").getOrElse("") +
         (0 until slots).map(i =>
           s"""<div class="okay-item" data-item="$i">${field(path :+ i.toString, of,
-              None)}</div>""").mkString + "</fieldset>"
+              None, typed)}</div>""").mkString + "</fieldset>"
     case Schema.Many(_, _, _) => labelled(path, f,
-        s"""<textarea name="${name(path)}" id="f-${name(path)}" placeholder="one per line"></textarea>""")
-    case Schema.Bool => labelled(path, f,
-        s"""<input type="checkbox" name="${name(path)}" id="f-${name(path)}" value="true"${f.flatMap(
-            _.default).collect { case Json.Bool(true) => """ checked="checked"""" }.getOrElse("")}/>""")
+        s"""<textarea name="${name(path)}" id="f-${name(path)}" placeholder="one per line">${esc(
+            typed.get(name(path)).flatMap(_.headOption).getOrElse(""))}</textarea>""")
+    case Schema.Bool =>
+      // posted, a box is checked when it was sent; else as its default says
+      val checked = if (typed.nonEmpty) typed.contains(name(path))
+      else f.flatMap(_.default).contains(Json.Bool(true))
+      labelled(path, f,
+        s"""<input type="checkbox" name="${name(path)}" id="f-${name(path)}" value="true"${if (checked)
+            """ checked="checked"""" else ""}/>""")
     case leaf =>
       val typ = leaf match {
         case Schema.Integer(_) | Schema.Number(_) => "number"; case Schema.Date => "date";
         case _ => if (f.exists(_.secret)) "password" else "text"
       }
-      val default = f.flatMap(_.default).map { case Json.Str(s) => s; case other => Json.print(other) }.map(d =>
-        s""" value="${esc(d)}"""").getOrElse("")
+      val secret = f.exists(_.secret)
+      val default = typed.get(name(path)).flatMap(_.headOption).filterNot(_ => secret)
+        .orElse(f.flatMap(_.default).map { case Json.Str(s) => s; case other => Json.print(other) })
+        .map(d => s""" value="${esc(d)}"""").getOrElse("")
       labelled(path, f, s"""<input type="$typ" name="${name(path)}" id="f-${name(path)}"$default/>""")
   }
   private def labelled(path: List[String], f: Option[Schema.Field], control: String): String = {

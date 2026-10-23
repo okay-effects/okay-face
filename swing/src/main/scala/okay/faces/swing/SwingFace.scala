@@ -68,7 +68,8 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
     def show(s: Shown[A, N]): Unit = {
       current = Some(s.step)
       root.removeAll()
-      root.add(render[A, N](s, show, settle, lower(_), look.map(_.words).getOrElse(Words.english)), BorderLayout.CENTER)
+      root.add(render[A, N](s, show, settle, lower(_), look.map(_.words).getOrElse(Words.english),
+        () => { look.foreach(l => Looks(l)(root)); root.revalidate(); root.repaint(); grow() }), BorderLayout.CENTER)
       look.foreach(l => Looks(l)(root))
       root.revalidate(); root.repaint()
       grow()
@@ -157,25 +158,28 @@ class SwingFace[F <: Runner with Singleton](implicit val fx: F) {
 
   private def render[A, N[_]](s: Shown[A, N], show: Shown[A, N] => Unit,
     settle: (Step[A, N], Vector[View], List[Step.Waiting[A, N]]) => Shown[A, N], lower: N[Step[A, N]] => Step[A, N],
-    words: Words): JComponent = {
+    words: Words, refresh: () => Unit): JComponent = {
     val box = new JPanel; box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS))
     s.told.foreach(v => box.add(named(Views.component(v), Role.Told.cls)))
     s.step match {
       case Step.Done(_) => box.add(named(Views.component(words.over), "okay-done"))
       case Step.Told(_, _) => ()
       case w: Step.Waiting[A, N] @unchecked =>
+        // the problems of a rejected choice shown here, the step's forms kept as they are: what was typed stays
+        val problems = new JPanel(new GridLayout(0, 1)); problems.setName(Role.Problems.cls)
+        def told(ps: Problems): Unit = {
+          problems.removeAll(); ps.foreach(pr => problems.add(label(pr.render, Role.Problems.cls)))
+          problems.setVisible(ps.nonEmpty)
+        }
         def choose(chosen: Chosen): Unit = w.resume(chosen) match {
-          case Left(Rejected(ps)) => show(s.copy(problems = ps))
+          case Left(Rejected(ps)) => told(ps); refresh()
           case Right(next) => show(settle(lower(next), Vector.empty, if (w.back) w :: s.history else s.history))
         }
         val ref: Option[String => Unit] = if (w.actions.exists(_.name == "ref"))
           Some(key => choose(Chosen("ref", Json.obj("key" -> Json.Str(key)))))
         else None
         box.add(Views.component(w.view, ref))
-        if (s.problems.nonEmpty) {
-          val p = new JPanel(new GridLayout(0, 1)); p.setName(Role.Problems.cls);
-          s.problems.foreach(pr => p.add(label(pr.render, Role.Problems.cls))); box.add(p)
-        }
+        told(s.problems); box.add(problems)
         val actions = new JPanel; actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
         actions.setName(Role.Actions.cls)
         w.actions.filterNot(_.name == "ref").foreach(a => actions.add(Forms.action(a, choose, words)))
