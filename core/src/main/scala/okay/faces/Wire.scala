@@ -46,6 +46,8 @@ object ViewJson {
     case View.Group(title, children) => Json.Obj(Vector("type" -> Json.Str("group")) ++ title.map(t =>
         "title" -> Json.Str(t)) :+ ("children" -> Json.Arr(children.map(encode))))
     case View.Ref(key, label) => Json.obj("type" -> Json.Str("ref"), "key" -> Json.Str(key), "label" -> Json.Str(label))
+    case View.Link(label, url) =>
+      Json.obj("type" -> Json.Str("link"), "label" -> Json.Str(label), "url" -> Json.Str(url))
     case View.Datum(json, schema) => Json.Obj(Vector("type" -> Json.Str("datum"), "value" -> json) ++ schema.map(s =>
         "schema" -> Schema.shape.encode(s)))
     case View.Masked(hint) => Json.obj("type" -> Json.Str("masked"), "hint" -> Json.Str(hint))
@@ -83,6 +85,7 @@ object ViewJson {
         case Some(Json.Str("group")) => arr(o, "children").flatMap(xs => all(xs.map(decode))).map(
             View.Group(o.get("title").collect { case Json.Str(t) => t }, _))
         case Some(Json.Str("ref")) => for { k <- str(o, "key"); l <- str(o, "label") } yield View.Ref(k, l)
+        case Some(Json.Str("link")) => for { l <- str(o, "label"); u <- str(o, "url") } yield View.Link(l, u)
         case Some(Json.Str("datum")) => o.get("value").toRight("no value").flatMap(v =>
             o.get("schema") match {
               case None => Right(View.Datum(v, None))

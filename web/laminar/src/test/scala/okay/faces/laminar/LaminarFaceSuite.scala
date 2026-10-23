@@ -95,10 +95,13 @@ class LaminarFaceSuite extends munit.FunSuite {
     assertEquals(q(root, "h1").textContent, "Who are you?")
     assert(root.querySelector("button.okay-back") == null)
   }
-  test("views drawn: table, fields, items, masked") {
+  test("views drawn: table, fields, items, masked, a link") {
     val v = View.stack(View.table("a", "b")(Vector(View.text("1"), View.Masked("••"))),
-      View.fields("k" -> View.text("v")), View.items(View.text("x")))
+      View.fields("k" -> View.text("v")), View.items(View.text("x")), View.link("the source", "https://example.org/"))
     val root = mounted(face.element(steps[Unit, F, Void](show[F](v))))
+    val link = q(root, "a.okay-link").asInstanceOf[dom.html.Anchor]
+    assertEquals((link.textContent, link.getAttribute("href"), link.target),
+      ("the source", "https://example.org/", "_blank"))
     assertEquals(root.querySelectorAll("th").length, 2)
     assertEquals(q(root, "span.okay-masked").textContent, "••")
     assertEquals(q(root, "dt").textContent, "k")

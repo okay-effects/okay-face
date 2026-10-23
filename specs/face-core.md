@@ -212,6 +212,7 @@ object View {
   final case class Items(items: Vector[View]) extends View                   // a list
   final case class Group(title: Option[String], children: Vector[View]) extends View
   final case class Ref(key: String, label: String) extends View              // names an entity; a face may link it
+  final case class Link(label: String, url: String) extends View             // a page elsewhere: where to check
   final case class Datum(v: Value, schema: Option[Schema]) extends View      // a structured value shown as it is
   final case class Masked(hint: String) extends View                         // a secret NOT shown ("•••• 4821")
 }
@@ -220,6 +221,9 @@ object View {
 DECIDED: semantic only, no layout, no colour, no widths. Like semantic HTML or Markdown, not like CSS. Layout hints,
 when Laminar or okay-ui need them, are a separate layer added then. A `View` never contains a function and never
 contains a secret the program did not decide to show; `Masked` is how a secret is present without being shown.
+`Link` is a page OUTSIDE the dialogue — a source to check, a document — by its address: a face makes it what links
+are where it draws (an anchor on the web, `label <url>` in text, the address beside the label in a window); it is
+never an action, and nothing in the dialogue changes when it is followed. (A `Ref` is the dialogue's own entity.)
 
 ### Action[A] — one affordance
 

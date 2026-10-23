@@ -183,6 +183,8 @@ object Html {
         children.map(c => view(c, here)).mkString + "</section>"
     case View.Ref(key, label) => s"""<a ${cls(Role.Ref)} href="${here.fold("#" + esc(key))(h =>
           s"$h/ref/${Query.encode(key)}")}">${esc(label)}</a>"""
+    case View.Link(label, url) =>
+      s"""<a ${cls(Role.Link)} href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>"""
     case View.Datum(json, _) => s"<pre ${cls(Role.Datum)}>${esc(Json.pretty(json))}</pre>"
     case View.Masked(hint) => s"<span ${cls(Role.Masked)}>${esc(hint)}</span>"
     case View.Marked(mark, x) => s"<span ${cls(Role.Mark(mark))}>${view(x, here)}</span>"

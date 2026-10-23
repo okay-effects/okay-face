@@ -192,11 +192,13 @@ object Markdown {
       case View.Group(title, children) =>
         (title.map("### " + _).toList ++ children.map(view(_, vocabulary)).filter(_.nonEmpty)).mkString("\n\n")
       case View.Ref(key, label) => s"[$label](#$key)"
+      case View.Link(label, url) => s"[$label]($url)"
       case View.Datum(json, _) => "```json\n" + Json.pretty(json) + "\n```"
       case View.Masked(hint) => hint
       case View.Marked(m, x) if vocabulary.has(m) =>
         x match {
-          case View.Text(_) | View.Masked(_) | View.Ref(_, _) | View.Heading(_, _) => s"**$m:** ${line(x)}"
+          case View.Text(_) | View.Masked(_) | View.Ref(_, _) | View.Link(_, _) | View.Heading(_, _) =>
+            s"**$m:** ${line(x)}"
           case _ => s"**$m**\n\n" + view(x, vocabulary)
         }
       case View.Marked(_, x) => view(x, vocabulary)

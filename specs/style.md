@@ -31,8 +31,8 @@ every face. DECIDED: tokens and roles, nothing more.
 `Role` is the vocabulary a face marks its output with: a class on the web (`okay-heading okay-heading-1`), a name in
 Swing (`okay-heading-1`), a paint in the terminal. `names` run general to specific, so a stylesheet may address all
 headings or one level. The roles: `Face`, `View`, `Told`, `Text`, `Heading(1..3)`, `Notice(level)`, `Fields`,
-`Label`, `Table`, `Items`, `Group`, `GroupTitle`, `Ref`, `Datum`, `Masked`, `Problems`, `Actions`, `Action`, `Form`,
-`Doc`, `Field`, `Back`. `Role.all` lists them; `Role.byClass` finds one back by its class.
+`Label`, `Table`, `Items`, `Group`, `GroupTitle`, `Ref`, `Link`, `Datum`, `Masked`, `Problems`, `Actions`, `Action`,
+`Form`, `Doc`, `Field`, `Back`. `Role.all` lists them; `Role.byClass` finds one back by its class.
 
 The HTML and Laminar faces mark the SAME classes, so one stylesheet serves both; Swing names its components by the
 same words, and the Swing tests find them by those names. The vocabulary is a contract, as `ViewJson` is for REST:

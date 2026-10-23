@@ -36,6 +36,8 @@ object Role {
   case object Group extends Role(List("group"))
   case object GroupTitle extends Role(List("group-title"))
   case object Ref extends Role(List("ref"))
+  /** a page elsewhere: `View.Link` */
+  case object Link extends Role(List("link"))
   case object Datum extends Role(List("datum"))
   case object Masked extends Role(List("masked"))
   /** the problems with a rejected choice */
@@ -56,7 +58,7 @@ object Role {
 
   val all: List[Role] = List(Face, View, Told, Text) ++ (1 to 3).map(Heading(_)) ++
     List(okay.faces.View.Notice.Info, okay.faces.View.Notice.Warning, okay.faces.View.Notice.Problem).map(Notice(_)) ++
-    List(Fields, Label, Table, Items, Group, GroupTitle, Ref, Datum, Masked, Problems, Actions, Action, Form, Doc,
+    List(Fields, Label, Table, Items, Group, GroupTitle, Ref, Link, Datum, Masked, Problems, Actions, Action, Form, Doc,
       Field, Back)
   /** a role by its most specific class, "okay-heading-1"; a mark by its name, "okay-mark-price" */
   val byClass: Map[String, Role] = all.map(r => r.cls -> r).toMap
@@ -159,6 +161,7 @@ object Style {
       Group -> Rule(gap = 1),
       GroupTitle -> Rule(bold = true, color = Some(Muted)),
       Ref -> Rule(color = Some(Accent)),
+      Link -> Rule(color = Some(Accent)),
       Datum -> Rule(mono = true, background = Some(Surface), pad = 1),
       Masked -> Rule(mono = true, color = Some(Muted)),
       Problems -> Rule(color = Some(Problem)),

@@ -110,6 +110,9 @@ class McpFaceSuite extends munit.FunSuite {
       View.fields("k" -> View.text("v")), View.items(View.text("x")))
     assertEquals(Markdown.view(v), "# T\n\n| a | b |\n| --- | --- |\n| 1 | •• |\n\n- **k:** v\n\n- x")
     assertEquals(Json.print(okay.faces.ViewJson.encode(View.Masked("••"))), """{"type":"masked","hint":"••"}""")
+    val link = View.link("the source", "https://example.org/")
+    assertEquals(Markdown.view(link), "[the source](https://example.org/)")
+    assertEquals(okay.faces.ViewJson.decode(okay.faces.ViewJson.encode(link)), Right(link))
   }
   test("a mark in the vocabulary is shown in the Markdown; one not in it is seen through") {
     val vocab = Vocabulary("price" -> "the amount due")

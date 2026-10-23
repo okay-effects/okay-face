@@ -42,6 +42,7 @@ Rendering `View` as text, deterministic and pipe-friendly, no colour unless a `P
 | `Items` | `- item` |
 | `Group` | the title as a level-3 heading, children indented two spaces |
 | `Ref` | `label [key]` |
+| `Link` | `label <url>` |
 | `Datum` | pretty JSON, indented |
 | `Masked` | the hint, as it is |
 

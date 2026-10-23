@@ -84,6 +84,8 @@ abstract class TerminalChecks(val fx0: Runner, name: String) extends munit.FunSu
     assertEquals(Render.view(View.problem("no")), List("problem: no"))
     assertEquals(Render.wrap("a " * 50, 20).forall(_.length <= 20), true)
     assertEquals(Render.view(View.Masked("•••• 4821")), List("•••• 4821"))
+    assertEquals(Render.view(View.link("the source", "https://example.org/list")),
+      List("the source <https://example.org/list>"))
   }
 }
 

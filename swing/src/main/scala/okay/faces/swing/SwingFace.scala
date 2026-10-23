@@ -308,6 +308,7 @@ object Views {
     case View.Datum(json, _) =>
       val a = new JTextArea(Json.pretty(json)); a.setEditable(false);
       a.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12)); named(a, Role.Datum.cls)
+    case View.Link(l, url) => val c = new JLabel(s"$l <$url>"); c.setToolTipText(url); named(c, Role.Link.cls)
     case View.Masked(hint) => named(new JLabel(hint), Role.Masked.cls)
     case View.Marked(mark, x) =>
       val c = component(x, ref); c.setName(Role.Mark(mark).cls); c // the mark's rule dresses it, not its own
@@ -337,6 +338,7 @@ object Views {
     case View.Items(items) => items.map(text).mkString(", ")
     case View.Group(t, children) => (t.toList ++ children.map(text)).mkString(" ")
     case View.Ref(key, l) => s"$l [$key]"
+    case View.Link(l, url) => s"$l <$url>"
     case View.Datum(json, _) => Json.print(json)
     case View.Masked(hint) => hint
     case View.Marked(_, x) => text(x)

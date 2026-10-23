@@ -38,6 +38,7 @@ object Render {
       val body = children.toList.flatMap(view(_, paint))
       title.fold(body)(t => paint(Role.GroupTitle, "## " + t) :: body.map("  " + _))
     case View.Ref(key, label) => List(paint(Role.Ref, s"$label [$key]"))
+    case View.Link(label, url) => List(paint(Role.Link, s"$label <$url>"))
     case View.Datum(json, _) => Json.pretty(json).split("\n").toList
     case View.Masked(hint) => List(paint(Role.Masked, hint))
     case View.Marked(mark, x) => view(x, paint).map(paint(Role.Mark(mark), _))
@@ -55,6 +56,7 @@ object Render {
     case View.Items(items) => items.map(oneLine).mkString(", ")
     case View.Group(title, children) => (title.toList ++ children.map(oneLine)).mkString(" ")
     case View.Ref(key, label) => paint(Role.Ref, s"$label [$key]")
+    case View.Link(label, url) => paint(Role.Link, s"$label <$url>")
     case View.Datum(json, _) => Json.print(json)
     case View.Masked(hint) => paint(Role.Masked, hint)
     case View.Marked(mark, x) => paint(Role.Mark(mark), oneLine(x, paint))

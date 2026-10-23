@@ -30,6 +30,9 @@ object View {
   final case class Group(title: Option[String], children: Vector[View]) extends View
   /** names an entity; a face may make it a link */
   final case class Ref(key: String, label: String) extends View
+  /** a page elsewhere, by its address — a source to check, a document: a face draws it as its links are drawn, an
+   * anchor on the web, `label <url>` in text; never an action */
+  final case class Link(label: String, url: String) extends View
   /** a structured value shown as it is, its schema if known */
   final case class Datum(json: Json, schema: Option[Schema] = None) extends View
   /** a secret NOT shown: "•••• 4821" */
@@ -49,6 +52,7 @@ object View {
   def group(title: String)(children: View*): View = Group(Some(title), children.toVector)
   def stack(children: View*): View = Group(None, children.toVector)
   def marked(mark: String, view: View): View = Marked(mark, view)
+  def link(label: String, url: String): View = Link(label, url)
   /** the title of what is shown: the first level-1 heading, depth first — a window's, a page's, a server's name */
   def title(views: Seq[View]): Option[String] = views.iterator.map(title).collectFirst { case Some(t) => t }
   def title(v: View): Option[String] = v match {

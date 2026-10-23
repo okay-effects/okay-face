@@ -116,6 +116,9 @@ class HtmlFaceSuite extends munit.FunSuite {
     assertEquals(rs(2).status, 303); assert(rs(3).body.contains("opened r2"), rs(3).body)
     val plain = Html.view(View.Ref("k", "K"))
     assert(plain.contains("""href="#k""""), "no ref offered: an anchor")
+    assertEquals(Html.view(View.link("a <source>", "https://example.org/?a=1&b=2")),
+      """<a class="okay-link" href="https://example.org/?a=1&amp;b=2" target="_blank" rel="noopener noreferrer">""" +
+        "a &lt;source&gt;</a>")
   }
 }
 
