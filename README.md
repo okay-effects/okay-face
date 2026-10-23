@@ -21,7 +21,7 @@ resolvers ++= Seq("okay-effects" at "https://okay-effects.github.io/okay-simple/
   "okay-mcp" at "https://okay-effects.github.io/okay-mcp/maven",
   "okay-faces" at "https://okay-effects.github.io/okay-faces/maven")
 // a face; okay-faces, the core, with it
-libraryDependencies += "io.github.okay-effects" %% "okay-faces-term" % "0.1.1"
+libraryDependencies += "io.github.okay-effects" %% "okay-faces-term" % "0.1.0"
 ```
 
 The modules, one per face, are in [specs/face-core.md](specs/face-core.md); releases in [RELEASING.md](RELEASING.md).
