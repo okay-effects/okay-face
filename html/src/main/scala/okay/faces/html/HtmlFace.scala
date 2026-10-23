@@ -256,7 +256,9 @@ object Forms {
       val default = typed.get(name(path)).flatMap(_.headOption).filterNot(_ => secret)
         .orElse(f.flatMap(_.default).map { case Json.Str(s) => s; case other => Json.print(other) })
         .map(d => s""" value="${esc(d)}"""").getOrElse("")
-      labelled(path, f, s"""<input type="$typ" name="${name(path)}" id="f-${name(path)}"$default/>""")
+      // a fraction is a number: without a step a browser takes 1 and refuses 12.5
+      val step = leaf match { case Schema.Number(_) => """ step="any""""; case _ => "" }
+      labelled(path, f, s"""<input type="$typ"$step name="${name(path)}" id="f-${name(path)}"$default/>""")
   }
   private def labelled(path: List[String], f: Option[Schema.Field], control: String): String = {
     val words = f.flatMap(_.label).orElse(f.map(_.name)).orElse(path.lastOption).getOrElse("value")

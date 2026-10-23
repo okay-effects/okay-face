@@ -52,6 +52,20 @@ class LaminarFaceSuite extends munit.FunSuite {
   }
   def press(root: dom.Element, action: String): Unit = q(root, s"button[data-action=$action]").click()
 
+  test("a fraction is a number a browser lets through: step any on a decimal field, none on a whole one") {
+    final case class Item(qty: Int, price: BigDecimal)
+    val item: Shape[Item] =
+      record(field("qty", int), field("price", Shape.ofBigDecimal))(Item(_, _))(i => (i.qty, i.price))
+    var got = Option.empty[Item]
+    val root = mounted(face.element(steps[Item, F, Void](fill[Item, F](View.heading("An item"), item)),
+      (i: Item) => got = Some(i)))
+    assertEquals(q(root, "#f-price").getAttribute("step"), "any")
+    assertEquals(q(root, "#f-qty").getAttribute("step"), null)
+    typeInto(root, "f-qty", "2"); typeInto(root, "f-price", "12.5")
+    submit(root, "submit")
+    assertEquals(got, Some(Item(2, BigDecimal("12.5"))))
+  }
+
   test("a form from the shape, filled and submitted; a problem shown; the dialogue to its end") {
     var result = Option.empty[String]
     val root = mounted(face.element(steps[String, F, Void](greeting), (a: String) => result = Some(a)))

@@ -255,7 +255,10 @@ object Forms {
             case _ => if (field.exists(_.secret)) "password" else "text"
           }),
           field.flatMap(_.default).map(d =>
-            value := (d match { case Json.Str(s) => s; case other => Json.print(other) })))
+            value := (d match { case Json.Str(s) => s; case other => Json.print(other) })),
+          // A FRACTION IS A NUMBER: without a step a browser takes 1 and refuses 12.5 before the form is sent
+          // (jsdom checks nothing, so only a real browser showed it — okay-ui's reference app, 2026-10-23)
+          Option.when(leaf match { case Schema.Number(_) => true; case _ => false })(stepAttr := "any"))
         inputs(path) = in
         labelled(path, field, in)
     }
