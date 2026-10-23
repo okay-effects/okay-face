@@ -92,3 +92,23 @@ every step is a round trip, as pages from the server are, with the page kept and
 dialogue in the browser and the domain behind REST, is `Describe` + `RestDomains.remote` under `Browser.fetches`
 (okay-http, `Fetch` awaited through `Async`): verity's `browser` mode runs its whole scenario in the page with `Store`
 and `Files` on the server (verity `web/Local`, `LocalSuite` under jsdom).
+
+## The DOM face — the Laminar face's page with no library, its world as effects
+
+`web/dom` (`okay-faces-dom`, `okay.faces.dom`, Scala.js, both compilers): `DomFace` is the Laminar face with the same
+API (`element`, `elementAsync`, `handle`, `mount`, `Settings`) and the SAME MARKUP — tag for tag, class for class,
+attribute for attribute — so a look's stylesheet dresses it the same and an application changes its handler, nothing
+else. `SameMarkupSuite` plays every scenario on both faces and compares the page after each act (Laminar's comment
+nodes and the DOM face's accessibility attributes, which no selector of a look uses, left out).
+
+Inside, the face is a program over effects of its own, handled inside it — the world reached in one place:
+- `Page` — the DOM: an element made (tag, classes, attributes, children), text, a place (a comment), a node swapped,
+  put before another, removed, a listener added, a value read or set, buttons disabled, a case shown or hidden;
+- `History` — the browser's history: a step pushed, the browser's back listened to;
+- `Focus` — where the keyboard is: the first field of a step drawn, the first field with a problem;
+- `Keys` — keys listened to: Escape is back where the step offers it.
+Each has one handler, the browser's, applied where the face runs its programs (`world`); a test may intercept any of
+them. The machine's state (the step shown, its history) stays the face's.
+
+Accessibility, by `Page`: the problems a live region (`role="alert"`), a field with a problem `aria-invalid`, a
+field's doc its `aria-describedby`, the face `aria-busy` while a rest runs. Focus by default (`Settings.focus`).

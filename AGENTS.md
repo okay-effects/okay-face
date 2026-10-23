@@ -15,6 +15,9 @@ design is a change of the spec first.
 - A face takes the implementation (`implicit val fx: F`) and makes its own `Faces[fx.type]`: every type on one path,
   nothing cast. A program of a face is `A ! Face`, written with `import okay.faces._` alone.
 - Tests on both compilers, on the machine and on `Free`; the pages under jsdom; the README's code by `docsCheck`:
-  `sbt -Dplatforms=js +test +examples/test +laminarJS/test examplesJS/test docsCheck/test`.
+  `sbt -Dplatforms=js +test +examples/test +laminarJS/test +domJS/test examplesJS/test docsCheck/test`.
 - Lines at most 120 wide: `scalafmt` at the root keeps the author's line breaks and wraps only what is too long.
 - Commits: plain messages, what and why, no attribution trailers.
+- The DOM face (`web/dom`) keeps the Laminar face's markup exactly: a change to the Laminar face's markup is a change to
+  the DOM face's too — `SameMarkupSuite` fails otherwise. Inside it, the world is effects (`Page`, `History`, `Focus`,
+  `Keys`, `World.scala`) handled by `Browser`; no DOM call outside those handlers.

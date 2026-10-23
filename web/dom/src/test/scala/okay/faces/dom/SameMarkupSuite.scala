@@ -12,7 +12,8 @@ import org.scalajs.dom
  * THE SAME MARKUP: every scenario played on the Laminar face, then on the DOM face, the same acts, and the page's markup
  * compared after each — element for element, attribute for attribute — so a look's stylesheet dresses both the same
  * and changing the handler changes nothing that is seen. Laminar's comment nodes (its bookkeeping, matched by no
- * selector) are left out of the comparison.
+ * selector) and the DOM face's accessibility attributes (`aria-*`, `role`: no look's selector uses them) are left out
+ * of the comparison.
  */
 class SameMarkupSuite extends munit.FunSuite {
   val faces: Faces[Machine.type] = new Faces[Machine.type]()(Machine)
@@ -55,7 +56,16 @@ class SameMarkupSuite extends munit.FunSuite {
       var c = n.firstChild
       while (c != null) {
         val next = c.nextSibling
-        if (c.nodeType == dom.Node.COMMENT_NODE) n.removeChild(c) else strip(c)
+        if (c.nodeType == dom.Node.COMMENT_NODE) n.removeChild(c)
+        else {
+          // the DOM face's accessibility: attributes no look's selector uses
+          if (c.nodeType == dom.Node.ELEMENT_NODE) {
+            val e = c.asInstanceOf[dom.Element]
+            val names = (0 until e.attributes.length).map(i => e.attributes(i).name)
+            names.filter(a => a.startsWith("aria-") || a == "role").foreach(e.removeAttribute)
+          }
+          strip(c)
+        }
         c = next
       }
     }
