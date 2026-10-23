@@ -102,6 +102,9 @@ class LaminarFaceSuite extends munit.FunSuite {
     val link = q(root, "a.okay-link").asInstanceOf[dom.html.Anchor]
     assertEquals((link.textContent, link.getAttribute("href"), link.target),
       ("the source", "https://example.org/", "_blank"))
+    // a page of this site opens in place
+    val within = mounted(face.element(steps[Unit, F, Void](show[F](View.link("start again", "./")))))
+    assertEquals(q(within, "a.okay-link").getAttribute("target"), null)
     assertEquals(root.querySelectorAll("th").length, 2)
     assertEquals(q(root, "span.okay-masked").textContent, "••")
     assertEquals(q(root, "dt").textContent, "k")

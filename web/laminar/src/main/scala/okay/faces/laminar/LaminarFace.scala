@@ -164,9 +164,12 @@ object Views {
         title.map(t => h4(cls := Role.GroupTitle.classes, t)), children.map(element(_, ref)))
     case View.Ref(key, label) => a(cls := Role.Ref.classes, href := s"#$key", label,
         ref.map(r => onClick.preventDefault --> Observer[dom.MouseEvent](_ => r(key))))
-    // a page elsewhere: a new tab, and the page opened is told nothing of this one
+    // a page ELSEWHERE (another site): a new tab, and the page opened is told nothing of this one; a page of this
+    // site (a relative address, `./`): opened in place, as a link within a site is
     case View.Link(label, url) =>
-      a(cls := Role.Link.classes, href := url, target := "_blank", rel := "noopener noreferrer", label)
+      if (url.contains("://")) a(cls := Role.Link.classes, href := url, target := "_blank", rel := "noopener noreferrer",
+        label)
+      else a(cls := Role.Link.classes, href := url, label)
     case View.Datum(json, _) => pre(cls := Role.Datum.classes, Json.pretty(json))
     case View.Masked(hint) => span(cls := Role.Masked.classes, hint)
     case View.Marked(mark, x) => span(cls := Role.Mark(mark).classes, element(x, ref))
