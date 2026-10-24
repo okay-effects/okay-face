@@ -143,7 +143,8 @@ object Html {
          |${if (problems.isEmpty) ""
         else s"<ul ${cls(Role.Problems)}>" + problems.map(p => s"<li>${esc(p.render)}</li>").mkString + "</ul>"}
          |<nav ${cls(Role.Actions)}>${actions.filterNot(_.name == "ref").map(a =>
-          Forms.action(a, here, typed.collect { case (n, form) if n == a.name => form }.getOrElse(Map.empty)))
+          Forms.action(a, here, typed.collect { case (n, form) if n == a.name => form }.getOrElse(Map.empty),
+            problems, words))
           .mkString("\n")}
          |${if (back)
           s"""<form method="post" action="$here/back"><button ${cls(Role.Back)}>${esc(words.back)}</button></form>"""
@@ -197,11 +198,21 @@ object Forms {
   private def cls(role: Role): String = s"""class="${role.classes}""""
   /** `typed`: the form as it was posted, when a choice of this action was rejected — its fields filled again, not
    * left blank (a secret's excepted: a password is not sent back in a page) */
-  def action[A](a: Action[A], here: String, typed: Map[String, List[String]] = Map.empty): String =
+  def action[A](a: Action[A], here: String, typed: Map[String, List[String]] = Map.empty,
+    problems: List[okay.effects.shape.Problem] = Nil, words: Words = Words.english): String =
     a.params.erased match {
     case Schema.Record(fields) if fields.isEmpty =>
       s"""<form method="post" action="$here/act/${a.name}"><button ${cls(
           Role.Action)} name="action" value="${a.name}">${esc(a.label)}</button></form>"""
+    case Schema.Record(fs) if fs.exists(f => a.more(f.name)) =>
+      // the fields held back, under Options at the end of the fieldset: closed, open when a problem names one
+      val (held, shown) = fs.partition(f => a.more(f.name))
+      val open = if (problems.exists(_.path.headOption.exists(a.more))) " open=\"\"" else ""
+      s"""<form method="post" ${cls(Role.Form)} action="$here/act/${a.name}">${a.doc.map(d =>
+          s"<p ${cls(Role.Doc)}>${esc(d)}</p>").getOrElse("")}<fieldset>${shown.map(x =>
+          field(List(x.name), x.schema, Some(x), typed)).mkString}<details ${cls(Role.More)}$open><summary>${esc(
+          words.options)}</summary>${held.map(x => field(List(x.name), x.schema, Some(x), typed)).mkString
+        }</details></fieldset><button ${cls(Role.Action)}>${esc(a.label)}</button></form>"""
     case schema =>
       s"""<form method="post" ${cls(Role.Form)} action="$here/act/${a.name}">${a.doc.map(d =>
           s"<p ${cls(Role.Doc)}>${esc(d)}</p>").getOrElse("")}${field(Nil, schema, None, typed)}<button ${cls(

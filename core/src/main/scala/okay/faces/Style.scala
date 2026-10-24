@@ -52,6 +52,8 @@ object Role {
   /** one parameter: a label and a control */
   case object Field extends Role(List("field"))
   case object Back extends Role(List("back"))
+  /** the fields a form holds back, under "Options": `Action.more` */
+  case object More extends Role(List("more"))
   /** the application's own: a `View.Marked(mark, _)`; its rule the application's, in its `Style`, so the vocabulary
    * of parts stays the library's and the marks are said where they are styled */
   final case class Mark(mark: String) extends Role(List("mark", "mark-" + mark))
@@ -59,7 +61,7 @@ object Role {
   val all: List[Role] = List(Face, View, Told, Text) ++ (1 to 3).map(Heading(_)) ++
     List(okay.faces.View.Notice.Info, okay.faces.View.Notice.Warning, okay.faces.View.Notice.Problem).map(Notice(_)) ++
     List(Fields, Label, Table, Items, Group, GroupTitle, Ref, Link, Datum, Masked, Problems, Actions, Action, Form, Doc,
-      Field, Back)
+      Field, Back, More)
   /** a role by its most specific class, "okay-heading-1"; a mark by its name, "okay-mark-price" */
   val byClass: Map[String, Role] = all.map(r => r.cls -> r).toMap
   def ofClass(cls: String): Option[Role] =
@@ -187,7 +189,7 @@ final case class Words(back: String = "Back", help: String = "Help", done: Strin
   keyHint: String = "a [key]", backHint: String = "< back", helpHint: String = "? help", quitHint: String = "q quit",
   typeAKey: String = "type a [key]", oneOf: String = "problem: one of", howMany: String = "how many",
   optional: String = "empty for none", default: String = "default", hidden: String = "hidden",
-  problem: String = "problem", onePerLine: String = "one per line") {
+  problem: String = "problem", onePerLine: String = "one per line", options: String = "Options") {
   /** the notice a face shows when the dialogue is over */
   def over: View = View.info(done)
 }
@@ -230,7 +232,8 @@ object Css {
       ".okay-face pre{margin:0}" +
       ".okay-table{border-collapse:collapse}.okay-form,.okay-field{display:flex;flex-direction:column}" +
       ".okay-field{align-items:flex-start}" +
-      ".okay-action{border:0;font:inherit;cursor:pointer}.okay-back{border:0;font:inherit;cursor:pointer}"
+      ".okay-action{border:0;font:inherit;cursor:pointer}.okay-back{border:0;font:inherit;cursor:pointer}" +
+      ".okay-more>summary{cursor:pointer}"
     val marks = look.style.rules.keys.collect { case m: Role.Mark => m }.toList.sortBy(_.mark)
     val blocks = (Role.all ++ marks).flatMap { role =>
       val r = look.style(role)

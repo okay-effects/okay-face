@@ -40,6 +40,8 @@ object Page {
   case object Disabled extends Prop
   /** the style's `display`: "" or "none" */
   case object Display extends Prop
+  /** a `<details>` open: "true" or "false" */
+  case object Open extends Prop
   /** an attribute; `Put` of "" takes it off */
   final case class Attr(name: String) extends Prop
 }
@@ -120,6 +122,7 @@ class World[F <: Runner with Singleton](transport: Request => Future[Response] =
             case Page.Checked => node.asInstanceOf[dom.html.Input].checked.toString
             case Page.Disabled => node.asInstanceOf[dom.html.Button].disabled.toString
             case Page.Display => node.asInstanceOf[dom.html.Element].style.display
+            case Page.Open => node.asInstanceOf[scala.scalajs.js.Dynamic].open.asInstanceOf[Boolean].toString
             case Page.Attr(name) => Option(node.asInstanceOf[dom.Element].getAttribute(name)).getOrElse("")
           })
         case Page.Put(node, prop, value, answer) =>
@@ -128,6 +131,7 @@ class World[F <: Runner with Singleton](transport: Request => Future[Response] =
             case Page.Checked => node.asInstanceOf[dom.html.Input].checked = value == "true"
             case Page.Disabled => node.asInstanceOf[dom.html.Button].disabled = value == "true"
             case Page.Display => node.asInstanceOf[dom.html.Element].style.display = value
+            case Page.Open => node.asInstanceOf[scala.scalajs.js.Dynamic].open = value == "true"
             case Page.Attr(name) =>
               if (value.isEmpty) node.asInstanceOf[dom.Element].removeAttribute(name)
               else node.asInstanceOf[dom.Element].setAttribute(name, value)

@@ -76,7 +76,11 @@ trait Drawing[F <: Runner with Singleton] {
           val wrong = ps.map(_.path).toSet
           seq(drawn.forms.flatMap(_.controls).map { case (path, control) =>
             put(control, Page.Attr("aria-invalid"), if (wrong(path)) "true" else "")
-          })
+          }).flatMap(_ =>
+            // a problem naming a field held back opens its Options; nothing but the person closes them
+            seq(drawn.forms.flatMap(f => f.options.toList.map(f.more -> _)).collect {
+              case (more, details) if ps.exists(_.path.headOption.exists(more)) => put(details, Page.Open, "true")
+            }))
         }.flatMap(_ =>
           if (ps.nonEmpty && focus) focusFirst(within, "[aria-invalid=true]").map(_ => ()) else unit)
     }
@@ -101,7 +105,7 @@ trait Drawing[F <: Runner with Singleton] {
           listen(b, "click")(_ => choose(Chosen.plain(a.name)))).map(_ => b)
       }
     case schema =>
-      val inputs = new Inputs(words)
+      val inputs = new Inputs(words, a.more)
       drawn.forms = inputs :: drawn.forms
       for {
         submit <- button("submit", Role.Action.classes)(List(txt(a.label)))
@@ -117,7 +121,9 @@ trait Drawing[F <: Runner with Singleton] {
   }
 
   /** the inputs of a form, kept by path, read at submit */
-  final class Inputs(words: Words) {
+  final class Inputs(words: Words, val more: Set[String] = Set.empty) {
+    /** the form's Options, the `<details>` of the fields held back, once drawn */
+    var options: Option[dom.Node] = None
     private val inputs = scala.collection.mutable.Map.empty[List[String], dom.Node]
     private val selects = scala.collection.mutable.Map.empty[List[String], dom.Node]
     private val areas = scala.collection.mutable.Map.empty[List[String], dom.Node]
@@ -127,6 +133,17 @@ trait Drawing[F <: Runner with Singleton] {
     def controls: List[(List[String], dom.Node)] = (inputs ++ selects ++ areas).toList
 
     def of(path: List[String], schema: Schema, field: Option[Schema.Field] = None): dom.Node ! W = schema match {
+      case Schema.Record(fs) if path.isEmpty && fs.exists(f => more(f.name)) =>
+        // the fields held back, under Options at the end: closed, opened by a problem naming one of them
+        val (held, shown) = fs.partition(f => more(f.name))
+        for {
+          details <- el("details", cls(Role.More.classes))(el("summary")(List(txt(words.options))) ::
+            held.toList.map(f => of(path :+ f.name, f.schema, Some(f))))
+          _ <- later { options = Some(details); unit }
+          set <- el("fieldset")(
+            field.flatMap(_.label).orElse(field.map(_.name)).toList.map(l => el("legend")(List(txt(l)))) ++
+              shown.toList.map(f => of(path :+ f.name, f.schema, Some(f))) :+ node(details))
+        } yield set
       case Schema.Record(fs) => el("fieldset")(
           field.flatMap(_.label).orElse(field.map(_.name)).toList.map(l => el("legend")(List(txt(l)))) ++
             fs.toList.map(f => of(path :+ f.name, f.schema, Some(f))))

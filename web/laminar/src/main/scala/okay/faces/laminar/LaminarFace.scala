@@ -137,7 +137,8 @@ class LaminarFace[F <: Runner with Singleton](implicit val fx: F) {
           else None
           div(notices, sectionTag(cls := Role.View.classes, Views.element(w.view, ref)), problems,
             navTag(cls := Role.Actions.classes,
-              w.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(w, _), busy, words)), backButton))
+              w.actions.filterNot(_.name == "ref").map(a =>
+                Forms.action(a, choose(w, _), busy, state.signal.map(_.problems).distinct, words)), backButton))
       }
     }
   }
@@ -187,12 +188,16 @@ object Forms {
     action(a, choose, Val(busy), Words.english)
   /** `busy` a signal: a call going out disables the form, and does not draw it again — what was typed stays */
   def action[A](a: Action[A], choose: Chosen => Unit, busy: Signal[Boolean], words: Words): HtmlElement =
+    action(a, choose, busy, Val(Nil), words)
+  /** `problems` the step's: one naming a field the form holds back opens its Options */
+  def action[A](a: Action[A], choose: Chosen => Unit, busy: Signal[Boolean], problems: Signal[Problems],
+    words: Words): HtmlElement =
     a.params.erased match {
       case Schema.Record(fields) if fields.isEmpty =>
         button(typ := "button", cls := Role.Action.classes, dataAttr("action") := a.name, disabled <-- busy, a.label,
           onClick --> Observer[dom.MouseEvent](_ => choose(Chosen.plain(a.name))))
       case schema =>
-        val inputs = new Inputs(words)
+        val inputs = new Inputs(words, a.more, problems)
         val body = inputs.of(Nil, schema)
         form(cls := Role.Form.classes, dataAttr("action") := a.name, a.doc.map(d => p(cls := Role.Doc.classes, d)),
           body,
@@ -201,7 +206,8 @@ object Forms {
     }
 
   /** the inputs of a form, kept by path, read at submit */
-  final class Inputs(words: Words = Words.english) {
+  final class Inputs(words: Words = Words.english, more: Set[String] = Set.empty,
+    problems: Signal[Problems] = Val(Nil)) {
     private val inputs = scala.collection.mutable.Map.empty[List[String], ReactiveHtmlElement[dom.html.Input]]
     private val selects = scala.collection.mutable.Map.empty[List[String], ReactiveHtmlElement[dom.html.Select]]
     private val areas = scala.collection.mutable.Map.empty[List[String], ReactiveHtmlElement[dom.html.TextArea]]
@@ -209,6 +215,16 @@ object Forms {
     private def id(path: List[String]) = "f" + path.map("-" + _).mkString
 
     def of(path: List[String], schema: Schema, field: Option[Schema.Field] = None): HtmlElement = schema match {
+      case Schema.Record(fs) if path.isEmpty && fs.exists(f => more(f.name)) =>
+        // the fields held back, under Options at the end: closed, opened by a problem naming one of them
+        val (held, shown) = fs.partition(f => more(f.name))
+        fieldSet(field.flatMap(_.label).orElse(field.map(_.name)).map(l => legend(l)),
+          shown.map(f => of(path :+ f.name, f.schema, Some(f))),
+          detailsTag(cls := Role.More.classes, summaryTag(words.options),
+            held.map(f => of(path :+ f.name, f.schema, Some(f))),
+            inContext(d => problems --> Observer[Problems](ps =>
+              if (ps.exists(_.path.headOption.exists(more)))
+                d.ref.asInstanceOf[scala.scalajs.js.Dynamic].open = true))))
       case Schema.Record(fs) => fieldSet(field.flatMap(_.label).orElse(field.map(_.name)).map(l => legend(l)),
           fs.map(f => of(path :+ f.name, f.schema, Some(f))))
       case Schema.Described(of0, label0, doc) =>

@@ -121,7 +121,18 @@ class SameMarkupSuite extends munit.FunSuite {
     field("kind", Shape.choice("tea" -> "tea", "milk" -> "milk")), field("gift", Shape.bool))(Item(_, _, _, _))(i =>
     (i.qty, i.price, i.kind, i.gift))
 
+  final case class Trip(to: String, seats: Int, by: String)
+  val trip: Shape[Trip] = record(field("to", text).labelled("To"),
+    field("seats", int.check("one at least")(_ >= 1)).labelled("Seats").withDefault(1),
+    field("by", Shape.choice("train" -> "train", "bus" -> "bus")).labelled("By"))(Trip(_, _, _))(t =>
+    (t.to, t.seats, t.by))
+  val book: Action[Trip] = Action[Trip, Trip]("book", "Book", trip)(t => t).withMore("seats", "by")
+
   val scenarios: List[Scenario] = List(
+    Scenario("fields held back under Options: closed, a problem naming one opens them, the next step",
+      _.steps(offer[Trip, F](View.heading("A trip"), List(book)).flatMap(t => show[F](View.text(t.toString)))),
+      List(both(typeInto("f-to", "Lviv"), typeInto("f-seats", "0"), submit("book")),
+        both(typeInto("f-seats", "2"), submit("book")))),
     Scenario("a form, a problem kept with what was typed, the next step with back, the end",
       _.steps(greeting),
       List(both(typeInto("f-name", "Ann"), typeInto("f-age", "3"), submit("submit")),

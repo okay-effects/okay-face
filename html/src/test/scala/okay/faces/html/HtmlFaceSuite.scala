@@ -76,6 +76,27 @@ class HtmlFaceSuite extends munit.FunSuite {
       """{"name":"Ann","ok":false,"pet":"cat","tags":["x","y"],"home":{"city":"Kyiv"},"kind":{"type":"a","x":7}}""")
     assert(Forms.field(Nil, schema, None).contains("""<select name="kind.type""""))
   }
+  test("fields held back under Options, last in the fieldset; closed, open when a problem names one") {
+    final case class Trip(to: String, seats: Int)
+    val trip: Shape[Trip] = record(field("to", text).labelled("To"), field("seats", int).labelled("Seats")
+      .withDefault(1))(Trip(_, _))(t => (t.to, t.seats))
+    val book = okay.faces.Action[Trip, Trip]("book", "Book", trip)(t => t).withMore("seats")
+    val closed = Forms.action(book, "/s/s1")
+    assert(closed.contains("""<details class="okay-more"><summary>Options</summary>"""), closed)
+    assert(closed.indexOf("f-to") < closed.indexOf("<details"), closed)
+    assert(closed.indexOf("f-seats") > closed.indexOf("<details"), closed)
+    assert(closed.contains("</details></fieldset>"), closed)
+    val opened = Forms.action(book, "/s/s1", problems = List(okay.effects.shape.Problem(List("seats"), "no")))
+    assert(opened.contains("""<details class="okay-more" open="">"""), opened)
+    // a problem of a field shown leaves Options closed
+    assert(!Forms.action(book, "/s/s1", problems = List(okay.effects.shape.Problem(List("to"), "no")))
+      .contains("open="))
+    // the wire carries it, and back
+    val a = book.affordance
+    assertEquals(okay.faces.Affordance.decode(a.json), Right(a))
+    assertEquals(a.more, Set("seats"))
+    assertEquals(a.action.more, Set("seats"))
+  }
   test("the stylesheet served, compiled from the look; a dark look is another stylesheet") {
     val css = talk(Request.get("/okay.css")).head
     assertEquals(css.status, 200); assertEquals(css.headers("Content-Type"), "text/css; charset=utf-8")

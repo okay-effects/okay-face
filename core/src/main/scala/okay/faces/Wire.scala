@@ -10,11 +10,13 @@ import okay.effects.shape.{Schema, Shape}
  * `Chosen`. `Affordance.action` is the client's `Action`: structural over the schema, so a choice is checked where it
  * is made before it travels.
  */
-final case class Affordance(name: String, label: String, doc: Option[String], params: Schema) {
+final case class Affordance(name: String, label: String, doc: Option[String], params: Schema,
+  more: Set[String] = Set.empty) {
   def json: Json = Json.Obj(Vector("name" -> Json.Str(name), "label" -> Json.Str(label)) ++ doc.map(d =>
-    "doc" -> Json.Str(d)) :+ ("params" -> Schema.shape.encode(params)))
+    "doc" -> Json.Str(d)) ++ Option.when(more.nonEmpty)("more" -> Json.Arr(more.toVector.sorted.map(Json.Str(_)))) :+
+    ("params" -> Schema.shape.encode(params)))
   /** the action a client offers: the arguments checked against the schema, kept as JSON */
-  def action: Action[Json] = Action[Json, Json](name, label, Schema.structural(params), doc)(j => j)
+  def action: Action[Json] = Action.of[Json, Json](name, label, Schema.structural(params), doc, more)(j => j)
 }
 object Affordance {
   def decode(j: Json): Either[String, Affordance] = j match {
@@ -22,7 +24,8 @@ object Affordance {
         name <- str(o, "name"); label <- str(o, "label")
         params <- o.get("params").toRight("no params").flatMap(p =>
           Schema.shape.decode(p).left.map(okay.effects.shape.Problem.render))
-      } yield Affordance(name, label, o.get("doc").collect { case Json.Str(d) => d }, params)
+      } yield Affordance(name, label, o.get("doc").collect { case Json.Str(d) => d }, params,
+        o.get("more").collect { case Json.Arr(ns) => ns.collect { case Json.Str(n) => n }.toSet }.getOrElse(Set.empty))
     case other => Left(s"an affordance is an object, not ${Json.kind(other)}")
   }
   private def str(o: Json.Obj, k: String): Either[String, String] =

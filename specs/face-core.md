@@ -240,10 +240,34 @@ object Action {
   def apply[P, A](name: String, label: String, params: Shape[P], doc: Option[String] = None)(make: P => A): Action[A]
   def plain[A](name: String, label: String, doc: Option[String] = None)(a: => A): Action[A]   // no parameters
 }
+// def more: Set[String]  — the fields a form holds back, under Options; `withMore(names: String*)` (see below)
 ```
 
 A list of actions is the affordances of the current state: Delphi's enabled buttons, HATEOAS links, an MCP tool list.
 An action's `Shape` is its form, its `inputSchema`, its flags.
+
+#### Fields held back: `more` — DECIDED 2026-10-24
+
+An action may hold some of its parameters BACK: `Action(...).withMore("follow", "method")`, or `more = Set(...)` given
+to `Action.apply`. `more: Set[String]` names top-level fields of the parameters' record (a name that is no field is
+ignored); they are the ones a person rarely changes, their defaults right for most choices. Nothing about the values
+changes: the shape decodes the same arguments, a held-back field is as required or optional as it was, and its default
+is what is sent when the person does not open them. It is a word about how a form is drawn, so it lives on the action,
+not in okay-simple's `Shape` (the shape is the data's; which fields come first is the form's). It crosses the wire on
+the `Affordance` (`"more": ["follow", "method"]`, left out when empty), so a remote face draws it as a local one does.
+
+Each face draws it its own way:
+
+- Laminar, the DOM face and the HTML face: the held-back fields inside `<details class="okay-more"><summary>Options
+  </summary>…</details>`, the last thing in the form's top fieldset, after the fields shown; closed by default. A
+  rejected choice whose problems name a held-back field (a problem's path starting with its name) opens it, so the
+  field with the problem is seen; nothing closes it but the person. The word is the face's: `Words.options`. Role
+  `More` (`okay-more`) for a look. The DOM face's markup stays Laminar's (the same-markup suite plays a form with one).
+- The terminal: as before, every field asked in order, the default offered — a prompt that skipped them would hide a
+  question with no way to open it.
+- Swing: as before, every field in the dialog.
+- MCP: as before; the tool's `inputSchema` is the schema, and an agent reads every field.
+- REST: the affordance carries `more`, which the remote faces draw; the resource itself is otherwise as before.
 
 ## The effect
 

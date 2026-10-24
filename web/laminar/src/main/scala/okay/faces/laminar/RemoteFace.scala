@@ -69,7 +69,8 @@ class RemoteFace(transport: Request => Future[Response], poll: Int = 1000,
         div(sectionTag(cls := Role.View.classes, Views.element(s.view, ref)), problems,
           if (s.done) div(cls := "okay-done", words.done)
           else navTag(cls := Role.Actions.classes,
-            s.actions.filterNot(_.name == "ref").map(a => Forms.action(a, choose(state.now(), _), busy, words)),
+            s.actions.filterNot(_.name == "ref").map(a =>
+              Forms.action(a, choose(state.now(), _), busy, state.signal.map(_.problems).distinct, words)),
             backButton))
       })
   }

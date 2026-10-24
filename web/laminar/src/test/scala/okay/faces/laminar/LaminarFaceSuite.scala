@@ -86,6 +86,33 @@ class LaminarFaceSuite extends munit.FunSuite {
     assert(root.innerHTML.contains("Hello, Ann!"), root.innerHTML)
     assertEquals(result, Some("greeted Ann"))
   }
+  test("fields held back under Options: closed, their defaults sent; a problem naming one opens them") {
+    final case class Trip(to: String, seats: Int, by: String)
+    val trip: Shape[Trip] = record(field("to", text).labelled("To"),
+      field("seats", int.check("one at least")(_ >= 1)).labelled("Seats").withDefault(1),
+      field("by", Shape.choice("train" -> "train", "bus" -> "bus")).labelled("By"))(Trip(_, _, _))(t =>
+      (t.to, t.seats, t.by))
+    val book = Action[Trip, Trip]("book", "Book", trip)(t => t).withMore("seats", "by")
+    var got = Option.empty[Trip]
+    val root = mounted(face.element(steps[Trip, F, Void](offer[Trip, F](View.heading("A trip"), List(book))),
+      (t: Trip) => got = Some(t)))
+    val details = q(root, "form[data-action=book] > fieldset > details.okay-more")
+    assertEquals(q(details, "summary").textContent, "Options")
+    assert(!details.asInstanceOf[scala.scalajs.js.Dynamic].open.asInstanceOf[Boolean])
+    assert(details.querySelector("#f-to") == null, root.innerHTML) // the field shown is outside
+    q(details, "#f-seats"); q(details, "#f-by")
+    // last in the fieldset
+    assertEquals(details.parentElement.lastElementChild, details: dom.Element)
+    typeInto(root, "f-seats", "0")
+    typeInto(root, "f-to", "Lviv")
+    submit(root, "book")
+    assert(root.innerHTML.contains("one at least"), root.innerHTML)
+    assert(details.asInstanceOf[scala.scalajs.js.Dynamic].open.asInstanceOf[Boolean], "a problem opens Options")
+    typeInto(root, "f-seats", "1")
+    submit(root, "book")
+    assertEquals(got, Some(Trip("Lviv", 1, "train")))
+  }
+
   test("back re-resumes the previous step") {
     val root = mounted(face.element(steps[String, F, Void](greeting)))
     typeInto(root, "f-name", "Bo"); typeInto(root, "f-age", "20")
