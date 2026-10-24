@@ -46,7 +46,7 @@ libraryDependencies ++= Seq(
    # the first time: git worktree add --orphan -b gh-pages /tmp/okay-faces-pages
    git worktree add /tmp/okay-faces-pages gh-pages
    mkdir -p /tmp/okay-faces-pages/maven
-   rsync -a target/pages-maven/ /tmp/okay-faces-pages/maven/
+   rsync -ac target/pages-maven/ /tmp/okay-faces-pages/maven/   # -c: a republished checksum keeps its size
    touch /tmp/okay-faces-pages/.nojekyll
    git -C /tmp/okay-faces-pages add -A
    git -C /tmp/okay-faces-pages commit -m "release 0.1.0"
